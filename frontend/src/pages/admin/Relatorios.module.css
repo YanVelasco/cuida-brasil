@@ -1,0 +1,45 @@
+﻿.topBar { margin-bottom: 14px; }
+.title { font-size: 1.3rem; font-weight: 700; }
+
+.periodBar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.periodTabs { display: flex; border: 1.5px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.periodTab { padding: 7px 14px; font-size: 0.8rem; font-weight: 500; background: var(--surface); color: var(--text-secondary); border: none; transition: all 0.15s; }
+.periodActive { background: var(--primary); color: #fff; }
+.customRange { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-muted); }
+.dateInput { padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 0.8rem; background: var(--surface); }
+.exportBtn { margin-left: auto; background: var(--primary); color: #fff; padding: 7px 18px; border-radius: var(--radius-md); font-size: 0.82rem; font-weight: 600; }
+
+.kpis { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 18px; }
+.kpiCard { background: var(--surface); border: 1.5px solid var(--border); border-top: 3px solid; border-radius: var(--radius-md); padding: 14px 16px; box-shadow: var(--shadow-sm); }
+.kpiCard.gray  { border-top-color: var(--text-muted); }
+.kpiCard.green { border-top-color: var(--success); }
+.kpiCard.orange { border-top-color: var(--warning); }
+.kpiCard.yellow { border-top-color: var(--yellow); }
+.kpiLabel { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 6px; }
+.kpiVal { font-size: 1.8rem; font-weight: 800; margin-bottom: 4px; }
+.kpiSub { font-size: 0.75rem; color: var(--text-muted); }
+
+.chartGrid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; margin-bottom: 14px; }
+.chartCard, .catCard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px; box-shadow: var(--shadow-sm); }
+.chartCard h3, .catCard h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 14px; }
+.legend { display: flex; gap: 14px; margin-top: 8px; }
+.legendItem { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: var(--text-muted); }
+.ldot { width: 10px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+
+.catTable { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.catTable th { text-align: left; padding: 6px 8px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+.catTable td { padding: 8px 8px; border-bottom: 1px solid var(--border); }
+.catTable tr:last-child td { border-bottom: none; }
+
+.slaCard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px; box-shadow: var(--shadow-sm); }
+.slaHeader { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.slaHeader h3 { font-size: 0.9rem; font-weight: 700; }
+.slaSub { font-size: 0.78rem; color: var(--text-muted); }
+.slaGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; }
+.slaRow { display: flex; align-items: center; gap: 10px; }
+.slaName { width: 90px; flex-shrink: 0; font-size: 0.82rem; font-weight: 500; }
+.slaBar { flex: 1; height: 10px; background: var(--border); border-radius: var(--radius-full); overflow: hidden; }
+.slaFill { height: 100%; border-radius: var(--radius-full); }
+.slaPct { width: 35px; font-size: 0.78rem; font-weight: 700; text-align: right; }
+
+@media (max-width: 900px) { .kpis { grid-template-columns: repeat(2,1fr); } .chartGrid { grid-template-columns: 1fr; } .slaGrid { grid-template-columns: 1fr; } }

@@ -1,0 +1,14 @@
+﻿.container {
+  max-width: 480px; margin: 0 auto;
+  background: var(--surface); min-height: 100vh;
+  display: flex; flex-direction: column;
+  position: relative; overflow-x: hidden;
+  box-shadow: 0 0 40px rgba(0,0,0,0.1);
+}
+.header {
+  background: var(--secondary);
+  padding: 16px 20px 12px;
+  position: sticky; top: 0; z-index: 40;
+}
+.title { color: #fff; font-size: 1rem; font-weight: 700; }
+.content { flex: 1; padding-bottom: 80px; }

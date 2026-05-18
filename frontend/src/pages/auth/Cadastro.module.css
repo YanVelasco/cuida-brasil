@@ -1,0 +1,10 @@
+﻿.page { min-height: 100vh; background: linear-gradient(145deg, #0f172a, #1e3a8a); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+.header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; color: #fff; }
+.logo { width: 48px; height: 48px; border-radius: 12px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+.header h1 { font-size: 1.3rem; font-weight: 700; }
+.card { width: 100%; max-width: 440px; background: var(--surface); border-radius: var(--radius-xl); padding: 36px; box-shadow: var(--shadow-lg); }
+.card h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 6px; }
+.card p { color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 24px; }
+.form { display: flex; flex-direction: column; gap: 14px; }
+.error { background: var(--danger-light); color: #991b1b; padding: 10px 14px; border-radius: var(--radius-md); font-size: 0.85rem; }
+.login { text-align: center; margin-top: 20px; font-size: 0.85rem; color: var(--text-secondary); }

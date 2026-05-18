@@ -1,0 +1,103 @@
+﻿.page { display: flex; min-height: 100vh; }
+
+/* Left splash panel */
+.splash {
+  width: 460px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, #0B192E 0%, #1351B4 60%, #0d5fd4 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 40px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.splash::before {
+  content: '';
+  position: absolute;
+  width: 300px; height: 300px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  bottom: -80px; right: -60px;
+}
+.illustration { margin-bottom: 28px; }
+.brandName {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.plus { color: #F2C94C; }
+.brandLocation {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.brandTagline {
+  font-size: 0.95rem;
+  color: rgba(255,255,255,0.75);
+  line-height: 1.5;
+  max-width: 280px;
+}
+
+/* Right form panel */
+.formPanel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  background: #f5f7fb;
+}
+.card {
+  width: 100%;
+  max-width: 380px;
+}
+.cardTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.brandInline { color: var(--primary); }
+.cardSub {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+.form { display: flex; flex-direction: column; gap: 14px; margin-bottom: 12px; }
+.error {
+  background: #FEE8E8;
+  color: #C0392B;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  font-size: 0.83rem;
+}
+.register {
+  text-align: center;
+  margin-top: 16px;
+  font-size: 0.83rem;
+  color: var(--text-secondary);
+}
+.register a { color: var(--primary); font-weight: 600; }
+.terms {
+  text-align: center;
+  margin-top: 8px;
+  font-size: 0.73rem;
+  color: var(--text-muted);
+}
+.terms a { color: var(--text-muted); text-decoration: underline; }
+
+@media (max-width: 768px) {
+  .splash { display: none; }
+  .formPanel { background: var(--surface); padding: 24px 20px; }
+}

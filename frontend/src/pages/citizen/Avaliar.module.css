@@ -1,0 +1,16 @@
+﻿.header { background: var(--secondary); padding: 24px 20px 16px; }
+.header h1 { color: #fff; font-size: 1rem; font-weight: 700; }
+.header p { color: rgba(255,255,255,0.6); font-size: 0.82rem; margin-top: 4px; }
+.form { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+.rateItem p { font-weight: 600; font-size: 0.9rem; margin-bottom: 8px; }
+.stars { display: flex; gap: 6px; }
+.star { background: none; border: none; color: #e2e8f0; cursor: pointer; transition: transform 0.1s; padding: 0; }
+.star:hover { transform: scale(1.15); }
+.starActive { color: #f59e0b; }
+.field label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+.textarea { width: 100%; padding: 11px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-md); font-size: 0.9rem; resize: none; background: var(--surface); color: var(--text-primary); }
+.textarea:focus { border-color: var(--primary); outline: none; }
+.success { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 40px; text-align: center; gap: 16px; }
+.icon { font-size: 3rem; }
+.success h2 { font-size: 1.3rem; font-weight: 700; }
+.success p { color: var(--text-secondary); max-width: 260px; }

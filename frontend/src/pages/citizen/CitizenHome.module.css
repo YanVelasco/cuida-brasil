@@ -1,0 +1,107 @@
+﻿/* Header */
+.header {
+  background: linear-gradient(180deg, #1351B4 0%, #2F80ED 100%);
+  padding: 16px 20px 12px;
+}
+.headerTop { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.logoRow { display: flex; align-items: center; gap: 8px; }
+.logoIcon { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; font-size: 0.8rem; }
+.logoText { color: rgba(255,255,255,0.9); font-size: 0.82rem; font-weight: 600; }
+.bellBtn { background: rgba(255,255,255,0.15); border: none; color: rgba(255,255,255,0.9); width: 34px; height: 34px; border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; }
+
+.userRow { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.userAvatar { width: 40px; height: 40px; border-radius: var(--radius-full); background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.4); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 1rem; }
+.userGreet { color: rgba(255,255,255,0.7); font-size: 0.78rem; }
+.userName { color: #fff; font-size: 1rem; font-weight: 700; }
+
+.statsBar { display: flex; gap: 0; background: rgba(255,255,255,0.12); border-radius: var(--radius-md); overflow: hidden; }
+.statItem { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 8px; border-right: 1px solid rgba(255,255,255,0.15); }
+.statItem:last-child { border-right: none; }
+.statValue { font-size: 1.2rem; font-weight: 800; color: #fff; }
+.statLabel { font-size: 0.65rem; color: rgba(255,255,255,0.7); margin-top: 2px; }
+
+/* Banner */
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 14px;
+  padding: 16px 18px;
+  background: #F2C94C;
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  transition: filter 0.2s;
+}
+.banner:hover { filter: brightness(0.95); text-decoration: none; }
+.bannerTitle { font-size: 0.95rem; font-weight: 700; color: #1A1A2E; }
+.bannerSub { font-size: 0.78rem; color: rgba(26,26,46,0.7); margin-top: 2px; }
+.bannerArrow { font-size: 1.2rem; color: #1A1A2E; }
+
+/* Section */
+.section { padding: 0 14px 80px; }
+.sectionHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; margin-top: 6px; }
+.sectionTitle { font-size: 0.9rem; font-weight: 700; }
+.verTodas { font-size: 0.78rem; color: var(--primary); font-weight: 500; background: none; border: none; }
+
+/* Cards */
+.card {
+  display: block;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-bottom: 8px;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid var(--border);
+  transition: box-shadow 0.2s;
+}
+.card:hover { box-shadow: var(--shadow-md); text-decoration: none; }
+.cardTop { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.cardInfo { flex: 1; min-width: 0; }
+.cardTitle { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+.cardLocal { font-size: 0.75rem; color: var(--text-muted); }
+.statusBadge { font-size: 0.72rem; font-weight: 600; padding: 4px 10px; border-radius: var(--radius-sm); border: 1px solid; white-space: nowrap; flex-shrink: 0; }
+
+/* Bottom Nav */
+.bottomNav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 6px 0 14px;
+  z-index: 50;
+}
+.navItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 4px 14px;
+  border-radius: var(--radius-md);
+  transition: color 0.2s;
+}
+.navItem:hover { color: var(--primary); text-decoration: none; }
+.navIcon { font-size: 1.2rem; line-height: 1; }
+.navLabel { font-size: 0.65rem; font-weight: 500; }
+.navSpecial {
+  background: var(--primary);
+  color: #fff !important;
+  border-radius: var(--radius-full);
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: -20px;
+  box-shadow: 0 4px 12px rgba(47,128,237,0.4);
+  padding: 0;
+}

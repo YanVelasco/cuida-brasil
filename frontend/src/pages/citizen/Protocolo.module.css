@@ -1,0 +1,23 @@
+﻿.header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: var(--secondary); }
+.header h1 { font-size: 1rem; font-weight: 700; color: #fff; }
+.back { background: rgba(255,255,255,0.1); border: none; color: #fff; width: 36px; height: 36px; border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; }
+.protBox { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: var(--primary-light); border-bottom: 1px solid var(--border); }
+.protCode { font-size: 1rem; font-weight: 700; color: var(--primary); font-family: monospace; }
+.infoCard { margin: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; display: flex; flex-direction: column; gap: 8px; }
+.infoCard h3 { font-size: 1rem; font-weight: 700; }
+.sub { font-size: 0.82rem; color: var(--text-secondary); }
+.cat { background: var(--background); color: var(--text-muted); font-size: 0.75rem; padding: 3px 10px; border-radius: var(--radius-full); width: fit-content; }
+.desc { font-size: 0.85rem; color: var(--text-secondary); }
+.date { display: flex; align-items: center; gap: 4px; font-size: 0.78rem; color: var(--text-muted); }
+.histSection { padding: 8px 20px 20px; }
+.histSection h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 16px; }
+.timeline { display: flex; flex-direction: column; gap: 0; }
+.timelineItem { display: flex; gap: 14px; position: relative; }
+.timelineItem::before { content:''; position: absolute; left: 9px; top: 20px; bottom: -16px; width: 1.5px; background: var(--border); z-index: 0; }
+.timelineItem:last-child::before { display: none; }
+.dot { z-index: 1; flex-shrink: 0; color: var(--text-muted); padding: 1px; }
+.dotDone { color: var(--success); }
+.timelineContent { padding-bottom: 20px; }
+.tlTitle { font-size: 0.88rem; font-weight: 500; color: var(--text-muted); }
+.tlDone { color: var(--text-primary); font-weight: 600; }
+.tlDate { font-size: 0.75rem; color: var(--text-muted); }

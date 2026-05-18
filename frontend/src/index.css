@@ -1,0 +1,67 @@
+﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  /* Brand Colors (Figma exact) */
+  --primary: #2F80ED;
+  --primary-hover: #1a6fd1;
+  --primary-light: #E8F1FD;
+  --secondary: #0B192E;
+  --sidebar-bg: #0B192E;
+  --success: #27AE60;
+  --success-light: #E8F7EE;
+  --warning: #F2994A;
+  --warning-light: #FEF3E7;
+  --danger: #EB5757;
+  --danger-light: #FEE8E8;
+  --info: #2D9CDB;
+  --info-light: #E3F4FC;
+  --yellow: #F2C94C;
+  --yellow-light: #FEF9E7;
+  --purple: #6B4EFF;
+  --gov-blue: #1351B4;
+
+  /* Neutrals */
+  --background: #F5F7FB;
+  --surface: #ffffff;
+  --text-primary: #1A1A2E;
+  --text-secondary: #4F4F4F;
+  --text-muted: #828282;
+  --text-inverse: #ffffff;
+  --border: #E0E0E0;
+
+  /* Typography */
+  --font: 'Inter', sans-serif;
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+  --shadow-lg: 0 10px 30px rgba(0,0,0,0.12);
+
+  /* Sidebar */
+  --sidebar-w: 200px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  font-family: var(--font);
+  background: var(--background);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+ul { list-style: none; }
+button { cursor: pointer; font-family: inherit; border: none; outline: none; }
+input, textarea, select { font-family: inherit; outline: none; }

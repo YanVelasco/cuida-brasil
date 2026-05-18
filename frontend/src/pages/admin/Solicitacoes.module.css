@@ -1,0 +1,24 @@
+﻿.title { font-size: 1.3rem; font-weight: 700; margin-bottom: 16px; }
+.toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
+.searchWrap { position: relative; flex: 1; max-width: 280px; }
+.searchIcon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.searchInput { width: 100%; padding: 8px 12px 8px 32px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 0.82rem; background: var(--surface); color: var(--text-primary); }
+.searchInput:focus { border-color: var(--primary); outline: none; }
+.newBtn { background: var(--primary); color: #fff; padding: 8px 16px; border-radius: var(--radius-md); font-size: 0.82rem; font-weight: 600; }
+.tableCard { background: var(--surface); border-radius: var(--radius-md); border: 1px solid var(--border); box-shadow: var(--shadow-sm); overflow: hidden; }
+.table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.table th { text-align: left; padding: 10px 14px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); background: var(--background); border-bottom: 1px solid var(--border); }
+.table td { padding: 11px 14px; border-bottom: 1px solid var(--border); }
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: #f8fafc; }
+.proto { font-family: monospace; font-size: 0.8rem; color: var(--text-primary); }
+.muted { color: var(--text-secondary); }
+.prazo { font-weight: 500; color: var(--success); }
+.urgent { color: var(--danger); font-weight: 700; }
+.viewBtn { background: var(--surface); border: 1px solid var(--border); color: var(--text-primary); padding: 4px 14px; border-radius: var(--radius-sm); font-size: 0.78rem; }
+.viewBtn:hover { border-color: var(--primary); color: var(--primary); }
+.empty { padding: 32px; text-align: center; color: var(--text-muted); font-size: 0.88rem; }
+.pagination { display: flex; align-items: center; gap: 4px; padding: 12px 14px; border-top: 1px solid var(--border); }
+.pageBtn { width: 28px; height: 28px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.82rem; background: var(--surface); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; }
+.pageActive { background: var(--primary); color: #fff; border-color: var(--primary); }
+.pageSizeSelect { margin-left: auto; padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.78rem; background: var(--surface); font-family: var(--font); }

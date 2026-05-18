@@ -1,0 +1,62 @@
+﻿.layout { display: flex; min-height: 100vh; }
+.main {
+  margin-left: var(--sidebar-w);
+  flex: 1;
+  min-height: 100vh;
+  background: var(--background);
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.topBar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.topBarBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.topBarBtn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+}
+.regionSelect {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  background: var(--surface);
+  font-family: var(--font);
+}
+.exportBtn {
+  background: var(--primary);
+  color: #fff;
+  padding: 7px 18px;
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.content { flex: 1; padding: 24px; }
