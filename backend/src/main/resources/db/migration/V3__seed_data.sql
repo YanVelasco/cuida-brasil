@@ -1,4 +1,4 @@
-﻿-- =============================================
+-- =============================================
 -- Cuidar+Brasil - V3: Dados Iniciais (Seed)
 -- =============================================
 
@@ -101,7 +101,7 @@ IF NOT EXISTS (SELECT 1 FROM TB_SOLICITACAO WHERE protocolo = 'PRO-2024-0002')
 INSERT INTO TB_SOLICITACAO (protocolo, descricao, gps, status, prioridade, id_usuario, id_servico, id_equipe) VALUES
 ('PRO-2024-0002', 'Lampada do poste apagada ha 3 semanas deixando a rua escura a noite.',
  '-23.5510,-46.6340', 'TRIAGEM', 'MEDIA',
- (SELECT TOP 1 id FROM TB_USUARIO WHERE cpf = '333.333.333-33'),
+ (SELECT TOP 1 id FROM TB_USUARIO WHERE cpf = '222.222.222-22'),
  (SELECT TOP 1 id FROM TB_SERVICO WHERE subcategoria = 'Lampada apagada'),
  NULL);
 
@@ -109,7 +109,7 @@ IF NOT EXISTS (SELECT 1 FROM TB_SOLICITACAO WHERE protocolo = 'PRO-2024-0003')
 INSERT INTO TB_SOLICITACAO (protocolo, descricao, gps, status, prioridade, id_usuario, id_servico, id_equipe) VALUES
 ('PRO-2024-0003', 'Vazamento de agua na calcada causando danos ao pavimento.',
  '-23.5520,-46.6350', 'PENDENTE', 'URGENTE',
- (SELECT TOP 1 id FROM TB_USUARIO WHERE cpf = '444.444.444-44'),
+ (SELECT TOP 1 id FROM TB_USUARIO WHERE cpf = '222.222.222-22'),
  (SELECT TOP 1 id FROM TB_SERVICO WHERE subcategoria = 'Vazamento de agua'),
  NULL);
 
@@ -125,7 +125,7 @@ IF NOT EXISTS (SELECT 1 FROM TB_SOLICITACAO WHERE protocolo = 'PRO-2024-0005')
 INSERT INTO TB_SOLICITACAO (protocolo, descricao, gps, status, prioridade, id_usuario, id_servico, id_equipe) VALUES
 ('PRO-2024-0005', 'Arvore com galhos podres ameacando cair sobre residencias.',
  '-23.5500,-46.6320', 'EM_CAMPO', 'ALTA',
- (SELECT TOP 1 id FROM TB_USUARIO WHERE cpf = '333.333.333-33'),
+ (SELECT TOP 1 id FROM TB_USUARIO WHERE cpf = '222.222.222-22'),
  (SELECT TOP 1 id FROM TB_SERVICO WHERE subcategoria = 'Arvore caida'),
  (SELECT TOP 1 id FROM TB_EQUIPE_PUBLICA WHERE nome = 'Equipe Poda 01'));
 
