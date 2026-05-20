@@ -1,4 +1,4 @@
-﻿.topBar {
+.topBar {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -196,7 +196,7 @@
   border-bottom: 1px solid var(--border);
 }
 .table td { padding: 11px 14px; border-bottom: 1px solid var(--border); color: var(--text-primary); }
-.table tr:hover td { background: #f8fafc; }
+.table tr:hover td { background: rgba(255,255,255,0.04); }
 .table tr:last-child td { border-bottom: none; }
 .proto { font-family: monospace; font-weight: 600; color: var(--text-primary); }
 .muted { color: var(--text-secondary); }

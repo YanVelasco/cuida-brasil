@@ -1,4 +1,4 @@
-﻿.header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: var(--secondary); }
+.header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: var(--secondary); }
 .header h1 { font-size: 1rem; font-weight: 700; color: #fff; }
 .backBtn { background: rgba(255,255,255,0.1); border: none; color: #fff; width: 36px; height: 36px; border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; }
 .form { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
@@ -11,7 +11,7 @@
 .textarea { width: 100%; padding: 11px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-md); font-size: 0.9rem; resize: vertical; background: var(--surface); color: var(--text-primary); }
 .textarea:focus { border-color: var(--primary); outline: none; }
 .mapPlaceholder { border: 2px dashed var(--border); border-radius: var(--radius-lg); padding: 32px; display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text-muted); cursor: pointer; }
-.error { background: var(--danger-light); color: #991b1b; padding: 10px; border-radius: var(--radius-md); font-size: 0.85rem; }
+.error { background: var(--danger-light); color: var(--danger); padding: 10px; border-radius: var(--radius-md); font-size: 0.85rem; }
 
 .success { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 40px; text-align: center; gap: 16px; }
 .successIcon { width: 80px; height: 80px; border-radius: var(--radius-full); background: var(--success-light); color: var(--success); font-size: 2rem; display: flex; align-items: center; justify-content: center; }

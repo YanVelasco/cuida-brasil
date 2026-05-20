@@ -1,7 +1,7 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  /* Brand Colors (Figma exact) */
+  /* Default Light Theme */
   --primary: #2F80ED;
   --primary-hover: #1a6fd1;
   --primary-light: #E8F1FD;
@@ -20,7 +20,6 @@
   --purple: #6B4EFF;
   --gov-blue: #1351B4;
 
-  /* Neutrals */
   --background: #F5F7FB;
   --surface: #ffffff;
   --text-primary: #1A1A2E;
@@ -29,9 +28,12 @@
   --text-inverse: #ffffff;
   --border: #E0E0E0;
 
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+  --shadow-lg: 0 10px 30px rgba(0,0,0,0.12);
+
   /* Typography */
   --font: 'Inter', sans-serif;
-
   /* Radius */
   --radius-sm: 4px;
   --radius-md: 8px;
@@ -39,25 +41,53 @@
   --radius-xl: 16px;
   --radius-2xl: 24px;
   --radius-full: 9999px;
-
-  /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
-  --shadow-lg: 0 10px 30px rgba(0,0,0,0.12);
-
   /* Sidebar */
   --sidebar-w: 200px;
 }
 
+[data-theme='dark'] {
+  --primary: #3B82F6;
+  --primary-hover: #2563EB;
+  --primary-light: rgba(59, 130, 246, 0.15);
+  --secondary: #0F172A;
+  --sidebar-bg: #0B1121;
+  --success: #10B981;
+  --success-light: rgba(16, 185, 129, 0.15);
+  --warning: #F59E0B;
+  --warning-light: rgba(245, 158, 11, 0.15);
+  --danger: #EF4444;
+  --danger-light: rgba(239, 68, 68, 0.15);
+  --info: #0EA5E9;
+  --info-light: rgba(14, 165, 233, 0.15);
+  --yellow: #FACC15;
+  --yellow-light: rgba(250, 204, 21, 0.15);
+  --purple: #8B5CF6;
+  --gov-blue: #1E3A8A;
+
+  --background: #0B1121;
+  --surface: #131E3A;
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
+  --text-inverse: #0B1121;
+  --border: #1E293B;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg: 0 10px 30px rgba(0,0,0,0.6);
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html, body {
+html { transition: background-color 0.3s ease, color 0.3s ease; }
+body {
   font-family: var(--font);
   background: var(--background);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
   min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 a { color: var(--primary); text-decoration: none; }

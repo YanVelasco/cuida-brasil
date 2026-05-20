@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ocorrenciaService } from '../../services/api';
 import MobileLayout from '../../components/layout/MobileLayout';
-import { Home, Plus, MapPin, User, Bell, LogOut } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
+import { Home, Plus, MapPin, User, Bell, LogOut, Moon, Sun } from 'lucide-react';
 import styles from './CitizenHome.module.css';
 
 const MOCK = [
@@ -13,20 +14,16 @@ const MOCK = [
 ];
 
 const STATUS_STYLE = {
-  'Em Andamento': { bg: '#E8F1FD', color: '#2F80ED', border:'#2F80ED' },
-  'Em Análise':   { bg: '#FEF3E7', color: '#F2994A', border:'#F2994A' },
-  'Resolvido':    { bg: '#E8F7EE', color: '#27AE60', border:'#27AE60' },
+  'Em Andamento': { bg: 'var(--primary-light)', color: 'var(--primary)', border:'var(--primary)' },
+  'Em Análise':   { bg: 'var(--warning-light)', color: 'var(--warning)', border:'var(--warning)' },
+  'Resolvido':    { bg: 'var(--success-light)', color: 'var(--success)', border:'var(--success)' },
 };
 
-const NAV_ICONS = [
-  { icon: '⊞', label: 'Home', to: '/app' },
-  { icon: '◻', label: 'Novo', to: '/app/nova-solicitacao', special: true },
-  { icon: '📍', label: 'Mapa', to: '/app/protocolo' },
-  { icon: '👤', label: 'Perfil', to: '/app/avaliar' },
-];
+
 
 export default function CitizenHome() {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [ocorrencias, setOcorrencias] = useState(MOCK);
 
   useEffect(() => {
@@ -36,7 +33,7 @@ export default function CitizenHome() {
   }, []);
 
   return (
-    <MobileLayout hideNav>
+    <MobileLayout>
       {/* Top header */}
       <div className={styles.header}>
         <div className={styles.headerTop}>
@@ -88,6 +85,9 @@ export default function CitizenHome() {
             </div>
           </div>
           <div className={styles.headerActions}>
+            <button className={styles.iconBtn} onClick={toggleTheme} title="Alternar Tema">
+              {theme === 'light' ? <Moon size={18}/> : <Sun size={18}/>}
+            </button>
             <button className={styles.iconBtn}><Bell size={18}/></button>
             <button className={styles.iconBtn} onClick={logout} title="Sair"><LogOut size={18}/></button>
           </div>
@@ -144,15 +144,6 @@ export default function CitizenHome() {
         })}
       </div>
 
-      {/* Bottom Nav */}
-      <nav className={styles.bottomNav}>
-        {NAV_ICONS.map((n, i) => (
-          <Link key={i} to={n.to} className={[styles.navItem, n.special ? styles.navSpecial : ''].join(' ')}>
-            <span className={styles.navIcon}>{n.icon}</span>
-            {!n.special && <span className={styles.navLabel}>{n.label}</span>}
-          </Link>
-        ))}
-      </nav>
     </MobileLayout>
   );
 }

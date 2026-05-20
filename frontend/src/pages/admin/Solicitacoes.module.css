@@ -1,4 +1,4 @@
-﻿.title { font-size: 1.3rem; font-weight: 700; margin-bottom: 16px; }
+.title { font-size: 1.3rem; font-weight: 700; margin-bottom: 16px; }
 .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
 .searchWrap { position: relative; flex: 1; max-width: 280px; }
 .searchIcon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
@@ -10,7 +10,7 @@
 .table th { text-align: left; padding: 10px 14px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); background: var(--background); border-bottom: 1px solid var(--border); }
 .table td { padding: 11px 14px; border-bottom: 1px solid var(--border); }
 .table tr:last-child td { border-bottom: none; }
-.table tr:hover td { background: #f8fafc; }
+.table tr:hover td { background: rgba(255,255,255,0.04); }
 .proto { font-family: monospace; font-size: 0.8rem; color: var(--text-primary); }
 .muted { color: var(--text-secondary); }
 .prazo { font-weight: 500; color: var(--success); }
