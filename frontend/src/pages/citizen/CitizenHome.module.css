@@ -1,13 +1,37 @@
-﻿/* Header */
+/* Header */
 .header {
   background: linear-gradient(180deg, #1351B4 0%, #2F80ED 100%);
   padding: 16px 20px 12px;
 }
-.headerTop { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.logoRow { display: flex; align-items: center; gap: 8px; }
-.logoIcon { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; font-size: 0.8rem; }
-.logoText { color: rgba(255,255,255,0.9); font-size: 0.82rem; font-weight: 600; }
-.bellBtn { background: rgba(255,255,255,0.15); border: none; color: rgba(255,255,255,0.9); width: 34px; height: 34px; border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; }
+.headerTop { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.logoRow { display: flex; align-items: center; gap: 10px; }
+.logoIllustration { 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+.logoTextWrapper { display: flex; flex-direction: column; }
+.logoText { color: #fff; font-size: 0.95rem; font-weight: 800; text-shadow: 0 1px 2px rgba(0,0,0,0.3); line-height: 1.1; }
+.logoSub { color: rgba(255,255,255,0.7); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-top: 2px; }
+
+.headerActions { display: flex; gap: 8px; align-items: center; }
+.iconBtn { 
+  background: rgba(255,255,255,0.15); 
+  border: none; 
+  color: #fff; 
+  width: 34px; 
+  height: 34px; 
+  border-radius: var(--radius-full); 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.iconBtn:hover {
+  background: rgba(255,255,255,0.25);
+}
 
 .userRow { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .userAvatar { width: 40px; height: 40px; border-radius: var(--radius-full); background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.4); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 1rem; }
