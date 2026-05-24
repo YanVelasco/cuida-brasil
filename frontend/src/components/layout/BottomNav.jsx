@@ -1,4 +1,4 @@
-﻿import { NavLink } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { Home, Plus, FileText, Star } from 'lucide-react';
 import styles from './BottomNav.module.css';
 

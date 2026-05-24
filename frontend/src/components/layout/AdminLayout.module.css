@@ -1,4 +1,4 @@
-﻿.layout { display: flex; min-height: 100vh; }
+.layout { display: flex; min-height: 100vh; }
 .main {
   margin-left: var(--sidebar-w);
   flex: 1;
@@ -7,6 +7,7 @@
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
+  transition: margin-left 0.3s ease;
 }
 .topBar {
   background: var(--surface);
@@ -19,6 +20,9 @@
   position: sticky;
   top: 0;
   z-index: 50;
+}
+.menuToggle {
+  display: none;
 }
 .topBarBtn {
   display: flex;
@@ -60,3 +64,92 @@
   font-weight: 600;
 }
 .content { flex: 1; padding: 24px; }
+
+/* Backdrop */
+.sidebarBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 95;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 768px) {
+  .main {
+    margin-left: 0;
+  }
+  
+  .topBar {
+    padding: 10px 16px;
+    gap: 8px;
+  }
+  
+  .menuToggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    color: var(--text-primary);
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: var(--radius-sm);
+    margin-right: auto;
+    transition: all 0.2s ease;
+  }
+  
+  .menuToggle:hover {
+    color: var(--primary);
+    background: rgba(255, 255, 255, 0.05);
+  }
+  
+  .topBarBtn, .regionSelect, .exportBtn {
+    font-size: 0.75rem;
+    padding: 6px 8px;
+  }
+  
+  .exportBtn {
+    padding: 6px 12px;
+  }
+  
+  .divider {
+    display: none;
+  }
+  
+  .content {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .topBar {
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  
+  /* Make sure burger is on left, select and export on right, toggle theme wraps nicely */
+  .menuToggle {
+    margin-right: 0;
+  }
+  
+  .topBarBtn {
+    /* Hide the text "Modo Claro / Modo Escuro" in tiny viewports to save space */
+    padding: 6px;
+  }
+  
+  .topBarBtn span, .topBarBtn svg + text, .topBarBtn text {
+    display: none;
+  }
+  
+  .regionSelect {
+    max-width: 110px;
+  }
+}
+

@@ -1,4 +1,4 @@
-﻿.container {
+.container {
   max-width: 480px; margin: 0 auto;
   background: var(--surface); min-height: 100vh;
   display: flex; flex-direction: column;
@@ -12,3 +12,118 @@
 }
 .title { color: #fff; font-size: 1rem; font-weight: 700; }
 .content { flex: 1; padding-bottom: 80px; }
+
+/* Desktop top header hidden by default on mobile */
+.desktopHeader {
+  display: none;
+}
+
+@media (min-width: 769px) {
+  .container {
+    max-width: 1200px;
+    margin: 30px auto;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border);
+    min-height: calc(100vh - 60px);
+  }
+
+  .desktopHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 30px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 45;
+  }
+
+  .logoRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logoTextWrapper {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .logoText {
+    font-size: 1.15rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: 0.5px;
+  }
+
+  .logoSub {
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    margin-top: 2px;
+  }
+
+  .desktopNav {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .navLink {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: var(--radius-md);
+    transition: all 0.2s ease-in-out;
+  }
+
+  .navLink:hover {
+    color: var(--primary);
+    background: var(--primary-light);
+    text-decoration: none;
+  }
+
+  .active {
+    color: var(--primary) !important;
+    background: var(--primary-light);
+  }
+  
+  .content {
+    padding-bottom: 40px;
+  }
+
+  .navDivider {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    margin: 0 8px;
+  }
+
+  .librasBtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    padding: 6px 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    font-weight: 600;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+  }
+
+  .librasBtn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-light);
+  }
+}
+

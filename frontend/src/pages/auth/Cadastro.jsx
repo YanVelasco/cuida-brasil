@@ -37,7 +37,10 @@ export default function Cadastro() {
     <div className={styles.page}>
       <div className={styles.header}>
         <div className={styles.logo}>C+</div>
-        <h1>Cuidar+Brasil</h1>
+        <h1>
+          <span style={{color: 'var(--primary)'}}>Cuidar</span>
+          <span style={{color: 'var(--success)'}}>+Brasil</span>
+        </h1>
       </div>
 
       <div className={styles.card}>

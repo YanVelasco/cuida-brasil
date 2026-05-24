@@ -234,3 +234,16 @@
   .stats { grid-template-columns: repeat(2, 1fr); }
   .charts { grid-template-columns: 1fr; }
 }
+@media (max-width: 576px) {
+  .stats { grid-template-columns: 1fr; gap: 10px; }
+  .statCard { padding: 12px; }
+  .statValue { font-size: 1.5rem; }
+  .topBar { flex-direction: column; align-items: stretch; margin-bottom: 16px; gap: 8px; }
+  .pageTitle { font-size: 1.15rem; }
+  
+  .tableHeader { flex-direction: column; align-items: stretch; gap: 10px; }
+  .tableActions { flex-direction: column; width: 100%; align-items: stretch; gap: 8px; }
+  .searchInput { width: 100%; }
+  .newBtn { width: 100%; text-align: center; }
+}
+

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ocorrenciaService } from '../../services/api';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { Search } from 'lucide-react';
@@ -53,52 +53,54 @@ export default function Solicitacoes() {
       </div>
 
       <div className={styles.tableCard}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>PROTOCOLO</th>
-              <th>ENDEREÇO</th>
-              <th>STATUS</th>
-              <th>TIPO DE SERVIÇO</th>
-              <th>PRAZO</th>
-              <th>PRIORIDADE</th>
-              <th>AÇÃO</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((row, i) => (
-              <tr key={i}>
-                <td className={styles.proto}>{row.protocolo}</td>
-                <td className={styles.muted}>{row.endereco}</td>
-                <td>
-                  <span style={{
-                    background: STATUS_STYLE[row.status] || '#999',
-                    color: '#fff',
-                    padding: '3px 10px',
-                    borderRadius: '4px',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    display: 'inline-block'
-                  }}>{row.status}</span>
-                </td>
-                <td>{row.tipo}</td>
-                <td className={[styles.prazo, row.prazoType==='urgent' ? styles.urgent : ''].join(' ')}>{row.prazo}</td>
-                <td>
-                  <span style={{
-                    background: PRIO_STYLE[row.prioridade]?.bg,
-                    color: PRIO_STYLE[row.prioridade]?.color,
-                    padding: '3px 10px',
-                    borderRadius: '4px',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    display: 'inline-block'
-                  }}>{row.prioridade}</span>
-                </td>
-                <td><button className={styles.viewBtn}>Ver</button></td>
+        <div className={styles.tableWrapper}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>PROTOCOLO</th>
+                <th>ENDEREÇO</th>
+                <th>STATUS</th>
+                <th>TIPO DE SERVIÇO</th>
+                <th>PRAZO</th>
+                <th>PRIORIDADE</th>
+                <th>AÇÃO</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map((row, i) => (
+                <tr key={i}>
+                  <td className={styles.proto}>{row.protocolo}</td>
+                  <td className={styles.muted}>{row.endereco}</td>
+                  <td>
+                    <span style={{
+                      background: STATUS_STYLE[row.status] || '#999',
+                      color: '#fff',
+                      padding: '3px 10px',
+                      borderRadius: '4px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      display: 'inline-block'
+                    }}>{row.status}</span>
+                  </td>
+                  <td>{row.tipo}</td>
+                  <td className={[styles.prazo, row.prazoType==='urgent' ? styles.urgent : ''].join(' ')}>{row.prazo}</td>
+                  <td>
+                    <span style={{
+                      background: PRIO_STYLE[row.prioridade]?.bg,
+                      color: PRIO_STYLE[row.prioridade]?.color,
+                      padding: '3px 10px',
+                      borderRadius: '4px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      display: 'inline-block'
+                    }}>{row.prioridade}</span>
+                  </td>
+                  <td><button className={styles.viewBtn}>Ver</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {filtered.length === 0 && <p className={styles.empty}>Nenhuma solicitação encontrada.</p>}
 
         {/* Pagination */}

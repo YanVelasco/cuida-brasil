@@ -79,7 +79,9 @@ export default function Login() {
         </div>
 
         <div className={styles.brandName}>
-          <span>CUIDAR</span><span className={styles.plus}>+</span><span>BRASIL</span>
+          <span style={{color: 'var(--primary)'}}>CUIDAR</span>
+          <span className={styles.plus} style={{color: 'var(--success)'}}>+</span>
+          <span style={{color: 'var(--success)'}}>BRASIL</span>
         </div>
         <p className={styles.brandLocation}>ZELADORA URBANA - CANAL DO CIDADÃO</p>
         <p className={styles.brandTagline}>Sua cidade está limpa, com sua participação.</p>
@@ -88,7 +90,13 @@ export default function Login() {
       {/* Right - Form */}
       <div className={styles.formPanel}>
         <div className={styles.card}>
-          <h2 className={styles.cardTitle}>Bem-vindo(a) ao <span className={styles.brandInline}>Cuidar+Brasil</span></h2>
+          <h2 className={styles.cardTitle}>
+            Bem-vindo(a) ao{' '}
+            <span className={styles.brandInline}>
+              <span style={{color: 'var(--primary)'}}>Cuidar</span>
+              <span style={{color: 'var(--success)'}}>+Brasil</span>
+            </span>
+          </h2>
           <p className={styles.cardSub}>Acesse com o seu CPF e senha ou entre via GOV.BR</p>
 
           <form onSubmit={handleSubmit} className={styles.form}>

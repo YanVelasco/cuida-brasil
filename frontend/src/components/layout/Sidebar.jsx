@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { LogOut } from 'lucide-react';
+import { LogOut, X } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
 const NAV_SECTIONS = [
@@ -23,13 +23,18 @@ const NAV_SECTIONS = [
   }
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const handleLogout = () => { logout(); navigate('/login'); };
 
   return (
-    <aside className={styles.sidebar}>
+    <aside className={[styles.sidebar, isOpen ? styles.open : ''].join(' ')}>
+      {/* Mobile Close Button */}
+      <button className={styles.closeBtn} onClick={onClose} title="Fechar Menu">
+        <X size={18} />
+      </button>
+
       {/* Logo */}
       <div className={styles.logo}>
         <div className={styles.logoIllustration}>
@@ -74,7 +79,9 @@ export default function Sidebar() {
           </svg>
         </div>
         <div className={styles.logoText}>
-          <div className={styles.logoTitle}>CUIDAR + BRASIL</div>
+          <div className={styles.logoTitle}>
+            <span style={{color: 'var(--primary)'}}>CUIDAR</span> <span style={{color: 'var(--success)'}}>+ BRASIL</span>
+          </div>
           <div className={styles.logoSub}>Zeladoria Urbana</div>
         </div>
       </div>
@@ -90,6 +97,7 @@ export default function Sidebar() {
                 to={item.to}
                 end={item.end}
                 className={({ isActive }) => [styles.navItem, isActive ? styles.active : ''].join(' ')}
+                onClick={onClose}
               >
                 <span className={styles.checkbox} />
                 <span>{item.label}</span>
@@ -116,3 +124,4 @@ export default function Sidebar() {
     </aside>
   );
 }
+

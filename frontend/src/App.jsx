@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import AIChatbot from './components/ui/AIChatbot';
 
 // Auth pages
 import Login from './pages/auth/Login';
@@ -61,6 +62,7 @@ export default function App() {
       <AuthProvider>
         <ThemeProvider>
           <AppRoutes />
+          <AIChatbot />
         </ThemeProvider>
       </AuthProvider>
     </BrowserRouter>

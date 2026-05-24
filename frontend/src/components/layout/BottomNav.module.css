@@ -1,4 +1,4 @@
-﻿.nav {
+.nav {
   position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
   width: 100%; max-width: 480px;
   background: var(--surface);
@@ -22,3 +22,10 @@
   padding: 10px; margin-top: -24px;
   box-shadow: 0 4px 14px rgba(29,78,216,0.4);
 }
+
+@media (min-width: 769px) {
+  .nav {
+    display: none !important;
+  }
+}
+

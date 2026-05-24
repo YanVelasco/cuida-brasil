@@ -187,3 +187,51 @@
   background: rgba(235,87,87,0.15);
   color: var(--danger);
 }
+
+/* Close button hidden on desktop */
+.closeBtn {
+  display: none;
+}
+
+/* Global transitions to let slide effect work smoothly */
+.sidebar {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    position: fixed;
+    z-index: 100;
+    box-shadow: none;
+  }
+  
+  .open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.25);
+  }
+  
+  .closeBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    z-index: 15;
+    transition: all 0.2s ease;
+  }
+  
+  .closeBtn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+}
+

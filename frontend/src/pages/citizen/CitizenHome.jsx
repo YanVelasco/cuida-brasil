@@ -80,7 +80,9 @@ export default function CitizenHome() {
               </svg>
             </div>
             <div className={styles.logoTextWrapper}>
-              <span className={styles.logoText}>CUIDAR + BRASIL</span>
+              <span className={styles.logoText}>
+                <span style={{color: 'var(--primary)'}}>CUIDAR</span> <span style={{color: 'var(--success)'}}>+ BRASIL</span>
+              </span>
               <span className={styles.logoSub}>Zeladoria Urbana</span>
             </div>
           </div>
@@ -110,40 +112,72 @@ export default function CitizenHome() {
         </div>
       </div>
 
-      {/* Nova Ocorrência Banner */}
-      <Link to="/app/nova-solicitacao" className={styles.banner}>
-        <div>
-          <p className={styles.bannerTitle}>Nova Ocorrência</p>
-          <p className={styles.bannerSub}>Registre um problema na sua cidade</p>
-        </div>
-        <span className={styles.bannerArrow}>→</span>
-      </Link>
+      {/* Dashboard Grid Container */}
+      <div className={styles.dashboardGrid}>
+        {/* Left Column: Minhas Ocorrências */}
+        <div className={styles.leftCol}>
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <span className={styles.sectionTitle}>Minhas Ocorrências</span>
+              <button className={styles.verTodas}>Ver Todas</button>
+            </div>
 
-      {/* Minhas Ocorrências */}
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <span className={styles.sectionTitle}>Minhas Ocorrências</span>
-          <button className={styles.verTodas}>Ver Todas</button>
+            <div className={styles.ocorrenciasList}>
+              {ocorrencias.map(oc => {
+                const st = STATUS_STYLE[oc.status] || { bg: '#f1f5f9', color: '#666', border: '#ccc' };
+                return (
+                  <Link key={oc.id} to={"/app/protocolo/" + oc.id} className={styles.card}>
+                    <div className={styles.cardTop}>
+                      <div className={styles.cardInfo}>
+                        <p className={styles.cardTitle}>{oc.titulo}</p>
+                        <p className={styles.cardLocal}>{oc.local}</p>
+                      </div>
+                      <span className={styles.statusBadge} style={{background: st.bg, color: st.color, borderColor: st.border}}>
+                        {oc.status}
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
-        {ocorrencias.map(oc => {
-          const st = STATUS_STYLE[oc.status] || { bg: '#f1f5f9', color: '#666', border: '#ccc' };
-          return (
-            <Link key={oc.id} to={"/app/protocolo/" + oc.id} className={styles.card}>
-              <div className={styles.cardTop}>
-                <div className={styles.cardInfo}>
-                  <p className={styles.cardTitle}>{oc.titulo}</p>
-                  <p className={styles.cardLocal}>{oc.local}</p>
-                </div>
-                <span className={styles.statusBadge} style={{background: st.bg, color: st.color, borderColor: st.border}}>
-                  {oc.status}
-                </span>
+        {/* Right Column: Nova Ocorrência Banner & Ações Rápidas */}
+        <div className={styles.rightCol}>
+          <Link to="/app/nova-solicitacao" className={styles.banner}>
+            <div>
+              <p className={styles.bannerTitle}>Nova Ocorrência</p>
+              <p className={styles.bannerSub}>Registre um problema na sua cidade</p>
+            </div>
+            <span className={styles.bannerArrow}>→</span>
+          </Link>
+
+          {/* Quick tips & shortcuts (Wow element) */}
+          <div className={styles.communityCard}>
+            <h3 className={styles.communityTitle}>Colaboração Cidadã</h3>
+            <p className={styles.communityText}>
+              Seja os olhos da prefeitura no seu bairro! Ao registrar uma solicitação com foto e localização detalhadas, nossas equipes de campo agilizam o atendimento.
+            </p>
+            
+            <div className={styles.phoneList}>
+              <h4 className={styles.phoneTitle}>Contatos Úteis</h4>
+              <div className={styles.phoneItem}>
+                <span>Ouvidoria Municipal</span>
+                <strong>156</strong>
               </div>
-            </Link>
-          );
-        })}
+              <div className={styles.phoneItem}>
+                <span>Defesa Civil</span>
+                <strong>199</strong>
+              </div>
+              <div className={styles.phoneItem}>
+                <span>SAMU</span>
+                <strong>192</strong>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-
     </MobileLayout>
   );
 }

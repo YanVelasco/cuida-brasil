@@ -1,4 +1,4 @@
-﻿.header { background: var(--secondary); padding: 24px 20px 16px; }
+.header { background: var(--secondary); padding: 24px 20px 16px; }
 .header h1 { color: #fff; font-size: 1rem; font-weight: 700; }
 .header p { color: rgba(255,255,255,0.6); font-size: 0.82rem; margin-top: 4px; }
 .form { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
@@ -14,3 +14,31 @@
 .icon { font-size: 3rem; }
 .success h2 { font-size: 1.3rem; font-weight: 700; }
 .success p { color: var(--text-secondary); max-width: 260px; }
+
+@media (min-width: 769px) {
+  .header {
+    max-width: 640px;
+    margin: 30px auto 0;
+    border-radius: var(--radius-lg);
+  }
+  .form {
+    max-width: 640px;
+    margin: 20px auto 30px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 30px;
+    box-shadow: var(--shadow-sm);
+  }
+  .success {
+    max-width: 640px;
+    margin: 60px auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    min-height: auto;
+    padding: 50px 30px;
+    box-shadow: var(--shadow-sm);
+  }
+}
+

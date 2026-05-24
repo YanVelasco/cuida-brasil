@@ -1,8 +1,9 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import {
   LineChart, Line, ResponsiveContainer, Tooltip
 } from 'recharts';
+import { MapPin, CheckCircle, Shield } from 'lucide-react';
 import styles from './Equipes.module.css';
 
 const KPI_CARDS = [
@@ -28,6 +29,32 @@ const MINI_DATA = [
 export default function Equipes() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [hoverInfo, setHoverInfo] = useState(null);
+  const [activeDistrict, setActiveDistrict] = useState(null);
+
+  const handleDistrictHover = (name, stats) => {
+    setHoverInfo({
+      type: 'district',
+      title: name,
+      details: stats
+    });
+  };
+
+  const handlePinHover = (team) => {
+    setHoverInfo({
+      type: 'team',
+      title: team.nome,
+      status: team.status,
+      supervisor: team.supervisor,
+      tipo: team.tipo,
+      casos: team.casos,
+      sla: team.sla
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setHoverInfo(null);
+  };
 
   return (
     <AdminLayout>
@@ -111,8 +138,124 @@ export default function Equipes() {
             <h3>Mapa de Alocação</h3>
             <button className={styles.mapZoomBtn}>+</button>
           </div>
-          <div className={styles.mapPlaceholder}>
-            <span style={{fontSize:'3rem'}}>🗺️</span>
+          <div className={styles.mapContainer}>
+            {/* Interactive Map Overlay/Tooltip */}
+            {hoverInfo && (
+              <div className={styles.mapTooltip}>
+                {hoverInfo.type === 'district' ? (
+                  <>
+                    <strong style={{fontSize:'0.78rem', display:'block', marginBottom:'2px', color:'var(--primary)'}}>{hoverInfo.title}</strong>
+                    <div>{hoverInfo.details}</div>
+                  </>
+                ) : (
+                  <>
+                    <strong style={{fontSize:'0.78rem', display:'block', color: hoverInfo.status === 'Sobrecarr.' ? '#EB5757' : 'var(--primary)'}}>{hoverInfo.title}</strong>
+                    <div style={{fontSize:'0.65rem', color:'var(--text-muted)', marginBottom:'4px'}}>{hoverInfo.tipo}</div>
+                    <div style={{marginTop:'4px'}}>• Supervisor: <strong>{hoverInfo.supervisor}</strong></div>
+                    <div>• Casos: <strong>{hoverInfo.casos}</strong> | SLA: <strong>{hoverInfo.sla}</strong></div>
+                    <div style={{marginTop:'4px', display:'flex', alignItems:'center', gap:'4px'}}>
+                      <span style={{
+                        width:'6px', height:'6px', borderRadius:'50%', 
+                        background: hoverInfo.status === 'Sobrecarr.' ? '#EB5757' : hoverInfo.status === 'Disponível' ? '#F2C94C' : '#27AE60'
+                      }}/>
+                      Status: <strong>{hoverInfo.status}</strong>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            <svg viewBox="0 0 360 200" className={styles.mapSvg}>
+              {/* District Paths */}
+              <path 
+                d="M 20 20 L 340 20 L 290 80 L 90 80 Z" 
+                className={[styles.districtPath, activeDistrict === 'Norte' ? styles.districtActive : ''].join(' ')}
+                onClick={() => setActiveDistrict(activeDistrict === 'Norte' ? null : 'Norte')}
+                onMouseEnter={() => handleDistrictHover('Região Norte', '3 equipes ativas | 38 ocorrências')}
+                onMouseLeave={handleMouseLeave}
+              />
+              <path 
+                d="M 90 80 L 290 80 L 250 140 L 130 140 Z" 
+                className={[styles.districtPath, activeDistrict === 'Centro' ? styles.districtActive : ''].join(' ')}
+                onClick={() => setActiveDistrict(activeDistrict === 'Centro' ? null : 'Centro')}
+                onMouseEnter={() => handleDistrictHover('Região Centro', '2 equipes ativas | 41 ocorrências')}
+                onMouseLeave={handleMouseLeave}
+              />
+              <path 
+                d="M 130 140 L 250 140 L 210 190 L 170 190 Z" 
+                className={[styles.districtPath, activeDistrict === 'Sul' ? styles.districtActive : ''].join(' ')}
+                onClick={() => setActiveDistrict(activeDistrict === 'Sul' ? null : 'Sul')}
+                onMouseEnter={() => handleDistrictHover('Região Sul', '1 equipe ativa | 29 ocorrências')}
+                onMouseLeave={handleMouseLeave}
+              />
+              <path 
+                d="M 20 20 L 90 80 L 130 140 L 170 190 L 20 190 Z" 
+                className={[styles.districtPath, activeDistrict === 'Oeste' ? styles.districtActive : ''].join(' ')}
+                onClick={() => setActiveDistrict(activeDistrict === 'Oeste' ? null : 'Oeste')}
+                onMouseEnter={() => handleDistrictHover('Região Oeste', '1 equipe sobrecarregada | 31 ocorrências')}
+                onMouseLeave={handleMouseLeave}
+              />
+              <path 
+                d="M 340 20 L 290 80 L 250 140 L 210 190 L 340 190 Z" 
+                className={[styles.districtPath, activeDistrict === 'Leste' ? styles.districtActive : ''].join(' ')}
+                onClick={() => setActiveDistrict(activeDistrict === 'Leste' ? null : 'Leste')}
+                onMouseEnter={() => handleDistrictHover('Região Leste', '1 equipe disponível | 40 ocorrências')}
+                onMouseLeave={handleMouseLeave}
+              />
+
+              {/* District Labels */}
+              <text x="180" y="45" className={styles.districtLabel}>Zona Norte</text>
+              <text x="180" y="105" className={styles.districtLabel}>Centro</text>
+              <text x="190" y="165" className={styles.districtLabel}>Zona Sul</text>
+              <text x="70" y="110" className={styles.districtLabel}>Oeste</text>
+              <text x="290" y="110" className={styles.districtLabel}>Leste</text>
+
+              {/* Pulsing Team Markers */}
+              {/* EQP-03 (Norte) - status: Em campo (green) */}
+              <g className={styles.mapPinGroup} 
+                 onMouseEnter={() => handlePinHover(EQUIPES[2])}
+                 onMouseLeave={handleMouseLeave}
+              >
+                <circle cx="200" cy="55" r="10" fill="#27AE60" opacity="0.35" className={styles.pulsingRing} />
+                <circle cx="200" cy="55" r="4.5" fill="#27AE60" className={styles.mapPinCircle} />
+              </g>
+
+              {/* EQP-01 (Centro) - status: Em campo (green) */}
+              <g className={styles.mapPinGroup} 
+                 onMouseEnter={() => handlePinHover(EQUIPES[0])}
+                 onMouseLeave={handleMouseLeave}
+              >
+                <circle cx="180" cy="95" r="10" fill="#27AE60" opacity="0.35" className={styles.pulsingRing} />
+                <circle cx="180" cy="95" r="4.5" fill="#27AE60" className={styles.mapPinCircle} />
+              </g>
+
+              {/* EQP-02 (Sul) - status: Em campo (green) */}
+              <g className={styles.mapPinGroup} 
+                 onMouseEnter={() => handlePinHover(EQUIPES[1])}
+                 onMouseLeave={handleMouseLeave}
+              >
+                <circle cx="190" cy="150" r="10" fill="#27AE60" opacity="0.35" className={styles.pulsingRing} />
+                <circle cx="190" cy="150" r="4.5" fill="#27AE60" className={styles.mapPinCircle} />
+              </g>
+
+              {/* EQP-02/Poda (Oeste) - status: Sobrecarr. (red) */}
+              <g className={styles.mapPinGroup} 
+                 onMouseEnter={() => handlePinHover(EQUIPES[3])}
+                 onMouseLeave={handleMouseLeave}
+              >
+                <circle cx="95" cy="110" r="10" fill="#EB5757" opacity="0.35" className={styles.pulsingRing} />
+                <circle cx="95" cy="110" r="4.5" fill="#EB5757" className={styles.mapPinCircle} />
+              </g>
+
+              {/* EQP-01/Drenagem (Leste) - status: Disponível (yellow) */}
+              <g className={styles.mapPinGroup} 
+                 onMouseEnter={() => handlePinHover(EQUIPES[4])}
+                 onMouseLeave={handleMouseLeave}
+              >
+                <circle cx="280" cy="105" r="10" fill="#F2C94C" opacity="0.35" className={styles.pulsingRing} />
+                <circle cx="280" cy="105" r="4.5" fill="#F2C94C" className={styles.mapPinCircle} />
+              </g>
+            </svg>
           </div>
           <div className={styles.mapLegend}>
             {[{l:'Em campo',c:'#27AE60'},{l:'Deslocamento',c:'#2F80ED'},{l:'Pendente',c:'#F2994A'},{l:'Sobrecarregado',c:'#EB5757'}].map(i => (

@@ -22,3 +22,49 @@
 .pageBtn { width: 28px; height: 28px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.82rem; background: var(--surface); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; }
 .pageActive { background: var(--primary); color: #fff; border-color: var(--primary); }
 .pageSizeSelect { margin-left: auto; padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.78rem; background: var(--surface); font-family: var(--font); }
+
+/* Table Wrapper for horizontal scroll */
+.tableWrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .title {
+    font-size: 1.15rem;
+    margin-bottom: 12px;
+  }
+  
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .searchWrap {
+    max-width: 100%;
+    width: 100%;
+  }
+  
+  .newBtn {
+    width: 100%;
+    text-align: center;
+    padding: 10px;
+  }
+  
+  .pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+  }
+  
+  .pageSizeSelect {
+    margin-left: 0;
+    width: 100%;
+    text-align: center;
+    margin-top: 4px;
+  }
+}
+

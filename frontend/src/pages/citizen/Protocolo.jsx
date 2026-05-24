@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ocorrenciaService } from '../../services/api';
 import MobileLayout from '../../components/layout/MobileLayout';
@@ -43,7 +43,17 @@ export default function Protocolo() {
         <span className={styles.cat}>{oc.categoria}</span>
         <p className={styles.desc}>{oc.descricao}</p>
         <p className={styles.date}><Clock size={13}/> Registrada em {oc.data}</p>
+        
+        {oc.status?.toLowerCase() === 'resolvido' && (
+          <button 
+            onClick={() => navigate(`/app/avaliar/${oc.id}`)} 
+            className={styles.avaliarBtn}
+          >
+            Avaliar Atendimento
+          </button>
+        )}
       </div>
+
 
       <div className={styles.histSection}>
         <h3>Histórico</h3>

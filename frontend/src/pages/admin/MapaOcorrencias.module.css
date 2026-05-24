@@ -1,4 +1,4 @@
-﻿.topBar { margin-bottom: 16px; }
+.topBar { margin-bottom: 16px; }
 .title { font-size: 1.3rem; font-weight: 700; }
 
 .layout { display: grid; grid-template-columns: 1fr 260px; gap: 16px; }
@@ -148,4 +148,30 @@
   border: 1px solid var(--border);
 }
 
-@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { 
+  .layout { grid-template-columns: 1fr; } 
+}
+
+@media (max-width: 768px) {
+  .topBar {
+    margin-bottom: 12px;
+  }
+  
+  .title {
+    font-size: 1.15rem;
+  }
+  
+  .mapArea {
+    height: 360px;
+  }
+  
+  .prioFilters {
+    justify-content: space-between;
+  }
+  
+  .prioBtn {
+    flex: 1 1 calc(50% - 6px);
+    text-align: center;
+  }
+}
+

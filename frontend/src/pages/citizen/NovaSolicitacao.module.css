@@ -17,3 +17,31 @@
 .successIcon { width: 80px; height: 80px; border-radius: var(--radius-full); background: var(--success-light); color: var(--success); font-size: 2rem; display: flex; align-items: center; justify-content: center; }
 .success h2 { font-size: 1.3rem; font-weight: 700; }
 .success p { color: var(--text-secondary); max-width: 280px; }
+
+@media (min-width: 769px) {
+  .header {
+    max-width: 640px;
+    margin: 30px auto 0;
+    border-radius: var(--radius-lg);
+  }
+  .form {
+    max-width: 640px;
+    margin: 20px auto 30px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 30px;
+    box-shadow: var(--shadow-sm);
+  }
+  .success {
+    max-width: 640px;
+    margin: 60px auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    min-height: auto;
+    padding: 50px 30px;
+    box-shadow: var(--shadow-sm);
+  }
+}
+
