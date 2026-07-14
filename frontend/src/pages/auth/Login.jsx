@@ -25,7 +25,9 @@ export default function Login() {
     setError(''); setLoading(true);
     try {
       const user = await login(cpf, senha);
-      navigate(user?.perfil === 'ADMIN' ? '/admin' : '/app');
+      if (user?.perfil === 'ADMIN') navigate('/admin');
+      else if (user?.perfil === 'GESTOR') navigate('/admin/dashboard');
+      else navigate('/app');
     } catch {
       setError('CPF ou senha inválidos.');
     } finally { setLoading(false); }

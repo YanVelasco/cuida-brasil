@@ -3,30 +3,40 @@ import { useAuth } from '../../contexts/AuthContext';
 import { LogOut, X } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
-const NAV_SECTIONS = [
-  {
-    label: 'PRINCIPAL',
-    items: [
-      { to: '/admin', label: 'Dashboard', end: true },
-      { to: '/admin/mapa', label: 'Mapa de Ocorrências' },
-      { to: '/admin/solicitacoes', label: 'Solicitações', badge: '24' },
-      { to: '/admin/equipes', label: 'Gestão de Equipes' },
-    ]
-  },
-  {
-    label: 'CONFIGURAÇÃO',
-    items: [
-      { to: '/admin/orgaos', label: 'Órgãos Públicos' },
-      { to: '/admin/integracoes', label: 'Integrações API' },
-      { to: '/admin/relatorios', label: 'Relatórios' },
-    ]
+const getNavSections = (perfil) => {
+  if (perfil === 'ADMIN') {
+    return [
+      {
+        label: 'ADMINISTRAÇÃO',
+        items: [
+          { to: '/admin', label: 'Dashboard', end: true },
+          { to: '/admin/relatorios', label: 'Relatórios' },
+        ]
+      }
+    ];
   }
-];
+
+  // Gestor
+  return [
+    {
+      label: 'PRINCIPAL',
+      items: [
+        { to: '/admin/dashboard', label: 'Dashboard Operacional', end: true },
+        { to: '/admin/mapa', label: 'Mapa de Ocorrências' },
+        { to: '/admin/solicitacoes', label: 'Solicitações', badge: '24' },
+        { to: '/admin/equipes', label: 'Gestão de Equipes' },
+        { to: '/admin/suporte', label: 'Suporte (TI)' },
+      ]
+    }
+  ];
+};
 
 export default function Sidebar({ isOpen, onClose }) {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const handleLogout = () => { logout(); navigate('/login'); };
+
+  const navSections = getNavSections(user?.perfil);
 
   return (
     <aside className={[styles.sidebar, isOpen ? styles.open : ''].join(' ')}>
@@ -88,7 +98,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
       {/* Navigation */}
       <nav className={styles.nav}>
-        {NAV_SECTIONS.map((section) => (
+        {navSections.map((section) => (
           <div key={section.label}>
             <div className={styles.sectionLabel}>{section.label}</div>
             {section.items.map((item) => (
@@ -114,7 +124,7 @@ export default function Sidebar({ isOpen, onClose }) {
           <div className={styles.avatar}>{user?.nome?.[0] ?? 'A'}</div>
           <div>
             <div className={styles.userName}>{user?.nome?.split(' ')[0] ?? 'Usuário A.'}</div>
-            <div className={styles.userRole}>Gestor</div>
+            <div className={styles.userRole}>{user?.perfil === 'ADMIN' ? 'Administrador' : 'Gestor'}</div>
           </div>
         </div>
         <button className={styles.logoutBtn} onClick={handleLogout} title="Sair">

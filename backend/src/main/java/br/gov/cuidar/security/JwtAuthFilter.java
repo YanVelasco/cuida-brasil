@@ -23,7 +23,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain) throws ServletException, IOException {
+    protected void doFilterInternal(@org.springframework.lang.NonNull HttpServletRequest req, 
+                                    @org.springframework.lang.NonNull HttpServletResponse res, 
+                                    @org.springframework.lang.NonNull FilterChain chain) throws ServletException, IOException {
         String token = extractToken(req);
         if (StringUtils.hasText(token) && jwtProvider.validateToken(token)) {
             String cpf = jwtProvider.getCpfFromToken(token);

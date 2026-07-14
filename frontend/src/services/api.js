@@ -1,4 +1,4 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -58,12 +58,24 @@ export const ocorrenciaService = {
 export const dashboardService = {
   stats: () =>
     api.get('/api/admin/dashboard'),
+  statsAdmin: () =>
+    api.get('/api/admin/system-dashboard'),
+};
+
+// ============ GESTORES ============
+export const gestorService = {
+  atualizarLocalizacao: (dados) =>
+    api.put('/api/gestores/localizacao', dados),
 };
 
 // ============ EQUIPES ============
 export const equipeService = {
   listar: () =>
     api.get('/api/equipes'),
+  criar: (dados) =>
+    api.post('/api/equipes', dados),
+  adicionarMembro: (id, dados) =>
+    api.post(`/api/equipes/${id}/membros`, dados),
 };
 
 // ============ ORGAOS ============

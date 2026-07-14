@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { RegionProvider } from './contexts/RegionContext';
 import AIChatbot from './components/ui/AIChatbot';
+import VLibrasWidget from './components/ui/VLibrasWidget';
 
 // Auth pages
 import Login from './pages/auth/Login';
@@ -15,16 +17,25 @@ import Avaliar from './pages/citizen/Avaliar';
 
 // Admin pages
 import Dashboard from './pages/admin/Dashboard';
+import SystemDashboard from './pages/admin/SystemDashboard';
 import MapaOcorrencias from './pages/admin/MapaOcorrencias';
 import Solicitacoes from './pages/admin/Solicitacoes';
 import Equipes from './pages/admin/Equipes';
 import Relatorios from './pages/admin/Relatorios';
+import Suporte from './pages/admin/Suporte';
 
 function PrivateRoute({ children, role }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
   if (role && user.perfil !== role) return <Navigate to="/login" replace />;
   return children;
+}
+
+function AdminHome() {
+  const { user } = useAuth();
+  if (user?.perfil === 'ADMIN') return <SystemDashboard />;
+  if (user?.perfil === 'GESTOR') return <Navigate to="/admin/dashboard" replace />;
+  return <Navigate to="/login" replace />;
 }
 
 function AppRoutes() {
@@ -44,11 +55,13 @@ function AppRoutes() {
       <Route path="/app/avaliar/:id" element={<PrivateRoute><Avaliar /></PrivateRoute>} />
 
       {/* Admin */}
-      <Route path="/admin" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+      <Route path="/admin" element={<PrivateRoute><AdminHome /></PrivateRoute>} />
+      <Route path="/admin/dashboard" element={<PrivateRoute role="GESTOR"><Dashboard /></PrivateRoute>} />
       <Route path="/admin/mapa" element={<PrivateRoute><MapaOcorrencias /></PrivateRoute>} />
       <Route path="/admin/solicitacoes" element={<PrivateRoute><Solicitacoes /></PrivateRoute>} />
       <Route path="/admin/equipes" element={<PrivateRoute><Equipes /></PrivateRoute>} />
       <Route path="/admin/relatorios" element={<PrivateRoute><Relatorios /></PrivateRoute>} />
+      <Route path="/admin/suporte" element={<PrivateRoute role="GESTOR"><Suporte /></PrivateRoute>} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/login" replace />} />
@@ -61,8 +74,11 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <ThemeProvider>
-          <AppRoutes />
-          <AIChatbot />
+          <RegionProvider>
+            <AppRoutes />
+            <AIChatbot />
+            <VLibrasWidget />
+          </RegionProvider>
         </ThemeProvider>
       </AuthProvider>
     </BrowserRouter>

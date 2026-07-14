@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
+import { equipeService, orgaoService } from '../../services/api';
 import {
   LineChart, Line, ResponsiveContainer, Tooltip
 } from 'recharts';
@@ -32,6 +33,49 @@ export default function Equipes() {
   const [hoverInfo, setHoverInfo] = useState(null);
   const [activeDistrict, setActiveDistrict] = useState(null);
 
+  // Modals state
+  const [showNewEquipeModal, setShowNewEquipeModal] = useState(false);
+  const [showNewMemberModal, setShowNewMemberModal] = useState(false);
+  const [selectedEquipeId, setSelectedEquipeId] = useState(null);
+
+  // Forms state
+  const [newEquipeData, setNewEquipeData] = useState({ nome: '', idOrgao: '' });
+  const [newMemberData, setNewMemberData] = useState({ nome: '', cpf: '', email: '', senha: '' });
+  const [orgaos, setOrgaos] = useState([]);
+
+  useEffect(() => {
+    async function loadOrgaos() {
+      try {
+        const response = await orgaoService.listar();
+        setOrgaos(response.data.data);
+      } catch (err) {
+        console.error("Erro ao carregar orgãos:", err);
+      }
+    }
+    loadOrgaos();
+  }, []);
+
+  const handleCreateEquipe = async () => {
+    try {
+      await equipeService.criar(newEquipeData);
+      alert('Equipe criada com sucesso!');
+      setShowNewEquipeModal(false);
+      // Aqui faria reload das equipes (não listado para simplificar, já que a lista é mockada atualmente)
+    } catch (err) {
+      alert('Erro ao criar equipe');
+    }
+  };
+
+  const handleAddMember = async () => {
+    try {
+      await equipeService.adicionarMembro(selectedEquipeId, newMemberData);
+      alert('Membro adicionado com sucesso!');
+      setShowNewMemberModal(false);
+    } catch (err) {
+      alert('Erro ao adicionar membro');
+    }
+  };
+
   const handleDistrictHover = (name, stats) => {
     setHoverInfo({
       type: 'district',
@@ -60,7 +104,7 @@ export default function Equipes() {
     <AdminLayout>
       <div className={styles.topBar}>
         <h1 className={styles.title}>Gestão de Equipes</h1>
-        <button className={styles.newBtn}>+ Nova Equipe</button>
+        <button className={styles.newBtn} onClick={() => setShowNewEquipeModal(true)}>+ Nova Equipe</button>
       </div>
 
       {/* Filters */}
@@ -114,7 +158,12 @@ export default function Equipes() {
                     <span className={styles.statusBadge} style={{background: e.statusColor}}>{e.status}</span>
                   </td>
                   <td className={styles.muted}>{e.sla}</td>
-                  <td><button className={styles.viewBtn}>Ver</button></td>
+                  <td>
+                    <div style={{display:'flex', gap:'5px'}}>
+                      <button className={styles.viewBtn}>Ver</button>
+                      <button className={styles.viewBtn} style={{background: 'var(--primary)'}} onClick={() => { setSelectedEquipeId(1); setShowNewMemberModal(true); }}>+ Membro</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -306,6 +355,43 @@ export default function Equipes() {
           </div>
         </div>
       </div>
+
+      {showNewEquipeModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent}>
+            <h3>Criar Nova Equipe</h3>
+            <input placeholder="Nome da Equipe" value={newEquipeData.nome} onChange={e => setNewEquipeData({...newEquipeData, nome: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
+            <select value={newEquipeData.idOrgao} onChange={e => setNewEquipeData({...newEquipeData, idOrgao: e.target.value})} className={styles.filterSelect} style={{width: '100%', margin: '10px 0'}}>
+              <option value="">Selecione o Órgão Público...</option>
+              {orgaos.map(o => (
+                <option key={o.id} value={o.id}>{o.nome}</option>
+              ))}
+              {orgaos.length === 0 && <option value="1">Órgão Modelo (Mock)</option>}
+            </select>
+            <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
+              <button className={styles.newBtn} onClick={handleCreateEquipe}>Salvar Equipe</button>
+              <button className={styles.clearBtn} onClick={() => setShowNewEquipeModal(false)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showNewMemberModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent}>
+            <h3>Adicionar Membro / Gestor</h3>
+            <input placeholder="Nome Completo" value={newMemberData.nome} onChange={e => setNewMemberData({...newMemberData, nome: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
+            <input placeholder="CPF" value={newMemberData.cpf} onChange={e => setNewMemberData({...newMemberData, cpf: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
+            <input placeholder="E-mail" type="email" value={newMemberData.email} onChange={e => setNewMemberData({...newMemberData, email: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
+            <input placeholder="Senha" type="password" value={newMemberData.senha} onChange={e => setNewMemberData({...newMemberData, senha: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
+            <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
+              <button className={styles.newBtn} onClick={handleAddMember}>Salvar Membro</button>
+              <button className={styles.clearBtn} onClick={() => setShowNewMemberModal(false)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </AdminLayout>
   );
 }

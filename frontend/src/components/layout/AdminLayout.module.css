@@ -63,7 +63,7 @@
   font-size: 0.82rem;
   font-weight: 600;
 }
-.content { flex: 1; padding: 24px; }
+.content { flex: 1; padding: 24px; padding-bottom: 100px; }
 
 /* Backdrop */
 .sidebarBackdrop {

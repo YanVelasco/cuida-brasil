@@ -1,20 +1,21 @@
-﻿import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
+import { useRegion } from '../../contexts/RegionContext';
 import styles from './MapaOcorrencias.module.css';
 
 const OCORRENCIAS = [
-  { id:1, x:22, y:18, titulo:'Buraco Rua ABC', status:'urgente', color:'#EB5757' },
-  { id:2, x:48, y:30, titulo:'Lâmpada apagada', status:'pendente', color:'#F2994A' },
-  { id:3, x:70, y:22, titulo:'Entulho irregular', status:'em_campo', color:'#2F80ED' },
-  { id:4, x:38, y:48, titulo:'Vazamento Rua XV', status:'urgente', color:'#EB5757' },
-  { id:5, x:62, y:52, titulo:'Calçada danificada', status:'resolvido', color:'#27AE60' },
-  { id:6, x:15, y:55, titulo:'Poste sem luz', status:'pendente', color:'#F2994A' },
-  { id:7, x:80, y:60, titulo:'Entulho Av. Norte', status:'em_campo', color:'#2F80ED' },
-  { id:8, x:28, y:72, titulo:'Tapa-buraco urgente', status:'urgente', color:'#EB5757' },
-  { id:9, x:55, y:78, titulo:'Poda de árvore', status:'resolvido', color:'#27AE60' },
-  { id:10, x:75, y:40, titulo:'Bueiro entupido', status:'pendente', color:'#F2994A' },
-  { id:11, x:45, y:62, titulo:'Buraco central', status:'urgente', color:'#EB5757' },
-  { id:12, x:35, y:85, titulo:'Limpeza urgente', status:'em_campo', color:'#6B4EFF' },
+  { id:1, x:22, y:18, titulo:'Buraco Rua ABC', status:'urgente', color:'#EB5757', regiao:'Oeste' },
+  { id:2, x:48, y:30, titulo:'Lâmpada apagada', status:'pendente', color:'#F2994A', regiao:'Centro' },
+  { id:3, x:70, y:22, titulo:'Entulho irregular', status:'em_campo', color:'#2F80ED', regiao:'Norte' },
+  { id:4, x:38, y:48, titulo:'Vazamento Rua XV', status:'urgente', color:'#EB5757', regiao:'Oeste' },
+  { id:5, x:62, y:52, titulo:'Calçada danificada', status:'resolvido', color:'#27AE60', regiao:'Leste' },
+  { id:6, x:15, y:55, titulo:'Poste sem luz', status:'pendente', color:'#F2994A', regiao:'Sul' },
+  { id:7, x:80, y:60, titulo:'Entulho Av. Norte', status:'em_campo', color:'#2F80ED', regiao:'Norte' },
+  { id:8, x:28, y:72, titulo:'Tapa-buraco urgente', status:'urgente', color:'#EB5757', regiao:'Sul' },
+  { id:9, x:55, y:78, titulo:'Poda de árvore', status:'resolvido', color:'#27AE60', regiao:'Centro' },
+  { id:10, x:75, y:40, titulo:'Bueiro entupido', status:'pendente', color:'#F2994A', regiao:'Leste' },
+  { id:11, x:45, y:62, titulo:'Buraco central', status:'urgente', color:'#EB5757', regiao:'Centro' },
+  { id:12, x:35, y:85, titulo:'Limpeza urgente', status:'em_campo', color:'#6B4EFF', regiao:'Sul' },
 ];
 
 const PRIO_FILTERS = [
@@ -27,6 +28,22 @@ const PRIO_FILTERS = [
 export default function MapaOcorrencias() {
   const [selected, setSelected] = useState(null);
   const [activeFilter, setActiveFilter] = useState(null);
+  const { selectedRegion } = useRegion();
+
+  const filteredOcorrencias = useMemo(() => {
+    return OCORRENCIAS.filter(oc => {
+      // Filtra por região global (se houver alguma selecionada)
+      if (selectedRegion && oc.regiao !== selectedRegion) return false;
+      // Filtra por prioridade no menu lateral (mock baseado na label da prioridade)
+      if (activeFilter) {
+        if (activeFilter === 'Urgente' && oc.status !== 'urgente') return false;
+        if (activeFilter === 'Alta' && oc.status !== 'pendente') return false;
+        if (activeFilter === 'Média' && oc.status !== 'em_campo') return false;
+        if (activeFilter === 'Baixa' && oc.status !== 'resolvido') return false;
+      }
+      return true;
+    });
+  }, [selectedRegion, activeFilter]);
 
   return (
     <AdminLayout>
@@ -59,13 +76,13 @@ export default function MapaOcorrencias() {
             </div>
 
             {/* Pins */}
-            {OCORRENCIAS.map(oc => (
+            {filteredOcorrencias.map(oc => (
               <button
                 key={oc.id}
                 className={[styles.pin, selected?.id===oc.id ? styles.pinActive : ''].join(' ')}
                 style={{ left: oc.x+'%', top: oc.y+'%', background: oc.color }}
                 onClick={() => setSelected(selected?.id===oc.id ? null : oc)}
-                title={oc.titulo}
+                title={`${oc.titulo} - Região ${oc.regiao}`}
               />
             ))}
           </div>

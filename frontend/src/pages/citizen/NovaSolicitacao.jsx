@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ocorrenciaService } from '../../services/api';
 import MobileLayout from '../../components/layout/MobileLayout';
@@ -11,10 +11,31 @@ const CATEGORIAS = ['Infraestrutura','Iluminação Pública','Limpeza Urbana','P
 
 export default function NovaSolicitacao() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ titulo:'', categoria:'', descricao:'', local:'' });
+  const [form, setForm] = useState({ titulo:'', categoria:'', descricao:'', gps:'', idServico: 1 });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [locStatus, setLocStatus] = useState('Buscando localização...');
+
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          setForm(f => ({ ...f, gps: `${lat}, ${lng}` }));
+          setLocStatus(`Localização capturada: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+        },
+        (err) => {
+          console.error("Erro ao obter geolocalização:", err);
+          setLocStatus('Falha ao obter localização. Verifique as permissões.');
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    } else {
+      setLocStatus('Geolocalização não suportada neste dispositivo.');
+    }
+  }, []);
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
 
@@ -63,11 +84,19 @@ export default function NovaSolicitacao() {
           <textarea id="descricao" className={styles.textarea} placeholder="Descreva o problema com mais detalhes..." value={form.descricao} onChange={set('descricao')} rows={4} required/>
         </div>
 
-        <Input id="local" label="Localização" placeholder="Endereço ou referência" value={form.local} onChange={set('local')} icon={<MapPin size={16}/>} required/>
+        <div className={styles.field}>
+          <label className={styles.label}>Localização (Automática)</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+            <MapPin size={18} style={{ color: form.gps ? 'var(--success)' : 'var(--text-muted)' }} />
+            <span style={{ fontSize: '0.85rem', color: form.gps ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+              {locStatus}
+            </span>
+          </div>
+        </div>
 
         <div className={styles.mapPlaceholder}>
-          <MapPin size={24}/>
-          <p>Toque para marcar no mapa</p>
+          <MapPin size={24} style={{ color: form.gps ? 'var(--success)' : 'inherit' }}/>
+          <p>{form.gps ? 'Localização atual capturada no mapa' : 'Aguardando localização...'}</p>
         </div>
 
         {error && <p className={styles.error}>{error}</p>}

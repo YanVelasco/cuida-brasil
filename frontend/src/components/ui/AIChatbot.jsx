@@ -14,6 +14,7 @@ export default function AIChatbot() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
   const [currentCpf, setCurrentCpf] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const messageEndRef = useRef(null);
 
   const isAdmin = user?.perfil === 'ADMIN';
@@ -107,54 +108,46 @@ export default function AIChatbot() {
     }, 600);
   };
 
-  const processQuery = (normalizedText) => {
-    let responseText = '';
-    let contentType = null;
+  const processQuery = async (normalizedText) => {
+    setIsTyping(true);
+    
+    try {
+      const response = await fetch('http://localhost:8080/api/chat/ask', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}` // Se houver JWT
+        },
+        body: JSON.stringify({
+          message: normalizedText,
+          perfil: user?.perfil || 'CITIZEN',
+          usuarioId: String(user?.id)
+        })
+      });
 
-    if (isAdmin) {
-      if (normalizedText.includes('dashboard') || normalizedText.includes('dados') || normalizedText.includes('estatisticas') || normalizedText.includes('kpi')) {
-        responseText = `Com certeza! Aqui estão os dados consolidados do painel do Cuidar+ Brasil atualizados em tempo real:`;
-        contentType = 'kpi';
-      } else if (normalizedText.includes('urgente') || normalizedText.includes('prioridade alta') || normalizedText.includes('urgencia')) {
-        responseText = `Atenção! Temos 14 chamados marcados como Urgentes. Os 3 casos com maior risco de estourar o SLA de atendimento são:\n\n1. 🚨 **#729481** - Pavimentação (Cratera com risco na Av. Rebouças)\n2. 🌳 **#729490** - Poda Urgente (Árvore instável na Rua Pamplona)\n3. 💡 **#729511** - Iluminação (Semáforos apagados no cruzamento da Av. Paulista)`;
-        contentType = 'map_button';
-      } else if (normalizedText.includes('categoria') || normalizedText.includes('problema') || normalizedText.includes('comum') || normalizedText.includes('tipo')) {
-        responseText = `A distribuição percentual das solicitações ativas nesta semana é:\n\n💡 **1. Iluminação Pública** — 32%\n🚗 **2. Pavimentação** — 24%\n🧹 **3. Limpeza Urbana** — 18%\n🌳 **4. Poda & Árvores** — 14%\n⚙️ **5. Outros** — 12%`;
-      } else {
-        responseText = `Olá! Sou a Luna, sua assistente de inteligência artificial do Cuidar+ Brasil. Como painel administrativo, você pode me pedir dados do dashboard, resumos de categorias ou listar chamados urgentes.`;
+      if (!response.ok) {
+        throw new Error('Falha na comunicação com a IA');
       }
-    } else if (isGestor) {
-      if (normalizedText.includes('pendente') || normalizedText.includes('solicitacao') || normalizedText.includes('chamado') || normalizedText.includes('órgão') || normalizedText.includes('meu')) {
-        responseText = `Entendido! Identifiquei 12 solicitações pendentes sob a responsabilidade do seu órgão público nesta semana. A maioria delas refere-se a serviços de Pavimentação e Limpeza Urbana. Deseja ver a lista completa de solicitações atribuídas para despacho?`;
-        contentType = 'solicitacoes_button';
-      } else if (normalizedText.includes('equipe') || normalizedText.includes('campo') || normalizedText.includes('ativa')) {
-        responseText = `Temos 4 equipes de campo ativas na sua região. O status atual de disponibilidade delas é:\n\n• 🟢 **Equipe A (Centro)**: Disponível\n• 🔵 **Equipe B (Zona Sul)**: Em Campo\n• 🟢 **Equipe C (Zona Norte)**: Disponível\n• 🟡 **Equipe D (Zona Leste)**: Retorno à base`;
-        contentType = 'equipes_button';
-      } else if (normalizedText.includes('urgente') || normalizedText.includes('prioridade') || normalizedText.includes('urgencia')) {
-        responseText = `Existem 5 chamados de prioridade Urgente sob a responsabilidade do seu órgão aguardando atendimento imediato:\n\n1. 🚨 **#729481** - Buraco profundo com risco na Av. Rebouças\n2. 🌳 **#729490** - Risco iminente de queda de galho na Rua Pamplona`;
-        contentType = 'map_button';
-      } else {
-        responseText = `Olá! Sou a Luna, sua assistente de IA. Como gestor do portal Cuidar+ Brasil, você pode me pedir informações sobre solicitações pendentes, equipes de campo ou prazos de SLA do seu órgão.`;
-      }
-    } else {
-      if (normalizedText.includes('minhas') || normalizedText.includes('solicitacoes') || normalizedText.includes('chamados') || normalizedText.includes('status') || normalizedText.includes('verificar')) {
-        responseText = `Localizei as seguintes solicitações vinculadas ao seu perfil de Cidadão:\n\n🛠️ **Protocolo #729103** - Em Andamento\n🌳 **Protocolo #681024** - Resolvido`;
-      } else if (normalizedText.includes('nova') || normalizedText.includes('abrir') || normalizedText.includes('criar') || normalizedText.includes('solicitacao') || normalizedText.includes('pedido')) {
-        responseText = `Para criar uma nova solicitação, preencha o formulário informando a localização, tipo de problema e anexe uma foto se possível.`;
-        contentType = 'nova_solicitacao_button';
-      } else {
-        responseText = `Olá! Sou a Luna. O **Cuidar+ Brasil** é o canal direto da nossa prefeitura para que os cidadãos colaborem na manutenção da cidade! Como posso te ajudar hoje?`;
-      }
+
+      const data = await response.json();
+      
+      const aiMsg = {
+        id: Date.now(),
+        sender: 'ai',
+        text: data.reply
+      };
+      
+      setMessages(prev => [...prev, aiMsg]);
+    } catch (error) {
+      console.error(error);
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        sender: 'ai',
+        text: "Desculpe, estou com instabilidade nos meus servidores neurais no momento. Tente novamente mais tarde."
+      }]);
+    } finally {
+      setIsTyping(false);
     }
-
-    const aiMsg = {
-      id: Date.now(),
-      sender: 'ai',
-      text: responseText,
-      contentType: contentType
-    };
-
-    setMessages(prev => [...prev, aiMsg]);
   };
 
   const renderRichContent = (msg) => {
@@ -273,6 +266,16 @@ export default function AIChatbot() {
                 </div>
               </div>
             ))}
+            {isTyping && (
+              <div className={`${styles.messageItem} ${styles.aiMessage}`}>
+                <div className={styles.botThumb}><img src="/avatar_ai.png" alt="Luna" className={styles.botThumbImg} /></div>
+                <div className={styles.bubble}>
+                  <div className={styles.typingIndicator}>
+                    <span></span><span></span><span></span>
+                  </div>
+                </div>
+              </div>
+            )}
             <div ref={messageEndRef} />
           </div>
 

@@ -1,5 +1,6 @@
-﻿import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
+import { useRegion } from '../../contexts/RegionContext';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   ScatterChart, Scatter, Cell, ZAxis
@@ -44,10 +45,11 @@ const SCATTER_DATA = [
 ];
 
 const TABLE_DATA = [
-  { protocolo: '#xxxxxx', endereco: 'xxxxxxxxxxxxxxxxxxxx', status: 'Andamento', tipo: 'Tapa-buraco', prazo: '12 dias', prioridade: 'Alta', prazoType: 'ok' },
-  { protocolo: '#xxxxxx', endereco: 'xxxxxxxxxxxxxxxxxxxx', status: 'Em campo', tipo: 'Poda de árvore', prazo: '28 dias', prioridade: 'Média', prazoType: 'ok' },
-  { protocolo: '#xxxxxx', endereco: 'xxxxxxxxxxxxxxxxxxxx', status: 'Resolvido', tipo: 'Limpeza de bueiro', prazo: 'Concluído', prioridade: 'Baixa', prazoType: 'ok' },
-  { protocolo: '#xxxxxx', endereco: 'xxxxxxxxxxxxxxxxxxxx', status: 'Triagem', tipo: 'Varrição', prazo: 'Hoje', prioridade: 'Urgente', prazoType: 'urgent' },
+  { protocolo: '#xxxxxx', regiao: 'Centro', endereco: 'Rua das Flores, 123', status: 'Andamento', tipo: 'Tapa-buraco', prazo: '12 dias', prioridade: 'Alta', prazoType: 'ok' },
+  { protocolo: '#xxxxxx', regiao: 'Norte', endereco: 'Av. Norte, 45', status: 'Em campo', tipo: 'Poda de árvore', prazo: '28 dias', prioridade: 'Média', prazoType: 'ok' },
+  { protocolo: '#xxxxxx', regiao: 'Sul', endereco: 'Av. Sul, 90', status: 'Resolvido', tipo: 'Limpeza de bueiro', prazo: 'Concluído', prioridade: 'Baixa', prazoType: 'ok' },
+  { protocolo: '#xxxxxx', regiao: 'Leste', endereco: 'Rua Leste, 10', status: 'Triagem', tipo: 'Varrição', prazo: 'Hoje', prioridade: 'Urgente', prazoType: 'urgent' },
+  { protocolo: '#xxxxxx', regiao: 'Oeste', endereco: 'Rua Oeste, 5', status: 'Andamento', tipo: 'Iluminação', prazo: '5 dias', prioridade: 'Alta', prazoType: 'ok' },
 ];
 
 const STATUS_STYLE = {
@@ -66,6 +68,25 @@ const PRIO_STYLE = {
 export default function Dashboard() {
   const [chartTab, setChartTab] = useState('Semana');
   const [search, setSearch] = useState('');
+  const [selectedProtocol, setSelectedProtocol] = useState(null);
+  const { selectedRegion } = useRegion();
+
+  const filteredTable = useMemo(() => {
+    let data = TABLE_DATA;
+    if (selectedRegion) {
+      data = data.filter(r => r.regiao === selectedRegion);
+    }
+    if (search) {
+      data = data.filter(r => r.protocolo.toLowerCase().includes(search.toLowerCase()) || r.tipo.toLowerCase().includes(search.toLowerCase()));
+    }
+    return data;
+  }, [selectedRegion, search]);
+
+  const kpis = useMemo(() => {
+    // Reduz valores se tiver região selecionada para simular filtro
+    const multiplier = selectedRegion ? 0.3 : 1; 
+    return KPI.map(k => ({...k, value: Math.floor(k.value * multiplier)}));
+  }, [selectedRegion]);
 
   return (
     <AdminLayout>
@@ -77,7 +98,7 @@ export default function Dashboard() {
 
       {/* KPI Cards */}
       <div className={styles.stats}>
-        {KPI.map((k, i) => (
+        {kpis.map((k, i) => (
           <div key={i} className={[styles.statCard, styles[k.color]].join(' ')}>
             <div className={styles.statLabel}>{k.label}</div>
             <div className={[styles.statValue, styles[k.color]].join(' ')}>{k.value.toLocaleString()}</div>
@@ -178,10 +199,10 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {TABLE_DATA.map((row, i) => (
+              {filteredTable.map((row, i) => (
                 <tr key={i}>
                   <td className={styles.proto}>{row.protocolo}</td>
-                  <td className={styles.muted}>{row.endereco}</td>
+                  <td className={styles.muted}>{row.endereco} <br/><small>({row.regiao})</small></td>
                   <td>
                     <span style={{
                       background: STATUS_STYLE[row.status]?.bg,
@@ -205,13 +226,47 @@ export default function Dashboard() {
                       fontWeight: 600
                     }}>{row.prioridade}</span>
                   </td>
-                  <td><button className={styles.viewBtn}>Ver</button></td>
+                  <td><button className={styles.viewBtn} onClick={() => setSelectedProtocol(row)}>Ver</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Modal de Detalhes da Solicitação */}
+      {selectedProtocol && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999
+        }}>
+          <div style={{
+            background: 'var(--surface)', padding: '24px', borderRadius: '8px', 
+            width: '400px', maxWidth: '90%', border: '1px solid var(--border)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+          }}>
+            <h2 style={{marginTop: 0, marginBottom: '16px', fontSize: '1.2rem'}}>Detalhes da Solicitação</h2>
+            <div style={{display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.9rem'}}>
+              <div><strong>Protocolo:</strong> {selectedProtocol.protocolo}</div>
+              <div><strong>Status:</strong> {selectedProtocol.status}</div>
+              <div><strong>Tipo:</strong> {selectedProtocol.tipo}</div>
+              <div><strong>Região:</strong> {selectedProtocol.regiao}</div>
+              <div><strong>Endereço:</strong> {selectedProtocol.endereco}</div>
+              <div><strong>Prioridade:</strong> {selectedProtocol.prioridade}</div>
+              <div><strong>Prazo Restante:</strong> {selectedProtocol.prazo}</div>
+              <div><strong>Descrição:</strong> Morador relatou problema na via pública que precisa de atenção da equipe de zeladoria.</div>
+            </div>
+            <div style={{marginTop: '24px', display: 'flex', gap: '12px', justifyContent: 'flex-end'}}>
+              <button 
+                onClick={() => setSelectedProtocol(null)}
+                style={{padding: '8px 16px', borderRadius: '4px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-primary)', cursor: 'pointer'}}
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

@@ -27,6 +27,26 @@ spring:
     baseline-version: 0
     clean-on-validation-error: true
 
+  ai:
+    vectorstore:
+      pgvector:
+        initialize-schema: true
+        index-type: hnsw
+        dimensions: 3072
+        distance-type: cosine_distance
+    openai:
+      api-key: ${GOOGLE_GENAI_API_KEY}
+      base-url: https://generativelanguage.googleapis.com/v1beta/openai/
+      chat:
+        options:
+          model: gemini-3.1-flash-lite
+          temperature: 0.7
+          max-tokens: 1024 
+      embedding:
+        options:
+          model: gemini-embedding-001
+          dimensions: 1536
+
 security:
   jwt:
     secret: ${JWT_SECRET:cuidar-brasil-jwt-super-secret-key-2024-hackgov-fiap-32chars}

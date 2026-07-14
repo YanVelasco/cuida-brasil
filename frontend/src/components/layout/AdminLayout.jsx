@@ -1,16 +1,23 @@
 import { useState } from 'react';
 import Sidebar from './Sidebar';
 import { useTheme } from '../../contexts/ThemeContext';
-import { Moon, Sun, Menu } from 'lucide-react';
+import { Moon, Sun, Menu, FileDown, Accessibility } from 'lucide-react';
+import useLocationTracker from '../../hooks/useLocationTracker';
+import { useRegion } from '../../contexts/RegionContext';
 import styles from './AdminLayout.module.css';
 
 export default function AdminLayout({ children }) {
   const { theme, toggleTheme } = useTheme();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { selectedRegion, setSelectedRegion } = useRegion();
+
+  // Inicializa o rastreamento em background se for Gestor
+  useLocationTracker();
 
   return (
-    <div className={styles.layout}>
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+    <>
+      <div className={styles.layout}>
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       
       {isSidebarOpen && (
         <div 
@@ -33,22 +40,28 @@ export default function AdminLayout({ children }) {
             {theme === 'light' ? <><Moon size={16}/> Modo Escuro</> : <><Sun size={16}/> Modo Claro</>}
           </button>
           <div className={styles.divider}/>
-          <button className={styles.topBarBtn}>🤟 VLibras</button>
-          <select className={styles.regionSelect}>
-            <option>Selecionar região</option>
-            <option>Centro</option>
-            <option>Norte</option>
-            <option>Sul</option>
-            <option>Leste</option>
-            <option>Oeste</option>
+          <select 
+            className={styles.regionSelect} 
+            value={selectedRegion}
+            onChange={(e) => setSelectedRegion(e.target.value)}
+          >
+            <option value="">Todas as Regiões</option>
+            <option value="Centro">Centro</option>
+            <option value="Norte">Norte</option>
+            <option value="Sul">Sul</option>
+            <option value="Leste">Leste</option>
+            <option value="Oeste">Oeste</option>
           </select>
-          <button className={styles.exportBtn}>Exportar</button>
+          <button className={styles.exportBtn} onClick={() => window.print()}>
+            <FileDown size={16} style={{marginRight: 6}}/> Exportar
+          </button>
         </div>
         <div className={styles.content}>
           {children}
         </div>
       </main>
     </div>
+    </>
   );
 }
 
