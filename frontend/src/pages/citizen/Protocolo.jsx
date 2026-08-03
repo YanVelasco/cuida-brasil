@@ -49,7 +49,7 @@ export default function Protocolo() {
         <p className={styles.desc}>{oc.descricao}</p>
         <p className={styles.date}><Clock size={13}/> Registrada em {oc.dataCriacao ? new Date(oc.dataCriacao).toLocaleDateString() : oc.data}</p>
         
-        {oc.status?.toLowerCase() === 'resolvido' && (
+        {oc.status?.toUpperCase() === 'CONCLUIDA' && (
           <button 
             onClick={() => navigate(`/app/avaliar/${oc.id}`)} 
             className={styles.avaliarBtn}

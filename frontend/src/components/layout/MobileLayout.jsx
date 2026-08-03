@@ -6,7 +6,6 @@ const NAV_ITEMS = [
   { to: '/app', label: 'Início', end: true },
   { to: '/app/nova-solicitacao', label: 'Nova Ocorrência' },
   { to: '/app/protocolo', label: 'Protocolos' },
-  { to: '/app/avaliar', label: 'Avaliar' },
 ];
 
 export default function MobileLayout({ children, title, hideNav }) {

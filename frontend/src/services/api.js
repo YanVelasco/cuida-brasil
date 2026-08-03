@@ -54,6 +54,8 @@ export const ocorrenciaService = {
     api.get(`/api/solicitacoes/protocolo/${protocolo}`),
   atualizarStatus: (id, dados) =>
     api.put(`/api/solicitacoes/${id}/status`, dados),
+  avaliar: (id, dados) =>
+    api.post(`/api/solicitacoes/${id}/avaliar`, dados),
 };
 
 // ============ DASHBOARD ============
