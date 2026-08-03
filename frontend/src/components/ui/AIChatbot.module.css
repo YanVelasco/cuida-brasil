@@ -81,37 +81,148 @@
   transform: scale(1.05);
 }
 
-/* AI Chat Window Container */
-.chatWindow {
-  position: fixed;
-  right: 24px;
-  bottom: 196px; /* Elevated by default globally to match the trigger button */
-  width: 380px;
-  height: 520px;
-  max-height: 80vh;
-  max-width: calc(100vw - 48px);
-  background: rgba(255, 255, 255, 0.82);
+/* AI Chat Window Container (via Rnd) */
+.rndChatWindow {
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: var(--radius-xl);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-  display: flex;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  display: flex !important;
   flex-direction: column;
   overflow: hidden;
-  z-index: 9998;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.chatWindow.adminChatPosition {
-  bottom: 100px; /* Reset for Admin desktop view */
 }
 
-/* Dark theme specific variables override */
-:global([data-theme='dark']) .chatWindow {
-  background: rgba(19, 30, 58, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 12px 45px rgba(0, 0, 0, 0.5);
+:global([data-theme='dark']) .rndChatWindow {
+  background: rgba(19, 30, 58, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chatWindowInner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Sidebar para o Histórico de Conversas */
+.sidebar {
+  position: absolute;
+  top: 0;
+  left: -260px;
+  width: 260px;
+  height: 100%;
+  background: var(--background);
+  border-right: 1px solid var(--border);
+  z-index: 10;
+  transition: left 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebarOpen {
+  left: 0;
+}
+
+.sidebarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebarHeader h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.closeSidebarBtn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.newChatBtn {
+  margin: 12px;
+  padding: 10px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.sessionList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sessionItem {
+  padding: 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  transition: background 0.2s;
+  position: relative;
+}
+
+.sessionItem:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+:global([data-theme='dark']) .sessionItem:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sessionActive {
+  background: rgba(47, 128, 237, 0.1);
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.sessionTitle {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deleteChatBtn {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  opacity: 0;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.sessionItem:hover .deleteChatBtn {
+  opacity: 0.7;
+}
+
+.deleteChatBtn:hover {
+  opacity: 1;
+  background: rgba(235, 87, 87, 0.1);
 }
 
 /* Chat Header */
@@ -133,6 +244,21 @@
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.menuBtn {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.8;
+}
+.menuBtn:hover {
+  opacity: 1;
 }
 
 .headerAvatar {
@@ -312,11 +438,17 @@
   transform: translateY(-1px);
 }
 
+/* Bottom Area (Suggestions + Input) */
+.bottomArea {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
 /* Input Form Area */
 .inputForm {
   padding: 12px 16px;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
   display: flex;
   gap: 8px;
   align-items: center;
@@ -489,21 +621,9 @@
     height: 56px;
   }
 
-  .chatWindow {
-    right: 16px;
-    bottom: 186px; /* Positioned right above the trigger button */
-    width: calc(100vw - 32px);
-    height: 480px;
-  }
-
-
-
+  /* Mobile adaptions for avatar wrapper */
   .avatarWrapper.adminPosition {
     bottom: 16px; /* Closer to the bottom edge for Admin/Gestor without BottomNav */
-  }
-
-  .chatWindow.adminChatPosition {
-    bottom: 82px; /* Adjusted height above the trigger button for Admin/Gestor */
   }
 }
 
