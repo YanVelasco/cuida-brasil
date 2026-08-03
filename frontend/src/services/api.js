@@ -77,7 +77,7 @@ export const relatorioService = {
 };
 
 export const chatService = {
-  ask: (message) => api.post('/chat/ask', { message }),
+  ask: (message) => api.post('/api/chat/ask', { message }),
 };
 
 export const gestorService = {

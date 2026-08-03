@@ -113,7 +113,7 @@ export default function AIChatbot() {
     setIsTyping(true);
     
     try {
-      const response = await chatService.perguntar(normalizedText);
+      const response = await chatService.ask(normalizedText);
       const data = response.data;
       
       const aiMsg = {
