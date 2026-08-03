@@ -12,10 +12,12 @@ public class Solicitacao {
     private String protocolo;
     @Column(nullable = false, length = 2000)
     private String descricao;
-    @Column(length = 1000)
+    @Column(columnDefinition = "VARCHAR(MAX)")
     private String fotos;
     @Column(nullable = false, length = 100)
     private String gps;
+    @Column(length = 500)
+    private String endereco;
     @Column(nullable = false, length = 30)
     private String status = "PENDENTE";
     @Column(length = 20)
@@ -43,6 +45,7 @@ public class Solicitacao {
     public String getDescricao() { return descricao; } public void setDescricao(String descricao) { this.descricao = descricao; }
     public String getFotos() { return fotos; } public void setFotos(String fotos) { this.fotos = fotos; }
     public String getGps() { return gps; } public void setGps(String gps) { this.gps = gps; }
+    public String getEndereco() { return endereco; } public void setEndereco(String endereco) { this.endereco = endereco; }
     public String getStatus() { return status; } public void setStatus(String status) { this.status = status; }
     public String getPrioridade() { return prioridade; } public void setPrioridade(String prioridade) { this.prioridade = prioridade; }
     public LocalDateTime getDataCriacao() { return dataCriacao; } public void setDataCriacao(LocalDateTime dataCriacao) { this.dataCriacao = dataCriacao; }

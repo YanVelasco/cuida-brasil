@@ -22,7 +22,12 @@ export default function Protocolo() {
   const [oc, setOc] = useState(MOCK_OC);
 
   useEffect(() => {
-    if (id) ocorrenciaService.buscarPorId(id).then(r => setOc(r.data)).catch(()=>{});
+    if (id) {
+      ocorrenciaService.buscarPorId(id).then(r => {
+        const ocData = r.data?.data || r.data;
+        setOc(ocData);
+      }).catch(()=>{});
+    }
   }, [id]);
 
   return (
@@ -38,11 +43,11 @@ export default function Protocolo() {
       </div>
 
       <div className={styles.infoCard}>
-        <h3>{oc.titulo}</h3>
-        <p className={styles.sub}>{oc.local}</p>
-        <span className={styles.cat}>{oc.categoria}</span>
+        <h3>{oc.subcategoriaServico || oc.titulo}</h3>
+        <p className={styles.sub}>{oc.endereco || oc.gps || oc.local}</p>
+        <span className={styles.cat}>{oc.categoriaServico || oc.categoria}</span>
         <p className={styles.desc}>{oc.descricao}</p>
-        <p className={styles.date}><Clock size={13}/> Registrada em {oc.data}</p>
+        <p className={styles.date}><Clock size={13}/> Registrada em {oc.dataCriacao ? new Date(oc.dataCriacao).toLocaleDateString() : oc.data}</p>
         
         {oc.status?.toLowerCase() === 'resolvido' && (
           <button 
@@ -58,17 +63,23 @@ export default function Protocolo() {
       <div className={styles.histSection}>
         <h3>Histórico</h3>
         <div className={styles.timeline}>
-          {MOCK_HIST.map((h, i) => (
-            <div key={i} className={styles.timelineItem}>
-              <div className={[styles.dot, h.done ? styles.dotDone : ''].join(' ')}>
-                {h.done ? <CheckCircle2 size={18}/> : <Circle size={18}/>}
+          {(oc.historicos && oc.historicos.length > 0 ? oc.historicos : MOCK_HIST).map((h, i) => {
+            const isDone = h.observacao ? true : h.done; // Simplificação visual
+            const title = h.observacao || `Status: ${h.statusAtual}` || h.titulo;
+            const dateStr = h.dataRegistro ? new Date(h.dataRegistro).toLocaleString() : h.data;
+
+            return (
+              <div key={i} className={styles.timelineItem}>
+                <div className={[styles.dot, isDone ? styles.dotDone : ''].join(' ')}>
+                  {isDone ? <CheckCircle2 size={18}/> : <Circle size={18}/>}
+                </div>
+                <div className={styles.timelineContent}>
+                  <p className={[styles.tlTitle, isDone ? styles.tlDone : ''].join(' ')}>{title}</p>
+                  {dateStr && <p className={styles.tlDate}>{dateStr}</p>}
+                </div>
               </div>
-              <div className={styles.timelineContent}>
-                <p className={[styles.tlTitle, h.done ? styles.tlDone : ''].join(' ')}>{h.titulo}</p>
-                {h.data && <p className={styles.tlDate}>{h.data}</p>}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </MobileLayout>

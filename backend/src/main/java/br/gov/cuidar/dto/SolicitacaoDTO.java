@@ -8,11 +8,13 @@ public class SolicitacaoDTO {
     public static class CreateRequest {
         @NotBlank private String descricao;
         @NotBlank private String gps;
+        private String endereco;
         @NotNull  private Long idServico;
         private String fotos;
         public CreateRequest() {}
         public String getDescricao() { return descricao; } public void setDescricao(String descricao) { this.descricao = descricao; }
         public String getGps() { return gps; } public void setGps(String gps) { this.gps = gps; }
+        public String getEndereco() { return endereco; } public void setEndereco(String endereco) { this.endereco = endereco; }
         public Long getIdServico() { return idServico; } public void setIdServico(Long idServico) { this.idServico = idServico; }
         public String getFotos() { return fotos; } public void setFotos(String fotos) { this.fotos = fotos; }
     }
@@ -30,7 +32,7 @@ public class SolicitacaoDTO {
     }
 
     public static class Response {
-        private Long id; private String protocolo; private String descricao; private String gps;
+        private Long id; private String protocolo; private String descricao; private String gps; private String endereco;
         private String status; private String prioridade; private LocalDateTime dataCriacao;
         private LocalDate dataConclusao; private String nomeUsuario; private String nomeEquipe;
         private String categoriaServico; private String subcategoriaServico; private List<HistoricoDTO> historicos;
@@ -39,6 +41,7 @@ public class SolicitacaoDTO {
         public String getProtocolo() { return protocolo; } public void setProtocolo(String protocolo) { this.protocolo = protocolo; }
         public String getDescricao() { return descricao; } public void setDescricao(String descricao) { this.descricao = descricao; }
         public String getGps() { return gps; } public void setGps(String gps) { this.gps = gps; }
+        public String getEndereco() { return endereco; } public void setEndereco(String endereco) { this.endereco = endereco; }
         public String getStatus() { return status; } public void setStatus(String status) { this.status = status; }
         public String getPrioridade() { return prioridade; } public void setPrioridade(String prioridade) { this.prioridade = prioridade; }
         public LocalDateTime getDataCriacao() { return dataCriacao; } public void setDataCriacao(LocalDateTime dataCriacao) { this.dataCriacao = dataCriacao; }

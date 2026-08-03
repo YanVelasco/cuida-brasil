@@ -40,6 +40,7 @@ public class SolicitacaoService {
         sol.setProtocolo(protocolo);
         sol.setDescricao(req.getDescricao());
         sol.setGps(req.getGps());
+        sol.setEndereco(req.getEndereco());
         sol.setFotos(req.getFotos());
         sol.setStatus("PENDENTE");
         sol.setUsuario(usuario);
@@ -110,7 +111,7 @@ public class SolicitacaoService {
 
         Response r = new Response();
         r.setId(s.getId()); r.setProtocolo(s.getProtocolo()); r.setDescricao(s.getDescricao());
-        r.setGps(s.getGps()); r.setStatus(s.getStatus()); r.setPrioridade(s.getPrioridade());
+        r.setGps(s.getGps()); r.setEndereco(s.getEndereco()); r.setStatus(s.getStatus()); r.setPrioridade(s.getPrioridade());
         r.setDataCriacao(s.getDataCriacao()); r.setDataConclusao(s.getDataConclusao());
         r.setNomeUsuario(s.getUsuario().getNome());
         r.setNomeEquipe(s.getEquipe() != null ? s.getEquipe().getNome() : null);
