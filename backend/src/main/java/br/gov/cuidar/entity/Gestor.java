@@ -15,6 +15,7 @@ public class Gestor {
 
     private Double latitude;
     private Double longitude;
+    @Column(name = "ultima_atualizacao_localizacao")
     private java.time.LocalDateTime ultimaAtualizacaoLocalizacao;
 
     public Gestor() {}

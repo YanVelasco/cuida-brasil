@@ -23,32 +23,39 @@ public class AIChatbotService {
         this.chatModel = chatModel;
     }
 
-    public String processQuery(String userMessage, String perfil, String usuarioId) {
+    public String processQuery(String userMessage, String perfil, String usuarioId, String equipeId) {
         try {
-            // Constrói filtro condicional baseado no perfil
-            String filterExpression = "";
+            String filterExpression;
             if ("CITIZEN".equals(perfil)) {
-                // Cidadão só deve buscar suas próprias solicitações
                 filterExpression = "usuarioId == '" + usuarioId + "'";
             } else if ("GESTOR".equals(perfil)) {
-                // Gestor busca todas as solicitações (na vida real filtraria por orgao/equipe)
-                filterExpression = "domain == 'solicitacoes'";
+                if (equipeId != null && !equipeId.equals("UNASSIGNED")) {
+                    filterExpression = "equipeId == '" + equipeId + "'";
+                } else {
+                    filterExpression = "domain == 'solicitacoes'";
+                }
             } else {
-                // ADMIN vê tudo
                 filterExpression = "domain == 'solicitacoes'";
             }
 
             SearchRequest searchRequest = SearchRequest.query(userMessage)
                     .withTopK(20)
-                    .withSimilarityThreshold(0.1) // Baixo threshold para garantir que algo volte
+                    .withSimilarityThreshold(0.1)
                     .withFilterExpression(filterExpression);
 
             List<Document> similarDocuments = vectorStore.similaritySearch(searchRequest);
-            
+
             String context = similarDocuments.stream()
                     .map(Document::getContent)
                     .reduce((a, b) -> a + "\n" + b)
                     .orElse("Nenhum dado encontrado no banco de dados.");
+
+            String perfilLabel = switch (perfil) {
+                case "CITIZEN" -> "Cidadão";
+                case "GESTOR" -> "Gestor Público";
+                case "ADMIN" -> "Administrador do Sistema";
+                default -> perfil;
+            };
 
             String systemPromptTemplate = """
                     Você é a Luna, a assistente virtual inteligente oficial da plataforma Cuida+ Brasil, um sistema de zeladoria urbana municipal.
@@ -63,6 +70,7 @@ public class AIChatbotService {
                     - NÃO invente dados de protocolos, endereços ou status que não estejam no contexto.
                     - Se a resposta não estiver no contexto, diga cordialmente que não encontrou a informação.
                     - Se o usuário pedir botões de ação ou links, instrua-o a navegar pelo menu do sistema, pois você agora é focada em responder com texto inteligente.
+                    - Você NUNCA deve revelar dados de outros usuários que não sejam os do perfil atual.
                     
                     DADOS RECUPERADOS (Contexto):
                     {context}
@@ -70,7 +78,7 @@ public class AIChatbotService {
 
             PromptTemplate promptTemplate = new PromptTemplate(systemPromptTemplate);
             Prompt prompt = promptTemplate.create(Map.of(
-                    "perfil", perfil,
+                    "perfil", perfilLabel,
                     "userMessage", userMessage,
                     "context", context
             ));

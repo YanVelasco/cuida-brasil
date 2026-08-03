@@ -4,7 +4,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000,
+  timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -56,13 +56,28 @@ export const ocorrenciaService = {
 
 // ============ DASHBOARD ============
 export const dashboardService = {
+  // Dashboard do GESTOR (filtra pela equipe do gestor autenticado)
   stats: () =>
     api.get('/api/admin/dashboard'),
+  // Dashboard do ADMIN (totais gerais do sistema)
   statsAdmin: () =>
     api.get('/api/admin/system-dashboard'),
 };
 
-// ============ GESTORES ============
+// ============ RELATORIOS ============
+export const relatorioService = {
+  porCategoria: () =>
+    api.get('/api/relatorios/por-categoria'),
+  porStatus: () =>
+    api.get('/api/relatorios/por-status'),
+  tendenciaMensal: () =>
+    api.get('/api/relatorios/tendencia-mensal'),
+};
+
+export const chatService = {
+  ask: (message) => api.post('/chat/ask', { message }),
+};
+
 export const gestorService = {
   atualizarLocalizacao: (dados) =>
     api.put('/api/gestores/localizacao', dados),
@@ -91,4 +106,3 @@ export const servicoService = {
 };
 
 export default api;
-

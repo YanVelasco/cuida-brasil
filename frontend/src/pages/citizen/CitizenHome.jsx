@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ocorrenciaService } from '../../services/api';
@@ -7,30 +7,51 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Home, Plus, MapPin, User, Bell, LogOut, Moon, Sun } from 'lucide-react';
 import styles from './CitizenHome.module.css';
 
-const MOCK = [
-  { id: 1, titulo: 'Buraco na via pública', categoria: 'Infraestrutura', status: 'Em Andamento', local: 'Rua XXXXXX, XXX - Jardim XXXX', data: '10/05/2024' },
-  { id: 2, titulo: 'Iluminação pública com defeito', categoria: 'Iluminação', status: 'Em Análise', local: 'Rua XXXXXX, XXX - Jardim XXXX', data: '08/05/2024' },
-  { id: 3, titulo: 'Iluminação de patrimônio público', categoria: 'Patrimônio', status: 'Resolvido', local: 'Rua XXXXXX, XXX - Jardim XXXX', data: '05/05/2024' },
-];
-
-const STATUS_STYLE = {
-  'Em Andamento': { bg: 'var(--primary-light)', color: 'var(--primary)', border:'var(--primary)' },
-  'Em Análise':   { bg: 'var(--warning-light)', color: 'var(--warning)', border:'var(--warning)' },
-  'Resolvido':    { bg: 'var(--success-light)', color: 'var(--success)', border:'var(--success)' },
+// Mapeamento de status da API para rótulos amigáveis e estilos
+const STATUS_MAP = {
+  'PENDENTE':     { label: 'Pendente',     bg: 'var(--warning-light)', color: 'var(--warning)', border: 'var(--warning)' },
+  'TRIAGEM':      { label: 'Em Análise',   bg: 'var(--primary-light)', color: 'var(--primary)', border: 'var(--primary)' },
+  'EM_ANDAMENTO': { label: 'Em Andamento', bg: '#EBF3FF',              color: '#1351B4',         border: '#1351B4' },
+  'EM_CAMPO':     { label: 'Em Campo',     bg: '#E8F5E9',              color: '#27AE60',         border: '#27AE60' },
+  'CONCLUIDA':    { label: 'Resolvido',    bg: 'var(--success-light)', color: 'var(--success)', border: 'var(--success)' },
+  'CANCELADA':    { label: 'Cancelado',    bg: '#FEE2E2',              color: '#EF4444',         border: '#EF4444' },
 };
-
-
 
 export default function CitizenHome() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const [ocorrencias, setOcorrencias] = useState(MOCK);
+  const [ocorrencias, setOcorrencias] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    ocorrenciaService.listar()
-      .then(r => { if (r.data?.length) setOcorrencias(r.data); })
-      .catch(() => {});
+    // Carrega APENAS as solicitações do cidadão autenticado via token
+    ocorrenciaService.minhas({ page: 0, size: 20 })
+      .then(r => {
+        const content = r.data?.data?.content || r.data?.content || [];
+        setOcorrencias(content);
+      })
+      .catch(err => {
+        console.error('Erro ao carregar ocorrências:', err);
+        setOcorrencias([]);
+      })
+      .finally(() => setLoading(false));
   }, []);
+
+  // Calcula as estatísticas a partir dos dados reais da API
+  const stats = useMemo(() => {
+    const abertas = ocorrencias.filter(o =>
+      ['PENDENTE', 'TRIAGEM'].includes(o.status)
+    ).length;
+    const andamento = ocorrencias.filter(o =>
+      ['EM_ANDAMENTO', 'EM_CAMPO'].includes(o.status)
+    ).length;
+    const resolvidas = ocorrencias.filter(o => o.status === 'CONCLUIDA').length;
+    return [
+      { label: 'Abertas',    value: abertas,   color: '#F2994A' },
+      { label: 'Andamento',  value: andamento, color: '#2F80ED' },
+      { label: 'Resolvidas', value: resolvidas, color: '#27AE60' },
+    ];
+  }, [ocorrencias]);
 
   return (
     <MobileLayout>
@@ -98,14 +119,14 @@ export default function CitizenHome() {
           <div className={styles.userAvatar}>{user?.nome?.[0] ?? 'U'}</div>
           <div>
             <p className={styles.userGreet}>Bem-vindo,</p>
-            <p className={styles.userName}>{user?.nome?.split(' ')[0] ?? 'Usuário B.'}</p>
+            <p className={styles.userName}>{user?.nome?.split(' ')[0] ?? 'Cidadão'}</p>
           </div>
         </div>
-        {/* Stats bar */}
+        {/* Stats bar — calculada a partir dos dados reais */}
         <div className={styles.statsBar}>
-          {[{label:'Abertas',value:3,color:'#F2994A'},{label:'Em Análise',value:1,color:'#2F80ED'},{label:'Resolvidas',value:12,color:'#27AE60'}].map(s => (
+          {stats.map(s => (
             <div key={s.label} className={styles.statItem}>
-              <span className={styles.statValue} style={{color:s.color}}>{s.value}</span>
+              <span className={styles.statValue} style={{color: s.color}}>{s.value}</span>
               <span className={styles.statLabel}>{s.label}</span>
             </div>
           ))}
@@ -119,21 +140,31 @@ export default function CitizenHome() {
           <div className={styles.section}>
             <div className={styles.sectionHeader}>
               <span className={styles.sectionTitle}>Minhas Ocorrências</span>
-              <button className={styles.verTodas}>Ver Todas</button>
+              <Link to="/app/nova-solicitacao" className={styles.verTodas}>+ Nova</Link>
             </div>
 
             <div className={styles.ocorrenciasList}>
+              {loading && (
+                <p style={{ color: 'var(--text-secondary)', padding: '12px', fontSize: '0.85rem' }}>
+                  Carregando...
+                </p>
+              )}
+              {!loading && ocorrencias.length === 0 && (
+                <p style={{ color: 'var(--text-secondary)', padding: '12px', fontSize: '0.85rem' }}>
+                  Você ainda não tem solicitações. Clique em "+ Nova" para registrar um problema!
+                </p>
+              )}
               {ocorrencias.map(oc => {
-                const st = STATUS_STYLE[oc.status] || { bg: '#f1f5f9', color: '#666', border: '#ccc' };
+                const st = STATUS_MAP[oc.status] || { label: oc.status, bg: '#f1f5f9', color: '#666', border: '#ccc' };
                 return (
                   <Link key={oc.id} to={"/app/protocolo/" + oc.id} className={styles.card}>
                     <div className={styles.cardTop}>
                       <div className={styles.cardInfo}>
-                        <p className={styles.cardTitle}>{oc.titulo}</p>
-                        <p className={styles.cardLocal}>{oc.local}</p>
+                        <p className={styles.cardTitle}>{oc.categoriaServico} — {oc.subcategoriaServico}</p>
+                        <p className={styles.cardLocal}>{oc.protocolo} · {oc.gps}</p>
                       </div>
                       <span className={styles.statusBadge} style={{background: st.bg, color: st.color, borderColor: st.border}}>
-                        {oc.status}
+                        {st.label}
                       </span>
                     </div>
                   </Link>
@@ -181,4 +212,3 @@ export default function CitizenHome() {
     </MobileLayout>
   );
 }
-

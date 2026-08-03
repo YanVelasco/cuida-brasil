@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { chatService } from '../../services/api';
 import { 
   Send, X, ChevronRight, MapPin, CheckCircle, Shield 
 } from 'lucide-react';
@@ -112,24 +113,8 @@ export default function AIChatbot() {
     setIsTyping(true);
     
     try {
-      const response = await fetch('http://localhost:8080/api/chat/ask', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}` // Se houver JWT
-        },
-        body: JSON.stringify({
-          message: normalizedText,
-          perfil: user?.perfil || 'CITIZEN',
-          usuarioId: String(user?.id)
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Falha na comunicação com a IA');
-      }
-
-      const data = await response.json();
+      const response = await chatService.perguntar(normalizedText);
+      const data = response.data;
       
       const aiMsg = {
         id: Date.now(),

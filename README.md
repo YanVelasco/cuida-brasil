@@ -23,8 +23,8 @@ O repositório está dividido nas seguintes partes:
 - 🔐 **Autenticação JWT Stateless** com perfis de acesso (Cidadão, Gestor, Administrador)
 - 📋 **Gestão de Solicitações** — abertura, acompanhamento e atualização de status
 - 👥 **Gestão de Equipes** — criação, listagem e atribuição de solicitações
-- 📊 **Dashboard Administrativo** — métricas em tempo real do sistema
-- 🤖 **Luna — Assistente de IA (RAG)** — chatbot inteligente com memória vetorial que responde perguntas sobre as solicitações do usuário usando Gemini AI + PGVector
+- 📊 **Dashboard Administrativo e Relatórios** — métricas e gráficos em tempo real gerados a partir do banco (com isolamento de dados por perfil)
+- 🤖 **Luna — Assistente de IA (RAG)** — chatbot inteligente com isolamento JWT. Retorna apenas dados de interesse do solicitante.
 - ♿ **Acessibilidade** — integração com VLibras para tradução em Língua Brasileira de Sinais
 
 ---
@@ -118,11 +118,19 @@ As *Migrations* do Flyway já inserem dados reais para que você não encontre o
 
 ### Contas Pré-cadastradas
 
-| Perfil | CPF | Senha | Permissões |
-| :--- | :--- | :--- | :--- |
-| **Administrador** | `000.000.000-00` | `Admin@123` | Acesso total ao sistema |
-| **Gestor** | `111.111.111-11` | `Gestor@123` | Gerencia equipes e solicitações |
-| **Cidadão** | `222.222.222-22` | `Cidadao@123` | Acompanha e abre solicitações |
+| Perfil | Usuário | CPF | Senha | Equipe Associada (Gestores) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Administrador** | Administrador Sistema | `000.000.000-00` | `Admin@123` | *Acesso total (Sem equipe)* |
+| **Gestor** | Carlos Alberto Silva | `111.111.111-11` | `Gestor@123` | Equipe Pavimentação 01 |
+| **Gestor** | Ana Paula Ferreira | `333.333.333-33` | `Gestor@123` | Equipe Iluminação 01 |
+| **Gestor** | Roberto Oliveira Santos | `444.444.444-44` | `Gestor@123` | Equipe Saneamento 02 |
+| **Gestor** | Fernanda Lima Costa | `555.555.555-55` | `Gestor@123` | Equipe Poda 02 |
+| **Cidadão** | Maria das Graças Souza | `222.222.222-22` | `Cidadao@123` | *Não aplicável* |
+| **Cidadão** | João Pedro Alves | `601.501.401-01` | `Cidadao@123` | *Não aplicável* |
+| **Cidadão** | Luciana Rodrigues Melo | `602.502.402-02` | `Cidadao@123` | *Não aplicável* |
+| **Cidadão** | Carlos Eduardo Nunes | `603.503.403-03` | `Cidadao@123` | *Não aplicável* |
+| **Cidadão** | Patricia Souza Lima | `604.504.404-04` | `Cidadao@123` | *Não aplicável* |
+| **Cidadão** | Marcos Antonio Vieira | `605.505.405-05` | `Cidadao@123` | *Não aplicável* |
 
 *Ou cadastre um novo usuário pela tela de registro.*
 
@@ -137,6 +145,12 @@ As *Migrations* do Flyway já inserem dados reais para que você não encontre o
 ```bash
 docker-compose logs -f
 ```
+
+### Isolamento de Dados por Perfil
+Todo o front-end e o assistente Luna consomem dados reais do backend. O acesso aos dados é restrito com base no perfil autenticado no token JWT:
+- **Cidadão (`CITIZEN`)**: Tem acesso exclusivo e limitado a suas próprias solicitações abertas (na IA e nas telas de acompanhamento).
+- **Gestor (`GESTOR`)**: Visualiza e interage unicamente com os indicadores de dashboard, chamados e respostas da IA referentes à sua **Equipe Pública** designada. Não acessa os dados gerais de outras equipes da prefeitura.
+- **Administrador (`ADMIN`)**: Acesso irrestrito a todos os dados, dashboards integrados e todas as solicitações para auditoria e relatórios amplos.
 
 ---
 

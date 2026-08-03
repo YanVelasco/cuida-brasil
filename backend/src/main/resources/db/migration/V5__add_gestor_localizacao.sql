@@ -1,0 +1,26 @@
+-- V5: Adicionar colunas de localização ao TB_GESTOR
+-- As colunas existem na entidade Java mas foram omitidas no DDL original
+
+IF NOT EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'TB_GESTOR' AND COLUMN_NAME = 'latitude'
+)
+BEGIN
+    ALTER TABLE TB_GESTOR ADD latitude FLOAT NULL;
+END
+
+IF NOT EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'TB_GESTOR' AND COLUMN_NAME = 'longitude'
+)
+BEGIN
+    ALTER TABLE TB_GESTOR ADD longitude FLOAT NULL;
+END
+
+IF NOT EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'TB_GESTOR' AND COLUMN_NAME = 'ultima_atualizacao_localizacao'
+)
+BEGIN
+    ALTER TABLE TB_GESTOR ADD ultima_atualizacao_localizacao DATETIME2 NULL;
+END
