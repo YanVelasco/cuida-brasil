@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { chatService } from '../../services/api';
@@ -246,7 +247,9 @@ export default function AIChatbot() {
                   <div className={styles.botThumb}><img src="/avatar_ai.png" alt="Luna" className={styles.botThumbImg} /></div>
                 )}
                 <div className={styles.bubble}>
-                  <div style={{ whiteSpace: 'pre-line' }}>{msg.text}</div>
+                  <div className={styles.markdownContent}>
+                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  </div>
                   {renderRichContent(msg)}
                 </div>
               </div>
