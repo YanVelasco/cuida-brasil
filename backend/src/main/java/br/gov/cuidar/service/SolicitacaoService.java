@@ -63,6 +63,12 @@ public class SolicitacaoService {
         return result.map(this::toResponse);
     }
 
+    public List<Response> listarNaoAtribuidas() {
+        return solicitacaoRepository.findNaoAtribuidas().stream()
+            .map(this::toResponse)
+            .collect(Collectors.toList());
+    }
+
     public Page<Response> listarPorUsuario(Long usuarioId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("dataCriacao").descending());
         return solicitacaoRepository.findByUsuarioId(usuarioId, pageable).map(this::toResponse);

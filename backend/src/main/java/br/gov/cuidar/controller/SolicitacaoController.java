@@ -25,6 +25,11 @@ public class SolicitacaoController {
     public ResponseEntity<ApiResponse<Page<Response>>> listar(@RequestParam(required = false) String status, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(ApiResponse.ok(sService.listarTodas(status, page, size)));
     }
+    
+    @GetMapping("/nao-atribuidas") @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
+    public ResponseEntity<ApiResponse<java.util.List<Response>>> listarNaoAtribuidas() {
+        return ResponseEntity.ok(ApiResponse.ok(sService.listarNaoAtribuidas()));
+    }
     @GetMapping("/minhas")
     public ResponseEntity<ApiResponse<Page<Response>>> minhas(@AuthenticationPrincipal Usuario usuario, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(ApiResponse.ok(sService.listarPorUsuario(usuario.getId(), page, size)));

@@ -44,6 +44,8 @@ export const ocorrenciaService = {
     api.post('/api/solicitacoes', dados),
   listar: (params) =>
     api.get('/api/solicitacoes', { params }),
+  listarNaoAtribuidas: () =>
+    api.get('/api/solicitacoes/nao-atribuidas'),
   minhas: (params) =>
     api.get('/api/solicitacoes/minhas', { params }),
   buscarPorId: (id) =>
@@ -87,6 +89,10 @@ export const gestorService = {
 export const equipeService = {
   listar: () =>
     api.get('/api/equipes'),
+  dashboard: (params) =>
+    api.get('/api/equipes/dashboard', { params }),
+  listarMembros: (id, params) =>
+    api.get(`/api/equipes/${id}/membros`, { params }),
   criar: (dados) =>
     api.post('/api/equipes', dados),
   adicionarMembro: (id, dados) =>

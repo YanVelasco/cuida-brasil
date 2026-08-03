@@ -12,6 +12,9 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
     Page<Solicitacao> findByUsuarioId(Long usuarioId, Pageable pageable);
     Page<Solicitacao> findByStatus(String status, Pageable pageable);
     List<Solicitacao> findByEquipeId(Long equipeId);
+    
+    @Query("SELECT s FROM Solicitacao s WHERE s.equipe IS NULL AND s.status IN ('PENDENTE', 'TRIAGEM') ORDER BY s.dataCriacao ASC")
+    List<Solicitacao> findNaoAtribuidas();
     long countByStatus(String status);
 
     @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.status = :status AND s.equipe.id = :equipeId")

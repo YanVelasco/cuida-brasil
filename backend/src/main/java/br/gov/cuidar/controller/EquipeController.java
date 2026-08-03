@@ -23,19 +23,85 @@ public class EquipeController {
     private final OrgaoPublicoRepository orgaoRepo;
     private final UsuarioRepository userRepo;
     private final GestorRepository gestorRepo;
+    private final br.gov.cuidar.repository.SolicitacaoRepository solRepo;
     private final PasswordEncoder passwordEncoder;
 
     public EquipeController(EquipePublicaRepository eqRepo, OrgaoPublicoRepository orgaoRepo,
                             UsuarioRepository userRepo, GestorRepository gestorRepo,
+                            br.gov.cuidar.repository.SolicitacaoRepository solRepo,
                             PasswordEncoder passwordEncoder) { 
         this.eqRepo = eqRepo; 
         this.orgaoRepo = orgaoRepo;
         this.userRepo = userRepo;
         this.gestorRepo = gestorRepo;
+        this.solRepo = solRepo;
         this.passwordEncoder = passwordEncoder;
     }
     @GetMapping @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
     public ResponseEntity<ApiResponse<List<EquipePublica>>> listar() { return ResponseEntity.ok(ApiResponse.ok(eqRepo.findByAtivoTrue())); }
+
+    @GetMapping("/dashboard") @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<br.gov.cuidar.dto.EquipeDashboardDTO>>> listarDashboard(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        org.springframework.data.domain.Page<EquipePublica> equipes = eqRepo.findByAtivoTrue(pageable);
+        org.springframework.data.domain.Page<br.gov.cuidar.dto.EquipeDashboardDTO> dtos = equipes.map(eq -> {
+            br.gov.cuidar.dto.EquipeDashboardDTO dto = new br.gov.cuidar.dto.EquipeDashboardDTO();
+            dto.setId(eq.getId());
+            dto.setNome(eq.getNome());
+            
+            // Busca gestores da equipe
+            List<Gestor> gestores = gestorRepo.findByEquipeId(eq.getId());
+            if (!gestores.isEmpty()) {
+                dto.setSupervisor(gestores.get(0).getUsuario().getNome());
+                dto.setTecnicos(gestores.size()); // Considerando gestores como "membros" para efeito de mockup
+            } else {
+                dto.setSupervisor("Sem supervisor");
+                dto.setTecnicos(0);
+            }
+            
+            // Regiao e Tipo de Servico baseados no nome ou orgao
+            dto.setTipoServico(eq.getOrgao().getAreaAtendimento() != null ? eq.getOrgao().getAreaAtendimento() : "Geral");
+            
+            String nome = eq.getNome().toLowerCase();
+            if (nome.contains("norte")) dto.setRegiao("Norte");
+            else if (nome.contains("sul")) dto.setRegiao("Sul");
+            else if (nome.contains("leste")) dto.setRegiao("Leste");
+            else if (nome.contains("oeste")) dto.setRegiao("Oeste");
+            else dto.setRegiao("Centro"); // Default
+            
+            // Casos abertos
+            long casos = solRepo.countByStatusAndEquipeId("PENDENTE", eq.getId()) + solRepo.countByStatusAndEquipeId("EM_ANDAMENTO", eq.getId()) + solRepo.countByStatusAndEquipeId("TRIAGEM", eq.getId()) + solRepo.countByStatusAndEquipeId("EM_CAMPO", eq.getId());
+            dto.setCasosAbertos(casos);
+            
+            // SLA e Status simulado/baseado nos casos
+            dto.setSlaMedio((90 - (casos * 2)) + "%");
+            if (casos == 0) {
+                dto.setStatus("Disponível");
+                dto.setStatusColor("#F2C94C");
+            } else if (casos > 15) {
+                dto.setStatus("Sobrecarr.");
+                dto.setStatusColor("#EB5757");
+            } else {
+                dto.setStatus("Em campo");
+                dto.setStatusColor("#27AE60");
+            }
+            
+            return dto;
+        });
+        
+        return ResponseEntity.ok(ApiResponse.ok(dtos));
+    }
+    
+    @GetMapping("/{id}/membros") @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<br.gov.cuidar.dto.MembroDTO>>> listarMembros(
+            @PathVariable Long id, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        org.springframework.data.domain.Page<Gestor> membros = gestorRepo.findByEquipeId(id, pageable);
+        org.springframework.data.domain.Page<br.gov.cuidar.dto.MembroDTO> dtos = membros.map(m -> new br.gov.cuidar.dto.MembroDTO(
+            m.getId(), m.getUsuario().getNome(), m.getUsuario().getEmail(), m.getUsuario().getPerfil()
+        ));
+        return ResponseEntity.ok(ApiResponse.ok(dtos));
+    }
 
     @PostMapping @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
     public ResponseEntity<ApiResponse<EquipePublica>> criarEquipe(@RequestBody NovaEquipeDTO dto) {
@@ -58,7 +124,7 @@ public class EquipeController {
         user.setCpf(dto.getCpf());
         user.setEmail(dto.getEmail());
         user.setSenha(passwordEncoder.encode(dto.getSenha()));
-        user.setPerfil("GESTOR"); // Cadastrando o usuário como gestor
+        user.setPerfil(dto.getPerfil() != null ? dto.getPerfil().toUpperCase() : "TRABALHADOR");
         user.setAtivo(true);
         user = userRepo.save(user);
 
