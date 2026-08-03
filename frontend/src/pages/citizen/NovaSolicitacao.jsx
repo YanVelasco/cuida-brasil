@@ -100,7 +100,10 @@ export default function NovaSolicitacao() {
       await ocorrenciaService.criar(form);
       setSuccess(true);
       setTimeout(() => navigate('/app'), 2000);
-    } catch { setError('Erro ao registrar ocorrência. Tente novamente.'); }
+    } catch (err) { 
+      const msg = err.response?.data?.message || 'Erro ao registrar ocorrência. Tente novamente.';
+      setError(msg); 
+    }
     finally { setLoading(false); }
   };
 

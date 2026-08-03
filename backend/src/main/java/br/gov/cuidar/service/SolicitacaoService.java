@@ -18,13 +18,15 @@ public class SolicitacaoService {
     private final ServicoRepository servicoRepository;
     private final EquipePublicaRepository equipeRepository;
     private final HistoricoRepository historicoRepository;
+    private final VisionValidationService visionValidationService;
 
-    public SolicitacaoService(SolicitacaoRepository solicitacaoRepository, UsuarioRepository usuarioRepository, ServicoRepository servicoRepository, EquipePublicaRepository equipeRepository, HistoricoRepository historicoRepository) {
+    public SolicitacaoService(SolicitacaoRepository solicitacaoRepository, UsuarioRepository usuarioRepository, ServicoRepository servicoRepository, EquipePublicaRepository equipeRepository, HistoricoRepository historicoRepository, VisionValidationService visionValidationService) {
         this.solicitacaoRepository = solicitacaoRepository;
         this.usuarioRepository = usuarioRepository;
         this.servicoRepository = servicoRepository;
         this.equipeRepository = equipeRepository;
         this.historicoRepository = historicoRepository;
+        this.visionValidationService = visionValidationService;
     }
 
     @Transactional
@@ -33,6 +35,11 @@ public class SolicitacaoService {
             .orElseThrow(() -> new RuntimeException("Usuario nao encontrado"));
         Servico servico = servicoRepository.findById(req.getIdServico())
             .orElseThrow(() -> new RuntimeException("Servico nao encontrado"));
+
+        // Validação da imagem via Gemini Vision
+        if (req.getFotos() != null && !req.getFotos().isEmpty()) {
+            visionValidationService.validarImagem(req.getFotos(), servico.getSubcategoria());
+        }
 
         String protocolo = "PRO-" + LocalDate.now().getYear() + "-" + String.format("%06d", (int)(Math.random() * 999999));
 
