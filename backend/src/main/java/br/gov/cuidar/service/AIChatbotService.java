@@ -32,10 +32,10 @@ public class AIChatbotService {
                 if (equipeId != null && !equipeId.equals("UNASSIGNED")) {
                     filterExpression = "equipeId == '" + equipeId + "'";
                 } else {
-                    filterExpression = "domain == 'solicitacoes'";
+                    filterExpression = "domain == 'solicitacoes' || domain == 'equipes'";
                 }
             } else {
-                filterExpression = "domain == 'solicitacoes'";
+                filterExpression = "domain == 'solicitacoes' || domain == 'equipes'";
             }
 
             SearchRequest searchRequest = SearchRequest.query(userMessage)
@@ -66,7 +66,13 @@ public class AIChatbotService {
                     
                     INSTRUÇÕES IMPORTANTES:
                     - Formate sua resposta em **Markdown**. Use negrito, emojis e listas para tornar a leitura agradável.
-                    - Responda de forma concisa, educada e elegante.
+                    - Estruture bem a resposta: separe as informações da Equipe das informações dos Protocolos usando Títulos em markdown (## ou ###).
+                    - Para cada Protocolo/Chamado, use um formato limpo, por exemplo:
+                      🔹 **[Protocolo]** - [Status com emoji]
+                      * **Descrição:** [descrição do chamado]
+                      * **Prioridade:** [prioridade]
+                    - Para Equipes, mostre o Nome e o Órgão em destaque, e apresente os membros em uma lista com marcadores (bullet points) simples.
+                    - Responda de forma concisa, educada e elegante. Evite pular muitas linhas desnecessárias.
                     - NÃO invente dados de protocolos, endereços ou status que não estejam no contexto.
                     - Se a resposta não estiver no contexto, diga cordialmente que não encontrou a informação.
                     - Se o usuário pedir botões de ação ou links, instrua-o a navegar pelo menu do sistema, pois você agora é focada em responder com texto inteligente.
