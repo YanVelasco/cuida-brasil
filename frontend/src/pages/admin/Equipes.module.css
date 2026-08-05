@@ -3,8 +3,8 @@
 .newBtn { background: var(--primary); color: #fff; padding: 8px 16px; border-radius: var(--radius-md); font-size: 0.85rem; font-weight: 600; }
 
 .filterBar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; background: var(--surface); padding: 12px 14px; border-radius: var(--radius-md); border: 1px solid var(--border); }
-.searchInput { padding: 7px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 0.82rem; flex: 1; min-width: 180px; background: var(--background); }
-.filterSelect { padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 0.8rem; background: var(--surface); color: var(--text-secondary); font-family: var(--font); }
+.searchInput { padding: 7px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 0.82rem; flex: 1; min-width: 180px; background: var(--background); color: var(--text-primary); }
+.filterSelect { padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 0.8rem; background: var(--surface); color: var(--text-primary); font-family: var(--font); }
 .clearBtn, .mapBtn { padding: 7px 12px; border-radius: var(--radius-md); font-size: 0.8rem; font-weight: 500; border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary); white-space: nowrap; }
 .mapBtn { background: var(--primary); color: #fff; border-color: var(--primary); }
 
@@ -33,6 +33,47 @@
 .statusBadge { display: inline-block; color: #fff; font-size: 0.72rem; font-weight: 600; padding: 3px 10px; border-radius: var(--radius-sm); }
 .viewBtn { background: var(--surface); border: 1px solid var(--border); color: var(--text-primary); padding: 4px 12px; border-radius: var(--radius-sm); font-size: 0.78rem; }
 .viewBtn:hover { border-color: var(--primary); color: var(--primary); }
+
+.actionBtnPurple, .actionBtnBlue {
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.actionBtnPurple {
+  background: #9B51E0;
+  box-shadow: 0 2px 6px rgba(155, 81, 224, 0.3);
+}
+.actionBtnPurple:hover {
+  background: #8e44cf;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(155, 81, 224, 0.5);
+}
+.actionBtnPurple:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(155, 81, 224, 0.3);
+}
+
+.actionBtnBlue {
+  background: var(--primary);
+  box-shadow: 0 2px 6px rgba(47, 128, 237, 0.3);
+}
+.actionBtnBlue:hover {
+  background: #256bca;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(47, 128, 237, 0.5);
+}
+.actionBtnBlue:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(47, 128, 237, 0.3);
+}
 
 .pagination { display: flex; align-items: center; gap: 4px; padding: 12px 14px; border-top: 1px solid var(--border); }
 .pageBtn { width: 28px; height: 28px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.82rem; background: var(--surface); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; }
@@ -106,6 +147,8 @@
   stroke-width: 1.5px;
   stroke: #ffffff;
   transition: transform 0.2s ease;
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
 .mapPinGroup:hover .mapPinCircle {
@@ -113,6 +156,7 @@
 }
 
 .pulsingRing {
+  transform-box: fill-box;
   transform-origin: center;
   animation: markerPulse 2s infinite ease-out;
   pointer-events: none;

@@ -29,6 +29,10 @@ export default function Solicitacoes() {
   const [totalPages, setTotal]    = useState(1);
   const [loading, setLoading]     = useState(true);
   const [statusFilter, setStatus] = useState('');
+  
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [selectedSolicitacao, setSelectedSolicitacao] = useState(null);
+  const [updateData, setUpdateData] = useState({ status: '', prioridade: '' });
 
   const fetchData = useCallback(() => {
     setLoading(true);
@@ -46,6 +50,26 @@ export default function Solicitacoes() {
   }, [page, statusFilter]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleOpenUpdate = (row) => {
+    setSelectedSolicitacao(row);
+    setUpdateData({ 
+      status: row.status || 'PENDENTE', 
+      prioridade: row.prioridade || 'BAIXA' 
+    });
+    setShowUpdateModal(true);
+  };
+
+  const handleUpdateSubmit = async () => {
+    try {
+      await ocorrenciaService.atualizarStatus(selectedSolicitacao.id, updateData);
+      alert('Solicitação atualizada com sucesso!');
+      setShowUpdateModal(false);
+      fetchData();
+    } catch (err) {
+      alert('Erro ao atualizar solicitação: ' + (err.response?.data?.message || err.message));
+    }
+  };
 
   const filtered = search
     ? items.filter(it =>
@@ -107,6 +131,7 @@ export default function Solicitacoes() {
                   <th>LOCALIZAÇÃO</th>
                   <th>PRIORIDADE</th>
                   <th>DATA</th>
+                  <th>AÇÕES</th>
                 </tr>
               </thead>
               <tbody>
@@ -147,6 +172,15 @@ export default function Solicitacoes() {
                         ) : <span style={{color:'var(--text-secondary)'}}>—</span>}
                       </td>
                       <td style={{fontSize:'0.8rem',color:'var(--text-secondary)'}}>{data}</td>
+                      <td>
+                        <button 
+                          className={styles.newBtn} 
+                          style={{ padding: '4px 8px', fontSize: '0.75rem', borderRadius: '4px' }}
+                          onClick={() => handleOpenUpdate(row)}
+                        >
+                          Atualizar
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -184,6 +218,47 @@ export default function Solicitacoes() {
           </span>
         </div>
       </div>
+
+      {/* UPDATE MODAL */}
+      {showUpdateModal && (
+        <div className={styles.modalOverlay} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className={styles.modalContent} style={{ background: 'var(--surface)', padding: '24px', borderRadius: '8px', width: '100%', maxWidth: '400px', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
+            <h3 style={{ marginTop: 0, color: 'var(--text-primary)' }}>Atualizar Solicitação</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>{selectedSolicitacao?.protocolo} - {selectedSolicitacao?.categoriaServico}</p>
+            
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>Status</label>
+            <select 
+              value={updateData.status} 
+              onChange={e => setUpdateData({...updateData, status: e.target.value})} 
+              style={{ width: '100%', padding: '8px', marginBottom: '16px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-primary)' }}
+            >
+              <option value="PENDENTE">Pendente</option>
+              <option value="TRIAGEM">Triagem</option>
+              <option value="EM_ANDAMENTO">Em Andamento</option>
+              <option value="EM_CAMPO">Em Campo</option>
+              <option value="CONCLUIDA">Concluída</option>
+              <option value="CANCELADA">Cancelada</option>
+            </select>
+
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>Prioridade</label>
+            <select 
+              value={updateData.prioridade} 
+              onChange={e => setUpdateData({...updateData, prioridade: e.target.value})} 
+              style={{ width: '100%', padding: '8px', marginBottom: '24px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-primary)' }}
+            >
+              <option value="BAIXA">Baixa</option>
+              <option value="MEDIA">Média</option>
+              <option value="ALTA">Alta</option>
+              <option value="URGENTE">Urgente</option>
+            </select>
+
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowUpdateModal(false)} style={{ padding: '8px 16px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '4px', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={handleUpdateSubmit} style={{ padding: '8px 16px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

@@ -210,8 +210,8 @@ export default function Equipes() {
                   </td>
                   <td>
                     <div style={{display:'flex', gap:'5px'}}>
-                      <button className={styles.viewBtn} style={{background: '#9B51E0'}} onClick={() => handleOpenAssignModal(e.id)}>+ Incidente</button>
-                      <button className={styles.viewBtn} style={{background: 'var(--primary)'}} onClick={() => { setSelectedEquipeId(e.id); setShowNewMemberModal(true); }}>+ Membro</button>
+                      <button className={styles.actionBtnPurple} onClick={() => handleOpenAssignModal(e.id)}>+ Incidente</button>
+                      <button className={styles.actionBtnBlue} onClick={() => { setSelectedEquipeId(e.id); setShowNewMemberModal(true); }}>+ Membro</button>
                     </div>
                   </td>
                 </tr>
@@ -299,10 +299,10 @@ export default function Equipes() {
               <option value="GESTOR">Gestor Supervisor</option>
             </select>
 
-            <input placeholder="Nome Completo" value={newMemberData.nome} onChange={e => setNewMemberData({...newMemberData, nome: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
-            <input placeholder="CPF (Ex: 999.999.999-99)" value={newMemberData.cpf} onChange={e => setNewMemberData({...newMemberData, cpf: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
-            <input placeholder="E-mail" type="email" value={newMemberData.email} onChange={e => setNewMemberData({...newMemberData, email: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
-            <input placeholder="Senha" type="password" value={newMemberData.senha} onChange={e => setNewMemberData({...newMemberData, senha: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
+            <input placeholder="Nome Completo" autoComplete="off" value={newMemberData.nome} onChange={e => setNewMemberData({...newMemberData, nome: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
+            <input placeholder="CPF (Ex: 999.999.999-99)" autoComplete="off" value={newMemberData.cpf} onChange={e => setNewMemberData({...newMemberData, cpf: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
+            <input placeholder="E-mail" type="email" autoComplete="off" value={newMemberData.email} onChange={e => setNewMemberData({...newMemberData, email: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
+            <input placeholder="Senha" type="password" autoComplete="new-password" value={newMemberData.senha} onChange={e => setNewMemberData({...newMemberData, senha: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
             
             <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
               <button className={styles.newBtn} onClick={handleAddMember}>Salvar Membro</button>
