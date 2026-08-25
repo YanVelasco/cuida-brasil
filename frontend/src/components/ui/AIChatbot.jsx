@@ -242,7 +242,8 @@ export default function AIChatbot() {
     }
   };
 
-  if (!user) return null;
+  const isAuthPage = ['/login', '/cadastro'].includes(location.pathname);
+  if (!user || isAuthPage) return null;
 
   return (
     <>

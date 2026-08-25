@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/ui/Button';
@@ -11,8 +11,16 @@ export default function Login() {
   const [senha, setSenha] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      if (user.perfil === 'ADMIN') navigate('/admin');
+      else if (user.perfil === 'GESTOR') navigate('/admin/dashboard');
+      else navigate('/app');
+    }
+  }, [user, navigate]);
 
   const formatCPF = (v) =>
     v.replace(/\D/g,'').slice(0,11)
