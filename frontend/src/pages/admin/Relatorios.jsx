@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
-import { relatorioService, dashboardService } from '../../services/api';
+import { relatorioService, equipeService } from '../../services/api';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
 } from 'recharts';
@@ -14,15 +14,32 @@ export default function Relatorios() {
   const [catData, setCatData]   = useState([]);
   const [tendencia, setTendencia] = useState([]);
   const [kpiData, setKpiData]   = useState(null);
+  const [gestor, setGestor] = useState('');
+  const [gestores, setGestores] = useState([]);
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
   const [loading, setLoading]   = useState(true);
+
+  const getPeriod = () => {
+    if (customStart && customEnd) return { inicio: customStart, fim: customEnd };
+    const end = new Date();
+    const start = new Date(end);
+    if (period === 'Esta semana') start.setDate(end.getDate() - 6);
+    if (period === 'Este mês') start.setDate(1);
+    if (period === 'Último trimestre') start.setMonth(end.getMonth() - 2, 1);
+    if (period === 'Anual') start.setMonth(0, 1);
+    const format = (date) => date.toISOString().slice(0, 10);
+    return { inicio: format(start), fim: format(end) };
+  };
 
   useEffect(() => {
     setLoading(true);
 
+    const params = { ...getPeriod(), ...(gestor ? { gestor } : {}) };
     Promise.allSettled([
-      relatorioService.porCategoria(),
-      relatorioService.tendenciaMensal(),
-      dashboardService.stats(),
+      relatorioService.porCategoria(params),
+      relatorioService.tendenciaMensal(params),
+      relatorioService.resumo(params),
     ]).then(([catRes, tendRes, kpiRes]) => {
       if (catRes.status === 'fulfilled') {
         const raw = catRes.value?.data?.data || catRes.value?.data || [];
@@ -36,12 +53,17 @@ export default function Relatorios() {
         setKpiData(kpiRes.value?.data?.data || kpiRes.value?.data);
       }
     }).finally(() => setLoading(false));
+  }, [period, gestor, customStart, customEnd]);
+
+  useEffect(() => {
+    equipeService.dashboard({ page: 0, size: 200 }).then((response) => {
+      const data = response.data?.data || response.data || {};
+      const items = Array.isArray(data) ? data : (data.content || []);
+      setGestores([...new Set(items.map((item) => item.supervisor).filter((nome) => nome && nome !== 'Sem supervisor'))].sort());
+    }).catch(() => setGestores([]));
   }, []);
 
-  const totalSolicitacoes = catData.reduce((sum, c) => sum + (c.qtd || 0), 0);
-  const taxaResolucao = kpiData && kpiData.totalAbertas + kpiData.resolvidasHoje > 0
-    ? Math.round(kpiData.resolvidasHoje / (kpiData.totalAbertas + kpiData.resolvidasHoje) * 100)
-    : 0;
+  const totalSolicitacoes = kpiData?.total ?? catData.reduce((sum, c) => sum + (c.qtd || 0), 0);
 
   return (
     <AdminLayout>
@@ -53,14 +75,18 @@ export default function Relatorios() {
       <div className={styles.periodBar}>
         <div className={styles.periodTabs}>
           {PERIODS.map(p => (
-            <button key={p} className={[styles.periodTab, period === p ? styles.periodActive : ''].join(' ')} onClick={() => setPeriod(p)}>{p}</button>
+            <button key={p} className={[styles.periodTab, period === p ? styles.periodActive : ''].join(' ')} onClick={() => { setPeriod(p); setCustomStart(''); setCustomEnd(''); }}>{p}</button>
           ))}
         </div>
         <div className={styles.customRange}>
-          <input type="date" className={styles.dateInput}/>
+          <input type="date" className={styles.dateInput} value={customStart} onChange={(event) => setCustomStart(event.target.value)}/>
           <span>→</span>
-          <input type="date" className={styles.dateInput}/>
+          <input type="date" className={styles.dateInput} value={customEnd} onChange={(event) => setCustomEnd(event.target.value)}/>
         </div>
+        <select className={styles.dateInput} value={gestor} onChange={(event) => setGestor(event.target.value)}>
+          <option value="">Todos os gestores</option>
+          {gestores.map((nome) => <option key={nome} value={nome}>{nome}</option>)}
+        </select>
         <button className={styles.exportBtn}>Exportar</button>
       </div>
 
@@ -75,7 +101,7 @@ export default function Relatorios() {
           },
           {
             label: 'CONCLUÍDAS',
-            value: loading ? '...' : (kpiData?.resolvidasHoje ?? 0),
+            value: loading ? '...' : (kpiData?.concluidas ?? 0),
             sub: 'total concluídas',
             color: 'green'
           },
@@ -173,9 +199,9 @@ export default function Relatorios() {
         </div>
         <div className={styles.slaGrid}>
           {[
-            { nome: 'Abertas (Pendente + Triagem)', pct: kpiData ? Math.min(100, Math.round(kpiData.totalAbertas / Math.max(totalSolicitacoes, 1) * 100)) : 0, color: '#F2994A' },
+            { nome: 'Abertas (Pendente + Triagem)', pct: kpiData ? Math.min(100, Math.round(kpiData.abertas / Math.max(totalSolicitacoes, 1) * 100)) : 0, color: '#F2994A' },
             { nome: 'Em Andamento + Campo',          pct: kpiData ? Math.min(100, Math.round(kpiData.emAndamento / Math.max(totalSolicitacoes, 1) * 100)) : 0, color: '#2F80ED' },
-            { nome: 'Concluídas',                    pct: kpiData ? Math.min(100, Math.round(kpiData.resolvidasHoje / Math.max(totalSolicitacoes, 1) * 100)) : 0, color: '#27AE60' },
+            { nome: 'Concluídas',                    pct: kpiData ? Math.min(100, Math.round(kpiData.concluidas / Math.max(totalSolicitacoes, 1) * 100)) : 0, color: '#27AE60' },
             { nome: 'Urgentes em Aberto',             pct: kpiData ? Math.min(100, Math.round(kpiData.urgentes / Math.max(totalSolicitacoes, 1) * 100)) : 0, color: '#EB5757' },
           ].map((s, i) => (
             <div key={i} className={styles.slaRow}>
