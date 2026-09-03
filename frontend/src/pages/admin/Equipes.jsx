@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Circle, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { equipeService, orgaoService, ocorrenciaService } from '../../services/api';
@@ -18,10 +18,135 @@ const REGION_COORDINATES = {
   Oeste: [-23.5605, -46.7800],
 };
 
+const TEAM_STATUS_ITEMS = [
+  { label: 'Todos', value: '', color: '#94A3B8' },
+  { label: 'Em campo', value: 'Em campo', color: '#27AE60' },
+  { label: 'Disponível', value: 'Disponível', color: '#F2C94C' },
+  { label: 'Sobrecarr.', value: 'Sobrecarr.', color: '#EB5757' },
+];
+
+const INCIDENT_PRIORITY_ITEMS = [
+  { label: 'Urgente', color: '#EB5757' },
+  { label: 'Alta', color: '#F2994A' },
+  { label: 'Em andamento', color: '#2F80ED' },
+  { label: 'Em campo', color: '#27AE60' },
+];
+
+const TEAM_COLOR_PALETTE = ['#4CC9F0', '#7AE582', '#FFB703', '#F72585', '#00B4D8', '#FFD166', '#A78BFA', '#38B000', '#EF476F', '#06D6A0'];
+
+function getTeamColor(team, index) {
+  return team?.statusColor || TEAM_COLOR_PALETTE[index % TEAM_COLOR_PALETTE.length] || '#2F80ED';
+}
+
+function parseGps(gps) {
+  if (!gps) return null;
+
+  const raw = String(gps).trim();
+  if (!raw) return null;
+
+  const cleaned = raw
+    .replace(/\s+/g, ' ')
+    .replace(/\(|\)|\[|\]/g, '')
+    .replace(/lat\s*[:=]/gi, ' latitude=')
+    .replace(/lng\s*[:=]/gi, ' longitude=')
+    .replace(/lon\s*[:=]/gi, ' longitude=')
+    .replace(/;/g, ',')
+    .replace(/,/g, ' ');
+
+  const matches = Array.from(cleaned.matchAll(/[-+]?\d{1,3}(?:[.,]\d+)?/g), (match) => {
+    const value = Number(match[0].replace(',', '.'));
+    return Number.isFinite(value) ? value : null;
+  }).filter((value) => value !== null);
+
+  if (matches.length < 2) return null;
+
+  let latitude = null;
+  let longitude = null;
+
+  if (/lat|latitude/i.test(raw) || /lng|lon|longitude/i.test(raw)) {
+    const latitudeMatch = raw.match(/lat(?:itude)?\s*[:=]?\s*[-+]?\d{1,3}(?:[.,]\d+)?/i);
+    const longitudeMatch = raw.match(/(?:lng|lon|longitude)\s*[:=]?\s*[-+]?\d{1,3}(?:[.,]\d+)?/i);
+
+    if (latitudeMatch) latitude = Number(latitudeMatch[0].split(/[:=]/).pop().replace(',', '.').trim());
+    if (longitudeMatch) longitude = Number(longitudeMatch[0].split(/[:=]/).pop().replace(',', '.').trim());
+  }
+
+  if (latitude === null || longitude === null) {
+    latitude = matches[0];
+    longitude = matches[1];
+  }
+
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+
+  return { latitude, longitude };
+}
+
 function getTeamCoordinates(team, index) {
   const [latitude, longitude] = REGION_COORDINATES[team.regiao] || REGION_COORDINATES.Centro;
-  const offset = (index % 5) * 0.006;
-  return [latitude + offset, longitude + offset];
+  const spreadLat = ((index % 3) - 1) * 0.014;
+  const spreadLng = (Math.floor(index / 3) % 2 === 0 ? 1 : -1) * (0.018 + (index % 2) * 0.008);
+  return [latitude + spreadLat, longitude + spreadLng];
+}
+
+function getIncidentColor(incidente) {
+  const prioridade = (incidente?.prioridade || 'NORMAL').toUpperCase();
+  const status = (incidente?.status || '').toUpperCase();
+
+  if (prioridade === 'URGENTE') return '#EB5757';
+  if (prioridade === 'ALTA') return '#F2994A';
+  if (status === 'EM_CAMPO') return '#27AE60';
+  if (status === 'EM_ANDAMENTO') return '#2F80ED';
+  if (status === 'TRIAGEM') return '#9B51E0';
+  if (status === 'PENDENTE') return '#F2994A';
+  return '#6B7280';
+}
+
+function getIncidentLegendLabel(incidente) {
+  const prioridade = (incidente?.prioridade || '').toUpperCase();
+  const status = (incidente?.status || '').toUpperCase();
+
+  if (prioridade === 'URGENTE') return 'Urgente';
+  if (prioridade === 'ALTA') return 'Alta';
+  if (status === 'EM_CAMPO') return 'Em campo';
+  if (status === 'EM_ANDAMENTO') return 'Em andamento';
+  return 'Em andamento';
+}
+
+function MapBoundsController({ teams, incidentesAtivos }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const points = [];
+
+    teams.forEach((team, index) => {
+      const ocorrenciasDaEquipe = incidentesAtivos.filter((incidente) => Number(incidente.idEquipe) === Number(team.id));
+      const pontosAtuacao = ocorrenciasDaEquipe
+        .map((incidente) => parseGps(incidente.gps))
+        .filter(Boolean);
+
+      if (pontosAtuacao.length > 0) {
+        pontosAtuacao.forEach((ponto) => points.push([ponto.latitude, ponto.longitude]));
+        return;
+      }
+
+      points.push(getTeamCoordinates(team, index));
+    });
+
+    if (points.length === 0) return;
+
+    if (points.length === 1) {
+      map.setView(points[0], 13);
+      return;
+    }
+
+    map.fitBounds(points, {
+      padding: [28, 28],
+      maxZoom: 13,
+      animate: false,
+    });
+  }, [map, teams, incidentesAtivos]);
+
+  return null;
 }
 
 export default function Equipes() {
@@ -32,6 +157,8 @@ export default function Equipes() {
   const [statusFilter, setStatusFilter] = useState('');
   const [regiaoFilter, setRegiaoFilter] = useState('');
   const [tipoFilter, setTipoFilter] = useState('');
+  const [selectedMapTeams, setSelectedMapTeams] = useState([]);
+  const [selectedIncidentPriorities, setSelectedIncidentPriorities] = useState([]);
   
   // Equipes Pagination
   const [page, setPage] = useState(0);
@@ -45,6 +172,7 @@ export default function Equipes() {
   const [membrosPage, setMembrosPage] = useState(0);
   const [membrosTotalPages, setMembrosTotalPages] = useState(1);
   const [viewingEquipeId, setViewingEquipeId] = useState(null);
+  const [incidentesAtivos, setIncidentesAtivos] = useState([]);
 
   // Map Hover
   const [hoverInfo, setHoverInfo] = useState(null);
@@ -94,6 +222,27 @@ export default function Equipes() {
 
   useEffect(() => {
     carregarDados();
+
+    async function loadIncidentesAtivos() {
+      try {
+        const response = await ocorrenciaService.listar({ page: 0, size: 200 });
+        const items = response.data?.data?.content || response.data?.content || [];
+        const ativos = items.filter((incidente) =>
+          incidente &&
+          incidente.idEquipe !== null &&
+          incidente.idEquipe !== undefined &&
+          ['EM_ANDAMENTO', 'EM_CAMPO'].includes((incidente.status || '').toUpperCase()) &&
+          parseGps(incidente.gps)
+        );
+        setIncidentesAtivos(ativos);
+      } catch (err) {
+        console.error('Erro ao carregar ocorrências ativas:', err);
+        setIncidentesAtivos([]);
+      }
+    }
+
+    loadIncidentesAtivos();
+
     async function loadOrgaos() {
       try {
         const response = await orgaoService.listar();
@@ -247,7 +396,43 @@ export default function Equipes() {
       (!tipoFilter || equipe.tipoServico === tipoFilter);
   });
 
+  const teamLegendEntries = filteredEquipes.map((team, index) => ({
+    ...team,
+    mapColor: getTeamColor(team, index),
+  }));
+
+  const visibleMapTeams = teamLegendEntries.filter((team) => {
+    if (!selectedMapTeams.length) return true;
+    return selectedMapTeams.includes(team.id);
+  });
+
+  const equipesEmCampo = filteredEquipes.filter((equipe) => equipe.status === 'Em campo');
   const tiposServico = [...new Set(equipes.map((equipe) => equipe.tipoServico).filter(Boolean))].sort();
+
+  const toggleMapTeam = (teamId) => {
+    setSelectedMapTeams((current) => {
+      if (!current.length) return [teamId];
+      if (current.includes(teamId)) {
+        return current.filter((id) => id !== teamId);
+      }
+      return [...current, teamId];
+    });
+  };
+
+  const toggleIncidentPriority = (priorityLabel) => {
+    setSelectedIncidentPriorities((current) => {
+      if (!current.length) return [priorityLabel];
+      if (current.includes(priorityLabel)) {
+        return current.filter((label) => label !== priorityLabel);
+      }
+      return [...current, priorityLabel];
+    });
+  };
+
+  const visibleIncidentMarkers = incidentesAtivos.filter((incidente) => {
+    if (!selectedIncidentPriorities.length) return true;
+    return selectedIncidentPriorities.includes(getIncidentLegendLabel(incidente));
+  });
 
   return (
     <AdminLayout>
@@ -345,43 +530,162 @@ export default function Equipes() {
         <div className={styles.mapCard}>
           <div className={styles.mapCardHeader}>
             <h3>Mapa de Alocação (Visão Geral)</h3>
+            <div className={styles.mapSummary}>Em campo: {equipesEmCampo.length}</div>
           </div>
           <div className={styles.mapContainer}>
-            <MapContainer center={REGION_COORDINATES.Centro} zoom={10} scrollWheelZoom className={styles.allocationMap}>
+            <MapContainer
+              key={`${statusFilter || 'all'}-${filteredEquipes.length}`}
+              center={REGION_COORDINATES.Centro}
+              zoom={11}
+              minZoom={10}
+              maxZoom={16}
+              scrollWheelZoom
+              className={styles.allocationMap}
+            >
+              <MapBoundsController teams={filteredEquipes} incidentesAtivos={incidentesAtivos} />
               <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-              {filteredEquipes.map((team, index) => {
-                const coordinates = getTeamCoordinates(team, index);
+              {visibleMapTeams.map((team, index) => {
+                const teamColor = getTeamColor(team, index);
+                const ocorrenciasDaEquipe = visibleIncidentMarkers.filter((incidente) => Number(incidente.idEquipe) === Number(team.id));
+                const pontosAtuacao = ocorrenciasDaEquipe
+                  .map((incidente) => parseGps(incidente.gps))
+                  .filter(Boolean);
+
+                const coordinates = pontosAtuacao.length
+                  ? [
+                      pontosAtuacao.reduce((sum, p) => sum + p.latitude, 0) / pontosAtuacao.length,
+                      pontosAtuacao.reduce((sum, p) => sum + p.longitude, 0) / pontosAtuacao.length,
+                    ]
+                  : getTeamCoordinates(team, index);
+
+                const areaRadius = pontosAtuacao.length
+                  ? Math.max(0.003, (pontosAtuacao.length * 0.0018) + 0.002)
+                  : 0.004;
+
                 return (
-                  <CircleMarker key={team.id} center={coordinates} radius={9} pathOptions={{ color: '#fff', weight: 2, fillColor: team.statusColor, fillOpacity: 0.9 }}>
-                    <Popup>
-                      <strong>{team.nome}</strong><br />
-                      Supervisor: {team.supervisor}<br />
-                      Região: {team.regiao}<br />
-                      Casos abertos: {team.casosAbertos}<br />
-                      Status: {team.status}
-                    </Popup>
-                  </CircleMarker>
+                  <div key={`team-layer-${team.id}`}>
+                    {pontosAtuacao.length > 0 && (
+                      <Circle
+                        key={`area-${team.id}`}
+                        center={coordinates}
+                        radius={areaRadius * 1000}
+                        pathOptions={{
+                          color: teamColor,
+                          fillColor: teamColor,
+                          fillOpacity: 0.12,
+                          weight: 1.5,
+                          dashArray: '6 8',
+                        }}
+                      />
+                    )}
+
+                    <CircleMarker key={`team-${team.id}`} center={coordinates} radius={9} pathOptions={{ color: '#fff', weight: 2, fillColor: teamColor, fillOpacity: 0.9 }}>
+                      <Popup>
+                        <strong>{team.nome}</strong><br />
+                        Supervisor: {team.supervisor}<br />
+                        Região: {team.regiao}<br />
+                        Casos abertos: {team.casosAbertos}<br />
+                        Status: {team.status}<br />
+                        {pontosAtuacao.length > 0 ? `${pontosAtuacao.length} ocorrência(ões) em atuação` : 'Sem ocorrências em andamento'}
+                      </Popup>
+                    </CircleMarker>
+
+                    {ocorrenciasDaEquipe.map((incidente) => {
+                      const gps = parseGps(incidente.gps);
+                      if (!gps) return null;
+
+                      const incidentColor = getIncidentColor(incidente);
+
+                      return (
+                        <CircleMarker
+                          key={`incident-${incidente.id}`}
+                          center={[gps.latitude, gps.longitude]}
+                          radius={5}
+                          pathOptions={{
+                            color: '#ffffff',
+                            weight: 1.5,
+                            fillColor: incidentColor,
+                            fillOpacity: 0.7,
+                            opacity: 0.7,
+                          }}
+                        >
+                          <Popup>
+                            <strong>{incidente.descricao || 'Ocorrência em andamento'}</strong><br />
+                            Status: {incidente.status}<br />
+                            Prioridade: {incidente.prioridade || 'NORMAL'}<br />
+                            {incidente.endereco || incidente.gps || 'Localização disponível'}
+                          </Popup>
+                        </CircleMarker>
+                      );
+                    })}
+                  </div>
                 );
               })}
             </MapContainer>
-            <div className={styles.mapLegendSimple}>
-              {[
-                { label: 'Em campo', color: '#27AE60' },
-                { label: 'Disponível', color: '#F2C94C' },
-                { label: 'Sobrecarr.', color: '#EB5757' },
-              ].map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  className={statusFilter === item.label ? styles.mapLegendActive : ''}
-                  onClick={() => setStatusFilter((current) => current === item.label ? '' : item.label)}
-                  aria-pressed={statusFilter === item.label}
-                >
-                  <i style={{ background: item.color }} /> {item.label}
-                </button>
-              ))}
+          </div>
+
+          <div className={styles.mapLegend}>
+            <div className={styles.legendSection}>
+              <div className={styles.legendSectionTitle}>Equipes</div>
+              <div className={styles.legendItems}>
+                {teamLegendEntries.map((team) => {
+                  const isActive = selectedMapTeams.includes(team.id);
+                  return (
+                    <button
+                      key={`team-legend-${team.id}`}
+                      type="button"
+                      className={[styles.legendItem, isActive ? styles.legendItemActive : ''].join(' ')}
+                      onClick={() => toggleMapTeam(team.id)}
+                      aria-pressed={isActive}
+                      style={{
+                        borderColor: isActive ? team.mapColor : 'rgba(255,255,255,0.08)',
+                        background: isActive ? 'rgba(255,255,255,0.04)' : 'transparent',
+                      }}
+                    >
+                      <span className={styles.legendDot} style={{ background: team.mapColor }} />
+                      <span>{team.nome.replace('Equipe ', '')}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className={styles.legendSection}>
+              <div className={styles.legendSectionTitle}>Ocorrências</div>
+              <div className={styles.legendItems}>
+                {INCIDENT_PRIORITY_ITEMS.map((item) => {
+                  const isActive = selectedIncidentPriorities.includes(item.label);
+                  return (
+                    <button
+                      key={item.label}
+                      type="button"
+                      className={[styles.legendItem, isActive ? styles.legendItemActive : ''].join(' ')}
+                      onClick={() => toggleIncidentPriority(item.label)}
+                      aria-pressed={isActive}
+                      style={{
+                        borderColor: isActive ? item.color : 'rgba(255,255,255,0.08)',
+                        background: isActive ? 'rgba(255,255,255,0.04)' : 'transparent',
+                      }}
+                    >
+                      <span className={styles.legendDot} style={{ background: item.color }} />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
+
+          {equipesEmCampo.length > 0 && (
+            <div className={styles.fieldDetailsList}>
+              {equipesEmCampo.map((equipe) => (
+                <div key={equipe.id} className={styles.fieldDetailItem}>
+                  <span className={styles.fieldDot} />
+                  <span>{equipe.nome}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

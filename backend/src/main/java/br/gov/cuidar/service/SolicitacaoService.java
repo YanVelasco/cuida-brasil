@@ -15,6 +15,7 @@ import br.gov.cuidar.dto.SolicitacaoDTO.CreateRequest;
 import br.gov.cuidar.dto.SolicitacaoDTO.HistoricoDTO;
 import br.gov.cuidar.dto.SolicitacaoDTO.Response;
 import br.gov.cuidar.dto.SolicitacaoDTO.UpdateStatusRequest;
+import br.gov.cuidar.entity.EquipePublica;
 import br.gov.cuidar.entity.Historico;
 import br.gov.cuidar.entity.Servico;
 import br.gov.cuidar.entity.Solicitacao;
@@ -175,6 +176,7 @@ public class SolicitacaoService {
         r.setDataCriacao(s.getDataCriacao()); r.setDataConclusao(s.getDataConclusao());
         r.setNomeUsuario(s.getUsuario().getNome());
         r.setNomeEquipe(s.getEquipe() != null ? s.getEquipe().getNome() : null);
+        r.setIdEquipe(s.getEquipe() != null ? s.getEquipe().getId() : null);
         r.setCategoriaServico(s.getServico().getCategoria());
         r.setSubcategoriaServico(s.getServico().getSubcategoria());
         r.setHistoricos(hDtos);

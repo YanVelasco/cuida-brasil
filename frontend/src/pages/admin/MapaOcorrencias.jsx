@@ -463,26 +463,27 @@ export default function MapaOcorrencias() {
               </MapContainer>
             )}
 
-            <div className={styles.mapLegend}>
-              {legendItems.map((item) => {
-                const isActive = legendFilter === item.value;
-                return (
-                  <button
-                    key={item.label}
-                    type="button"
-                    className={[styles.legendItem, isActive ? styles.legendItemActive : ''].join(' ')}
-                    onClick={() => handleLegendClick(item.value)}
-                    style={{
-                      borderColor: isActive ? item.color : 'rgba(255,255,255,0.08)',
-                      background: isActive ? 'rgba(255,255,255,0.04)' : 'transparent',
-                    }}
-                  >
-                    <span className={styles.legendDot} style={{ background: item.color }} />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+          </div>
+
+          <div className={styles.mapLegend}>
+            {legendItems.map((item) => {
+              const isActive = legendFilter === item.value;
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  className={[styles.legendItem, isActive ? styles.legendItemActive : ''].join(' ')}
+                  onClick={() => handleLegendClick(item.value)}
+                  style={{
+                    borderColor: isActive ? item.color : 'rgba(255,255,255,0.08)',
+                    background: isActive ? 'rgba(255,255,255,0.04)' : 'transparent',
+                  }}
+                >
+                  <span className={styles.legendDot} style={{ background: item.color }} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 

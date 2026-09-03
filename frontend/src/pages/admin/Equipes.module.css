@@ -80,16 +80,18 @@
 .pageActive { background: var(--primary); color: #fff; border-color: var(--primary); }
 .pageSizeSelect { margin-left: auto; padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.78rem; background: var(--surface); font-family: var(--font); }
 
-.bottomGrid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 14px; }
+.bottomGrid { display: block; width: 100%; }
 .mapCard, .metricsCard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; }
-.mapCardHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.mapCard { width: 100%; display: flex; flex-direction: column; }
+.mapCardHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; order: 1; }
 .mapCardHeader h3, .metricsCard h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 12px; }
 .mapZoomBtn { width: 26px; height: 26px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 1rem; background: var(--surface); transition: all 0.2s ease; cursor: pointer; }
 .mapZoomBtn:hover { border-color: var(--primary); color: var(--primary); transform: scale(1.05); }
 
 /* Interactive Allocation Map Styles */
 .mapContainer {
-  height: 220px;
+  order: 3;
+  height: 360px;
   background: var(--background);
   border-radius: var(--radius-md);
   position: relative;
@@ -98,52 +100,134 @@
   box-shadow: inset 0 2px 8px rgba(0,0,0,0.04);
 }
 
+.mapSummary {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(39, 174, 96, 0.08);
+  color: #7ee2a7;
+}
+
+.fieldDetailsList {
+  order: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.fieldDetailItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(39, 174, 96, 0.08);
+  border: 1px solid rgba(39, 174, 96, 0.25);
+  color: #bff7d7;
+  font-size: 0.72rem;
+}
+
+.fieldDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #27AE60;
+  box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.2);
+}
+
 .allocationMap {
   width: 100%;
   height: 100%;
 }
 
-.mapLegendSimple {
-  position: absolute;
-  left: 10px;
-  bottom: 10px;
-  z-index: 500;
+.mapLegend {
+  order: 4;
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px 0;
+  background: rgba(11, 18, 31, 0.72);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+  color: #e5eefb;
+  backdrop-filter: blur(6px);
+  z-index: 1;
+}
+
+.legendSection {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.legendSection + .legendSection {
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.legendSectionTitle {
+  padding-left: 2px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.legendItems {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 6px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 6px;
-  background: rgba(11, 25, 46, 0.86);
-  color: #fff;
-  font-size: 0.68rem;
 }
 
-.mapLegendSimple button {
+.legendItem {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  padding: 3px 5px;
-  color: #fff;
+  gap: 6px;
+  font-size: 0.7rem;
+  color: #dfeaf9;
   background: transparent;
-  font: inherit;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
+  padding: 4px 8px;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.mapLegendSimple button:hover,
-.mapLegendActive {
-  border-color: rgba(255, 255, 255, 0.5) !important;
-  background: rgba(255, 255, 255, 0.14) !important;
+.legendItem:hover {
+  border-color: rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.03);
 }
 
-.mapLegendSimple i {
-  width: 7px;
-  height: 7px;
+.legendItemActive {
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+
+.legendDot {
   display: inline-block;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  border: 1px solid #fff;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.12);
+}
+
+@media (max-width: 600px) {
+  .legendSection {
+    width: 100%;
+  }
+
+  .legendSection + .legendSection {
+    padding-left: 0;
+    padding-top: 8px;
+    border-left: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
 }
 
 :global([data-theme='dark']) .mapContainer {
