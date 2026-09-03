@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import br.gov.cuidar.dto.ApiResponse;
-import br.gov.cuidar.dto.SolicitacaoDTO.*;
 import br.gov.cuidar.dto.SolicitacaoDTO.CreateRequest;
 import br.gov.cuidar.dto.SolicitacaoDTO.Response;
 import br.gov.cuidar.dto.SolicitacaoDTO.UpdateStatusRequest;
@@ -36,9 +35,10 @@ public class SolicitacaoController {
     @GetMapping @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
     public ResponseEntity<ApiResponse<Page<Response>>> listar(@AuthenticationPrincipal Usuario usuario,
                                                             @RequestParam(required = false) String status,
+                                                            @RequestParam(required = false) String gestor,
                                                             @RequestParam(defaultValue = "0") int page,
                                                             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(ApiResponse.ok(sService.listarTodas(status, page, size, usuario)));
+        return ResponseEntity.ok(ApiResponse.ok(sService.listarTodas(status, gestor, page, size, usuario)));
     }
     
     @GetMapping("/nao-atribuidas") @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")

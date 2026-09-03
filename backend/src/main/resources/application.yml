@@ -25,7 +25,8 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     baseline-version: 0
-    clean-on-validation-error: true
+    clean-disabled: false
+    clean-on-validation-error: false
 
   ai:
     vectorstore:

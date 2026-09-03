@@ -1,14 +1,30 @@
 package br.gov.cuidar.service;
 
-import br.gov.cuidar.dto.SolicitacaoDTO.*;
-import br.gov.cuidar.entity.*;
-import br.gov.cuidar.repository.*;
-import org.springframework.data.domain.*;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import java.time.*;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import br.gov.cuidar.dto.SolicitacaoDTO.CreateRequest;
+import br.gov.cuidar.dto.SolicitacaoDTO.HistoricoDTO;
+import br.gov.cuidar.dto.SolicitacaoDTO.Response;
+import br.gov.cuidar.dto.SolicitacaoDTO.UpdateStatusRequest;
+import br.gov.cuidar.entity.Historico;
+import br.gov.cuidar.entity.Servico;
+import br.gov.cuidar.entity.Solicitacao;
+import br.gov.cuidar.entity.Usuario;
+import br.gov.cuidar.repository.EquipePublicaRepository;
+import br.gov.cuidar.repository.GestorRepository;
+import br.gov.cuidar.repository.HistoricoRepository;
+import br.gov.cuidar.repository.ServicoRepository;
+import br.gov.cuidar.repository.SolicitacaoRepository;
+import br.gov.cuidar.repository.UsuarioRepository;
 
 @Service
 public class SolicitacaoService {
@@ -65,7 +81,7 @@ public class SolicitacaoService {
         return toResponse(sol);
     }
 
-    public Page<Response> listarTodas(String status, int page, int size, Usuario usuario) {
+    public Page<Response> listarTodas(String status, String gestor, int page, int size, Usuario usuario) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("dataCriacao").descending());
         Page<Solicitacao> result;
 
@@ -75,8 +91,12 @@ public class SolicitacaoService {
                 return Page.empty(pageable);
             }
             result = status != null
-                ? solicitacaoRepository.findByStatusAndEquipeId(status, equipeId, pageable)
-                : solicitacaoRepository.findByEquipeId(equipeId, pageable);
+                ? solicitacaoRepository.findByStatusAndEquipeIdOrNull(status, equipeId, pageable)
+                : solicitacaoRepository.findByEquipeIdOrNull(equipeId, pageable);
+        } else if (gestor != null && !gestor.isBlank() && usuario != null && "ADMIN".equals(usuario.getPerfil())) {
+            result = status != null
+                ? solicitacaoRepository.findByStatusAndGestorNome(status, gestor, pageable)
+                : solicitacaoRepository.findByGestorNome(gestor, pageable);
         } else {
             result = status != null
                 ? solicitacaoRepository.findByStatus(status, pageable)
@@ -109,6 +129,15 @@ public class SolicitacaoService {
     public Response atualizarStatus(Long id, UpdateStatusRequest req, Long usuarioId) {
         Solicitacao sol = solicitacaoRepository.findById(id).orElseThrow(() -> new RuntimeException("Nao encontrada"));
         Usuario usuario = usuarioRepository.findById(usuarioId).orElseThrow(() -> new RuntimeException("Usuario nao encontrado"));
+
+        if ("GESTOR".equals(usuario.getPerfil())) {
+            Long equipeDoGestor = gestorRepository.findEquipeIdByUsuarioId(usuario.getId())
+                    .orElseThrow(() -> new IllegalStateException("Gestor sem equipe vinculada"));
+            if ((sol.getEquipe() != null && !equipeDoGestor.equals(sol.getEquipe().getId()))
+                    || (req.getIdEquipe() != null && !equipeDoGestor.equals(req.getIdEquipe()))) {
+                throw new IllegalStateException("Gestor só pode operar na própria equipe");
+            }
+        }
 
         sol.setStatus(req.getStatus());
         if (req.getPrioridade() != null) sol.setPrioridade(req.getPrioridade());

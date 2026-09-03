@@ -16,6 +16,18 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
     Page<Solicitacao> findByEquipeId(Long equipeId, Pageable pageable);
     Page<Solicitacao> findByStatusAndEquipeId(String status, Long equipeId, Pageable pageable);
     List<Solicitacao> findByEquipeId(Long equipeId);
+
+    @Query("SELECT s FROM Solicitacao s WHERE s.status = :status AND s.equipe.id = :equipeId")
+    Page<Solicitacao> findByStatusAndEquipeIdOrNull(@Param("status") String status, @Param("equipeId") Long equipeId, Pageable pageable);
+
+    @Query("SELECT s FROM Solicitacao s WHERE s.equipe.id = :equipeId")
+    Page<Solicitacao> findByEquipeIdOrNull(@Param("equipeId") Long equipeId, Pageable pageable);
+
+    @Query("SELECT s FROM Solicitacao s WHERE s.equipe.id IN (SELECT g.equipe.id FROM Gestor g WHERE LOWER(g.usuario.nome) = LOWER(:gestor))")
+    Page<Solicitacao> findByGestorNome(@Param("gestor") String gestor, Pageable pageable);
+
+    @Query("SELECT s FROM Solicitacao s WHERE s.status = :status AND s.equipe.id IN (SELECT g.equipe.id FROM Gestor g WHERE LOWER(g.usuario.nome) = LOWER(:gestor))")
+    Page<Solicitacao> findByStatusAndGestorNome(@Param("status") String status, @Param("gestor") String gestor, Pageable pageable);
     
     @Query("SELECT s FROM Solicitacao s WHERE s.equipe IS NULL AND s.status IN ('PENDENTE', 'TRIAGEM') ORDER BY s.dataCriacao ASC")
     List<Solicitacao> findNaoAtribuidas();

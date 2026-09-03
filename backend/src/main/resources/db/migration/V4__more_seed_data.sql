@@ -20,6 +20,11 @@ INSERT INTO TB_USUARIO (nome, cpf, email, senha, perfil) VALUES
 ('Fernanda Lima Costa', '555.555.555-55', 'fernanda.gestor@cuidarbrasil.gov.br',
  '$2a$10$Hefm7wbo1Q8XFdb4l2DnC.Ept9eRpsZBVhLY/3TYfAKIR6fSeNuQi', 'GESTOR');
 
+IF NOT EXISTS (SELECT 1 FROM TB_USUARIO WHERE cpf = '666.666.666-66')
+INSERT INTO TB_USUARIO (nome, cpf, email, senha, perfil) VALUES
+('Gabriela Costa Mendes', '666.666.666-66', 'gabriela.gestor@cuidarbrasil.gov.br',
+ '$2a$10$Hefm7wbo1Q8XFdb4l2DnC.Ept9eRpsZBVhLY/3TYfAKIR6fSeNuQi', 'GESTOR');
+
 -- ---- USUARIOS: Cidadãos adicionais ----
 -- Senha: Cidadao@123
 IF NOT EXISTS (SELECT 1 FROM TB_USUARIO WHERE cpf = '601.501.401-01')
@@ -75,6 +80,11 @@ IF NOT EXISTS (SELECT 1 FROM TB_GESTOR WHERE id_usuario = (SELECT TOP 1 id FROM 
 INSERT INTO TB_GESTOR (id_usuario, id_equipe) VALUES
 ((SELECT TOP 1 id FROM TB_USUARIO WHERE cpf = '555.555.555-55'),
  (SELECT TOP 1 id FROM TB_EQUIPE_PUBLICA WHERE nome = 'Equipe Poda 02'));
+
+IF NOT EXISTS (SELECT 1 FROM TB_GESTOR WHERE id_usuario = (SELECT TOP 1 id FROM TB_USUARIO WHERE cpf = '666.666.666-66'))
+INSERT INTO TB_GESTOR (id_usuario, id_equipe) VALUES
+((SELECT TOP 1 id FROM TB_USUARIO WHERE cpf = '666.666.666-66'),
+ (SELECT TOP 1 id FROM TB_EQUIPE_PUBLICA WHERE nome = 'Equipe Limpeza 03'));
 
 -- ============================================================
 -- SOLICITAÇÕES EXPANDIDAS

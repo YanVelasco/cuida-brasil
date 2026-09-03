@@ -14,6 +14,14 @@ const getNavSections = (perfil, solicitacoesCount) => {
           { to: '/admin', label: 'Dashboard', end: true },
           { to: '/admin/relatorios', label: 'Relatórios' },
         ]
+      },
+      {
+        label: 'OPERAÇÃO GLOBAL',
+        items: [
+          { to: '/admin/mapa', label: 'Mapa de Ocorrências' },
+          { to: '/admin/solicitacoes', label: 'Solicitações', badge: solicitacoesCount },
+          { to: '/admin/equipes', label: 'Gestão de Equipes' },
+        ]
       }
     ];
   }
@@ -39,7 +47,7 @@ export default function Sidebar({ isOpen, onClose }) {
   const [solicitacoesCount, setSolicitacoesCount] = useState(null);
 
   useEffect(() => {
-    if (user?.perfil !== 'GESTOR') {
+    if (!['GESTOR', 'ADMIN'].includes(user?.perfil)) {
       setSolicitacoesCount(null);
       return;
     }

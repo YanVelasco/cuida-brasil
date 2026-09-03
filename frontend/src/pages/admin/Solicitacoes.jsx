@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ocorrenciaService } from '../../services/api';
+import { useLocation } from 'react-router-dom';
+import { ocorrenciaService, equipeService } from '../../services/api';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { Search, RefreshCw } from 'lucide-react';
 import styles from './Solicitacoes.module.css';
@@ -23,21 +24,27 @@ const PRIO_STYLE = {
 const PAGE_SIZE = 10;
 
 export default function Solicitacoes() {
+  const location = useLocation();
   const [items, setItems]         = useState([]);
   const [search, setSearch]       = useState('');
   const [page, setPage]           = useState(0);
   const [totalPages, setTotal]    = useState(1);
   const [loading, setLoading]     = useState(true);
   const [statusFilter, setStatus] = useState('');
+  const [gestorFilter, setGestorFilter] = useState('');
+  const [gestores, setGestores] = useState([]);
+  const [equipes, setEquipes] = useState([]);
+  const [selectedEquipeId, setSelectedEquipeId] = useState('');
   
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [selectedSolicitacao, setSelectedSolicitacao] = useState(null);
-  const [updateData, setUpdateData] = useState({ status: '', prioridade: '' });
+  const [updateData, setUpdateData] = useState({ status: '', prioridade: '', idEquipe: null });
 
   const fetchData = useCallback(() => {
     setLoading(true);
     const params = { page, size: PAGE_SIZE };
     if (statusFilter) params.status = statusFilter;
+    if (gestorFilter) params.gestor = gestorFilter;
 
     ocorrenciaService.listar(params)
       .then(r => {
@@ -47,24 +54,124 @@ export default function Solicitacoes() {
       })
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
-  }, [page, statusFilter]);
+  }, [page, statusFilter, gestorFilter]);
+
+  const loadEquipes = useCallback(async () => {
+    try {
+      const [listarResponse, dashboardResponse] = await Promise.allSettled([
+        equipeService.listar(),
+        equipeService.dashboard({ page: 0, size: 200 })
+      ]);
+
+      const rawItems = [];
+
+      if (listarResponse.status === 'fulfilled') {
+        const listData = listarResponse.value.data?.data || listarResponse.value.data || [];
+        const listArray = Array.isArray(listData) ? listData : (listData.content || []);
+        rawItems.push(...listArray);
+      }
+
+      if (dashboardResponse.status === 'fulfilled') {
+        const dashboardData = dashboardResponse.value.data?.data || dashboardResponse.value.data || {};
+        const dashboardArray = Array.isArray(dashboardData) ? dashboardData : (dashboardData.content || []);
+        rawItems.push(...dashboardArray);
+        setGestores([...new Set(dashboardArray.map((item) => item.supervisor).filter((nome) => nome && nome !== 'Sem supervisor'))].sort());
+      }
+
+      const nextEquipes = rawItems.filter((item, index, arr) => {
+        const id = String(item.id ?? '');
+        const nome = String(item.nome ?? '');
+        return arr.findIndex((entry) => String(entry.id ?? '') === id || String(entry.nome ?? '') === nome) === index;
+      });
+
+      setEquipes(nextEquipes);
+      return nextEquipes;
+    } catch (error) {
+      setEquipes([]);
+      return [];
+    }
+  }, []);
+
+  useEffect(() => {
+    loadEquipes();
+  }, [loadEquipes]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleOpenUpdate = (row) => {
+  useEffect(() => {
+    const targetId = location.state?.selectedIncidentId;
+    if (!targetId || !items.length) return;
+
+    const match = items.find((item) => String(item.id) === String(targetId));
+    if (match) {
+      handleOpenUpdate(match);
+    }
+  }, [items, location.state]);
+
+  const handleOpenUpdate = async (row) => {
+    const availableEquipes = await loadEquipes();
+    const equipeAtual = availableEquipes.find((equipe) =>
+      equipe.nome === row.nomeEquipe ||
+      equipe.nome === row.equipe?.nome ||
+      String(equipe.id) === String(row.idEquipe) ||
+      String(equipe.id) === String(row.equipeId)
+    );
+
     setSelectedSolicitacao(row);
+    setSelectedEquipeId(equipeAtual ? String(equipeAtual.id) : '');
     setUpdateData({ 
       status: row.status || 'PENDENTE', 
-      prioridade: row.prioridade || 'BAIXA' 
+      prioridade: row.prioridade || 'BAIXA',
+      idEquipe: equipeAtual ? Number(equipeAtual.id) : null,
     });
     setShowUpdateModal(true);
   };
 
+  useEffect(() => {
+    if (!selectedSolicitacao || !equipes.length) return;
+
+    const equipeAtual = equipes.find((equipe) =>
+      equipe.nome === selectedSolicitacao.nomeEquipe ||
+      equipe.nome === selectedSolicitacao.equipe?.nome ||
+      String(equipe.id) === String(selectedSolicitacao.idEquipe) ||
+      String(equipe.id) === String(selectedSolicitacao.equipeId)
+    );
+    const equipeId = equipeAtual ? String(equipeAtual.id) : '';
+
+    setSelectedEquipeId((current) => current || equipeId);
+    setUpdateData((current) => ({
+      ...current,
+      idEquipe: equipeAtual ? Number(equipeAtual.id) : current.idEquipe,
+    }));
+  }, [selectedSolicitacao, equipes]);
+
   const handleUpdateSubmit = async () => {
     try {
-      await ocorrenciaService.atualizarStatus(selectedSolicitacao.id, updateData);
+      const payload = {
+        ...updateData,
+        idEquipe: selectedEquipeId ? Number(selectedEquipeId) : null,
+      };
+
+      await ocorrenciaService.atualizarStatus(selectedSolicitacao.id, payload);
+
+      const equipeSelecionada = equipes.find((equipe) => String(equipe.id) === String(selectedEquipeId));
+      setItems((current) =>
+        current.map((item) =>
+          item.id === selectedSolicitacao.id
+            ? {
+                ...item,
+                status: payload.status,
+                prioridade: payload.prioridade,
+                nomeEquipe: equipeSelecionada?.nome || null,
+              }
+            : item
+        )
+      );
+
       alert('Solicitação atualizada com sucesso!');
       setShowUpdateModal(false);
+      setSelectedSolicitacao(null);
+      setSelectedEquipeId('');
       fetchData();
     } catch (err) {
       alert('Erro ao atualizar solicitação: ' + (err.response?.data?.message || err.message));
@@ -107,6 +214,15 @@ export default function Solicitacoes() {
           <option value="EM_CAMPO">Em Campo</option>
           <option value="CONCLUIDA">Concluída</option>
           <option value="CANCELADA">Cancelada</option>
+        </select>
+
+        <select
+          className={styles.pageSizeSelect}
+          value={gestorFilter}
+          onChange={e => { setGestorFilter(e.target.value); setPage(0); }}
+        >
+          <option value="">Todos os gestores</option>
+          {gestores.map((gestor) => <option key={gestor} value={gestor}>{gestor}</option>)}
         </select>
 
         <button className={styles.newBtn} onClick={fetchData} title="Recarregar">
@@ -244,7 +360,7 @@ export default function Solicitacoes() {
             <select 
               value={updateData.prioridade} 
               onChange={e => setUpdateData({...updateData, prioridade: e.target.value})} 
-              style={{ width: '100%', padding: '8px', marginBottom: '24px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-primary)' }}
+              style={{ width: '100%', padding: '8px', marginBottom: '16px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-primary)' }}
             >
               <option value="BAIXA">Baixa</option>
               <option value="MEDIA">Média</option>
@@ -252,8 +368,29 @@ export default function Solicitacoes() {
               <option value="URGENTE">Urgente</option>
             </select>
 
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>Equipe</label>
+            {selectedSolicitacao?.nomeEquipe && (
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                Equipe atual: {selectedSolicitacao.nomeEquipe}
+              </div>
+            )}
+            <select
+              value={selectedEquipeId}
+              onChange={(e) => {
+                const nextValue = e.target.value;
+                setSelectedEquipeId(nextValue);
+                setUpdateData((current) => ({ ...current, idEquipe: nextValue ? Number(nextValue) : null }));
+              }}
+              style={{ width: '100%', padding: '8px', marginBottom: '24px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-primary)' }}
+            >
+              <option value="">Sem equipe</option>
+              {equipes.map((equipe) => (
+                <option key={equipe.id} value={String(equipe.id)}>{equipe.nome}</option>
+              ))}
+            </select>
+
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowUpdateModal(false)} style={{ padding: '8px 16px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '4px', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={() => { setShowUpdateModal(false); setSelectedSolicitacao(null); setSelectedEquipeId(''); }} style={{ padding: '8px 16px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '4px', cursor: 'pointer' }}>Cancelar</button>
               <button onClick={handleUpdateSubmit} style={{ padding: '8px 16px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Salvar</button>
             </div>
           </div>

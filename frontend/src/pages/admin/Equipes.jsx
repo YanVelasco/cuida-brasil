@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { equipeService, orgaoService, ocorrenciaService } from '../../services/api';
 import { MapPin, CheckCircle, Shield } from 'lucide-react';
@@ -7,6 +9,9 @@ import styles from './Equipes.module.css';
 const PAGE_SIZE = 10;
 
 export default function Equipes() {
+  const location = useLocation();
+  const { user } = useAuth();
+  const isAdmin = user?.perfil === 'ADMIN';
   const [search, setSearch] = useState('');
   
   // Equipes Pagination
@@ -39,21 +44,25 @@ export default function Equipes() {
   // Unassigned incidents state
   const [unassignedIncidents, setUnassignedIncidents] = useState([]);
   const [selectedIncidentId, setSelectedIncidentId] = useState('');
+  const [selectedIncidentDetail, setSelectedIncidentDetail] = useState(null);
 
   const carregarDados = useCallback(async () => {
     try {
       const resp = await equipeService.dashboard({ page, size: PAGE_SIZE });
       const data = resp.data.data;
-      setEquipes(data.content);
-      setTotalPages(data.totalPages || 1);
+      const equipesVisiveis = user?.perfil === 'GESTOR'
+        ? data.content.filter((equipe) => equipe.supervisor === user.nome)
+        : data.content;
+      setEquipes(equipesVisiveis);
+      setTotalPages(user?.perfil === 'GESTOR' ? (equipesVisiveis.length ? 1 : 0) : (data.totalPages || 1));
 
       // KPI cards only reflect the current page due to pagination (unless we do a separate count, but let's use the page for now)
-      const emCampo = data.content.filter(e => e.status === 'Em campo').length;
-      const sobrecarr = data.content.filter(e => e.status === 'Sobrecarr.').length;
-      const disp = data.content.filter(e => e.status === 'Disponível').length;
+      const emCampo = equipesVisiveis.filter(e => e.status === 'Em campo').length;
+      const sobrecarr = equipesVisiveis.filter(e => e.status === 'Sobrecarr.').length;
+      const disp = equipesVisiveis.filter(e => e.status === 'Disponível').length;
 
       setKpis([
-        { label:'EQUIPES NA TELA', value:data.content.length, sub:`Página ${page+1}`, color:'blue' },
+        { label:'EQUIPES NA TELA', value:equipesVisiveis.length, sub:`Página ${page+1}`, color:'blue' },
         { label:'EM CAMPO', value:emCampo, sub:`Nesta página`, color:'green' },
         { label:'DISPONÍVEL', value:disp, sub:`Nesta página`, color:'gray' },
         { label:'SOBRECARREGADAS', value:sobrecarr, sub:`Nesta página`, color:'red' },
@@ -61,7 +70,7 @@ export default function Equipes() {
     } catch(err) {
       console.error("Erro ao carregar equipes:", err);
     }
-  }, [page]);
+  }, [page, user?.nome, user?.perfil]);
 
   useEffect(() => {
     carregarDados();
@@ -112,27 +121,74 @@ export default function Equipes() {
     }
   };
 
-  const handleOpenAssignModal = async (equipeId) => {
+  const handleOpenAssignModal = async (equipeId, selectedIncident = null) => {
     setSelectedEquipeId(equipeId);
     try {
-      const resp = await ocorrenciaService.listarNaoAtribuidas();
-      setUnassignedIncidents(resp.data.data);
+      const resp = await ocorrenciaService.listar({ page: 0, size: 200 });
+      const items = resp.data?.data?.content || resp.data?.content || [];
+      const activeIncidents = items.filter((inc) => !['CONCLUIDA', 'CANCELADA'].includes((inc.status || '').toUpperCase()));
+      const incidentList = selectedIncident
+        ? activeIncidents.filter((inc) => String(inc.id) === String(selectedIncident))
+        : activeIncidents;
+
+      setUnassignedIncidents(incidentList);
+      setSelectedIncidentDetail(incidentList[0] || null);
+      setSelectedIncidentId(selectedIncident ? String(selectedIncident) : '');
       setShowAssignModal(true);
     } catch (err) {
-      alert('Erro ao buscar incidentes não atribuídos.');
+      alert('Erro ao buscar incidentes para atribuição.');
     }
   };
 
+  useEffect(() => {
+    const selectedIncidentIdFromState = location.state?.selectedIncidentId;
+    if (!selectedIncidentIdFromState) return;
+
+    setSelectedIncidentId(String(selectedIncidentIdFromState));
+    setShowAssignModal(true);
+    setSelectedEquipeId(null);
+
+    ocorrenciaService.listar({ page: 0, size: 200 })
+      .then((resp) => {
+        const items = resp.data?.data?.content || resp.data?.content || [];
+        const activeIncidents = items.filter((inc) => !['CONCLUIDA', 'CANCELADA'].includes((inc.status || '').toUpperCase()));
+        const match = activeIncidents.find((inc) => String(inc.id) === String(selectedIncidentIdFromState));
+
+        setSelectedIncidentDetail(match || null);
+        setUnassignedIncidents(match ? [match] : []);
+      })
+      .catch(() => {
+        setSelectedIncidentDetail(null);
+        setUnassignedIncidents([]);
+      });
+  }, [location.state]);
+
+  useEffect(() => {
+    if (!selectedIncidentDetail?.nomeEquipe) {
+      return;
+    }
+
+    const matchingEquipe = equipes.find((equipe) => equipe.nome === selectedIncidentDetail.nomeEquipe);
+    if (matchingEquipe) {
+      setSelectedEquipeId(String(matchingEquipe.id));
+    }
+  }, [selectedIncidentDetail, equipes]);
+
   const handleAssignIncident = async () => {
     if (!selectedIncidentId) return alert('Selecione um incidente.');
+    if (!selectedEquipeId) return alert('Selecione uma equipe antes de atribuir.');
+
     try {
       await ocorrenciaService.atualizarStatus(selectedIncidentId, { 
         status: 'TRIAGEM', 
-        idEquipe: selectedEquipeId, 
+        idEquipe: Number(selectedEquipeId), 
         comentario: 'Atribuído à equipe pelo painel.' 
       });
       alert('Incidente atribuído com sucesso!');
       setShowAssignModal(false);
+      setSelectedIncidentId('');
+      setSelectedEquipeId(null);
+      setSelectedIncidentDetail(null);
       carregarDados(); 
     } catch (err) {
       alert('Erro ao atribuir incidente.');
@@ -161,7 +217,7 @@ export default function Equipes() {
     <AdminLayout>
       <div className={styles.topBar}>
         <h1 className={styles.title}>Gestão de Equipes</h1>
-        <button className={styles.newBtn} onClick={() => setShowNewEquipeModal(true)}>+ Nova Equipe</button>
+        {isAdmin && <button className={styles.newBtn} onClick={() => setShowNewEquipeModal(true)}>+ Nova Equipe</button>}
       </div>
 
       <div className={styles.filterBar}>
@@ -390,20 +446,52 @@ export default function Equipes() {
             <p style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '15px'}}>
               Selecione um incidente da lista para enviar a esta equipe.
             </p>
+            {selectedIncidentDetail && (
+              <div style={{
+                padding: '12px 14px',
+                borderRadius: '10px',
+                background: 'rgba(34, 109, 255, 0.08)',
+                border: '1px solid rgba(92, 154, 255, 0.3)',
+                marginBottom: '14px',
+                color: 'var(--text-primary)'
+              }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Ocorrência selecionada</div>
+                <div style={{ fontWeight: 700, marginBottom: '4px' }}>{selectedIncidentDetail.protocolo || 'Sem protocolo'}</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  {selectedIncidentDetail.categoriaServico || 'Solicitação'} · {selectedIncidentDetail.status || 'PENDENTE'}
+                </div>
+                <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                  {selectedIncidentDetail.nomeEquipe ? `Equipe atual: ${selectedIncidentDetail.nomeEquipe}` : 'Equipe atual: nenhuma'}
+                </div>
+              </div>
+            )}
+
             {unassignedIncidents.length > 0 ? (
               <select value={selectedIncidentId} onChange={e => setSelectedIncidentId(e.target.value)} className={styles.filterSelect} style={{width: '100%', margin: '10px 0', padding: '10px'}}>
                 <option value="">Selecione o protocolo...</option>
                 {unassignedIncidents.map(inc => (
-                  <option key={inc.id} value={inc.id}>{inc.protocolo} - {inc.categoriaServico}</option>
+                  <option key={inc.id} value={inc.id}>{inc.protocolo || 'SEM PROTOCOLO'} - {inc.categoriaServico || 'Solicitação'} - {inc.status || 'PENDENTE'}</option>
                 ))}
               </select>
             ) : (
-              <div style={{padding: '15px', background: 'rgba(235, 87, 87, 0.1)', color: '#EB5757', borderRadius: '8px', marginBottom: '15px'}}>Nenhum incidente não atribuído.</div>
+              <div style={{padding: '15px', background: 'rgba(235, 87, 87, 0.1)', color: '#EB5757', borderRadius: '8px', marginBottom: '15px'}}>Nenhuma ocorrência disponível para atribuição.</div>
             )}
+
+            <select
+              value={selectedEquipeId || ''}
+              onChange={(e) => setSelectedEquipeId(e.target.value || null)}
+              className={styles.filterSelect}
+              style={{ width: '100%', margin: '10px 0', padding: '10px' }}
+            >
+              <option value="">Selecione uma equipe...</option>
+              {equipes.map((equipe) => (
+                <option key={equipe.id} value={String(equipe.id)}>{equipe.nome}</option>
+              ))}
+            </select>
             
             <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
-              <button className={styles.newBtn} onClick={handleAssignIncident} disabled={!selectedIncidentId}>Atribuir</button>
-              <button className={styles.clearBtn} onClick={() => { setShowAssignModal(false); setSelectedIncidentId(''); }}>Cancelar</button>
+              <button className={styles.newBtn} onClick={handleAssignIncident} disabled={!selectedIncidentId || !selectedEquipeId}>Atribuir</button>
+              <button className={styles.clearBtn} onClick={() => { setShowAssignModal(false); setSelectedIncidentId(''); setSelectedEquipeId(null); setSelectedIncidentDetail(null); }}>Cancelar</button>
             </div>
           </div>
         </div>
