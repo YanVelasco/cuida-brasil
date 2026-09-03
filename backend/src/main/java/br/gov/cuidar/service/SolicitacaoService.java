@@ -19,14 +19,16 @@ public class SolicitacaoService {
     private final EquipePublicaRepository equipeRepository;
     private final HistoricoRepository historicoRepository;
     private final VisionValidationService visionValidationService;
+    private final GestorRepository gestorRepository;
 
-    public SolicitacaoService(SolicitacaoRepository solicitacaoRepository, UsuarioRepository usuarioRepository, ServicoRepository servicoRepository, EquipePublicaRepository equipeRepository, HistoricoRepository historicoRepository, VisionValidationService visionValidationService) {
+    public SolicitacaoService(SolicitacaoRepository solicitacaoRepository, UsuarioRepository usuarioRepository, ServicoRepository servicoRepository, EquipePublicaRepository equipeRepository, HistoricoRepository historicoRepository, VisionValidationService visionValidationService, GestorRepository gestorRepository) {
         this.solicitacaoRepository = solicitacaoRepository;
         this.usuarioRepository = usuarioRepository;
         this.servicoRepository = servicoRepository;
         this.equipeRepository = equipeRepository;
         this.historicoRepository = historicoRepository;
         this.visionValidationService = visionValidationService;
+        this.gestorRepository = gestorRepository;
     }
 
     @Transactional
@@ -63,11 +65,24 @@ public class SolicitacaoService {
         return toResponse(sol);
     }
 
-    public Page<Response> listarTodas(String status, int page, int size) {
+    public Page<Response> listarTodas(String status, int page, int size, Usuario usuario) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("dataCriacao").descending());
-        Page<Solicitacao> result = status != null
-            ? solicitacaoRepository.findByStatus(status, pageable)
-            : solicitacaoRepository.findAll(pageable);
+        Page<Solicitacao> result;
+
+        if (usuario != null && "GESTOR".equals(usuario.getPerfil())) {
+            Long equipeId = gestorRepository.findEquipeIdByUsuarioId(usuario.getId()).orElse(null);
+            if (equipeId == null) {
+                return Page.empty(pageable);
+            }
+            result = status != null
+                ? solicitacaoRepository.findByStatusAndEquipeId(status, equipeId, pageable)
+                : solicitacaoRepository.findByEquipeId(equipeId, pageable);
+        } else {
+            result = status != null
+                ? solicitacaoRepository.findByStatus(status, pageable)
+                : solicitacaoRepository.findAll(pageable);
+        }
+
         return result.map(this::toResponse);
     }
 
