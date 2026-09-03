@@ -31,6 +31,8 @@ export default function Solicitacoes() {
   const [totalPages, setTotal]    = useState(1);
   const [loading, setLoading]     = useState(true);
   const [statusFilter, setStatus] = useState('');
+  const [categoriaFilter, setCategoriaFilter] = useState('');
+  const [prioridadeFilter, setPrioridadeFilter] = useState('');
   const [gestorFilter, setGestorFilter] = useState('');
   const [gestores, setGestores] = useState([]);
   const [equipes, setEquipes] = useState([]);
@@ -178,13 +180,17 @@ export default function Solicitacoes() {
     }
   };
 
-  const filtered = search
-    ? items.filter(it =>
+  const filtered = items.filter(it => {
+    const matchesSearch = !search ||
         it.protocolo?.toLowerCase().includes(search.toLowerCase()) ||
         it.categoriaServico?.toLowerCase().includes(search.toLowerCase()) ||
-        it.subcategoriaServico?.toLowerCase().includes(search.toLowerCase())
-      )
-    : items;
+        it.subcategoriaServico?.toLowerCase().includes(search.toLowerCase());
+    return matchesSearch &&
+      (!categoriaFilter || it.categoriaServico === categoriaFilter) &&
+      (!prioridadeFilter || (it.prioridade || '').toUpperCase() === prioridadeFilter);
+  });
+
+  const categorias = [...new Set(items.map((item) => item.categoriaServico).filter(Boolean))].sort();
 
   return (
     <AdminLayout>
@@ -215,6 +221,33 @@ export default function Solicitacoes() {
           <option value="CONCLUIDA">Concluída</option>
           <option value="CANCELADA">Cancelada</option>
         </select>
+
+        <select
+          className={styles.pageSizeSelect}
+          value={categoriaFilter}
+          onChange={e => { setCategoriaFilter(e.target.value); setPage(0); }}
+        >
+          <option value="">Todos os tipos</option>
+          {categorias.map((categoria) => <option key={categoria} value={categoria}>{categoria}</option>)}
+        </select>
+
+        <select
+          className={styles.pageSizeSelect}
+          value={prioridadeFilter}
+          onChange={e => { setPrioridadeFilter(e.target.value); setPage(0); }}
+        >
+          <option value="">Todas as prioridades</option>
+          <option value="URGENTE">Urgente</option>
+          <option value="ALTA">Alta</option>
+          <option value="MEDIA">Média</option>
+          <option value="BAIXA">Baixa</option>
+        </select>
+
+        {(search || statusFilter || gestorFilter || categoriaFilter || prioridadeFilter) && (
+          <button className={styles.clearBtn} onClick={() => { setSearch(''); setStatus(''); setGestorFilter(''); setCategoriaFilter(''); setPrioridadeFilter(''); setPage(0); }}>
+            Limpar filtros
+          </button>
+        )}
 
         <select
           className={styles.pageSizeSelect}

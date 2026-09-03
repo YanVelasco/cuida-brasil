@@ -13,6 +13,9 @@ export default function Equipes() {
   const { user } = useAuth();
   const isAdmin = user?.perfil === 'ADMIN';
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [regiaoFilter, setRegiaoFilter] = useState('');
+  const [tipoFilter, setTipoFilter] = useState('');
   
   // Equipes Pagination
   const [page, setPage] = useState(0);
@@ -215,10 +218,16 @@ export default function Equipes() {
 
   const handleMouseLeave = () => setHoverInfo(null);
 
-  const filteredEquipes = search ? equipes.filter(e => 
-    e.nome.toLowerCase().includes(search.toLowerCase()) || 
-    (e.supervisor && e.supervisor.toLowerCase().includes(search.toLowerCase()))
-  ) : equipes;
+  const filteredEquipes = equipes.filter((equipe) => {
+    const matchesSearch = !search || equipe.nome.toLowerCase().includes(search.toLowerCase()) ||
+      (equipe.supervisor && equipe.supervisor.toLowerCase().includes(search.toLowerCase()));
+    return matchesSearch &&
+      (!statusFilter || equipe.status === statusFilter) &&
+      (!regiaoFilter || equipe.regiao === regiaoFilter) &&
+      (!tipoFilter || equipe.tipoServico === tipoFilter);
+  });
+
+  const tiposServico = [...new Set(equipes.map((equipe) => equipe.tipoServico).filter(Boolean))].sort();
 
   return (
     <AdminLayout>
@@ -229,7 +238,25 @@ export default function Equipes() {
 
       <div className={styles.filterBar}>
         <input className={styles.searchInput} placeholder="Buscar equipe ou supervisor..." value={search} onChange={e=>setSearch(e.target.value)}/>
-        <button className={styles.clearBtn} onClick={() => setSearch('')}>🗑 Limpar busca</button>
+        <select className={styles.filterSelect} value={tipoFilter} onChange={(event) => setTipoFilter(event.target.value)}>
+          <option value="">Todos os tipos</option>
+          {tiposServico.map((tipo) => <option key={tipo} value={tipo}>{tipo}</option>)}
+        </select>
+        <select className={styles.filterSelect} value={regiaoFilter} onChange={(event) => setRegiaoFilter(event.target.value)}>
+          <option value="">Todas as regiões</option>
+          {['Centro', 'Norte', 'Sul', 'Leste', 'Oeste'].map((regiao) => <option key={regiao} value={regiao}>{regiao}</option>)}
+        </select>
+        <select className={styles.filterSelect} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <option value="">Todos os status</option>
+          <option value="Em campo">Em campo</option>
+          <option value="Disponível">Disponível</option>
+          <option value="Sobrecarr.">Sobrecarregada</option>
+        </select>
+        {(search || tipoFilter || regiaoFilter || statusFilter) && (
+          <button className={styles.clearBtn} onClick={() => { setSearch(''); setTipoFilter(''); setRegiaoFilter(''); setStatusFilter(''); }}>
+            Limpar filtros
+          </button>
+        )}
       </div>
 
       {/* KPI Cards */}
