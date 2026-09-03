@@ -23,11 +23,13 @@ public class SolicitacaoDTO {
         @NotBlank private String status;
         private String prioridade;
         private Long idEquipe;
+        private String statusEquipe;
         private String comentario;
         public UpdateStatusRequest() {}
         public String getStatus() { return status; } public void setStatus(String status) { this.status = status; }
         public String getPrioridade() { return prioridade; } public void setPrioridade(String prioridade) { this.prioridade = prioridade; }
         public Long getIdEquipe() { return idEquipe; } public void setIdEquipe(Long idEquipe) { this.idEquipe = idEquipe; }
+        public String getStatusEquipe() { return statusEquipe; } public void setStatusEquipe(String statusEquipe) { this.statusEquipe = statusEquipe; }
         public String getComentario() { return comentario; } public void setComentario(String comentario) { this.comentario = comentario; }
     }
 

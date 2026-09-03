@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import AdminLayout from '../../components/layout/AdminLayout';
@@ -328,6 +329,20 @@ export default function MapaOcorrencias() {
     [...new Set(ocorrencias.map((oc) => oc.categoriaServico).filter(Boolean))].sort()
   ), [ocorrencias]);
 
+  const statusChartData = useMemo(() => {
+    const counts = filteredOcorrencias.reduce((result, occurrence) => {
+      const status = occurrence.status || 'INDEFINIDO';
+      result[status] = (result[status] || 0) + 1;
+      return result;
+    }, {});
+
+    return Object.entries(counts).map(([status, total]) => ({
+      status: STATUS_META[status]?.label || status,
+      total,
+      color: STATUS_META[status]?.color || '#6B7280',
+    }));
+  }, [filteredOcorrencias]);
+
   useEffect(() => {
     if (!filteredOcorrencias.length) {
       setSelected(null);
@@ -516,6 +531,27 @@ export default function MapaOcorrencias() {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className={styles.sideSection}>
+            <div className={styles.sideSectionTitle}>RESUMO DO MAPA</div>
+            <div className={styles.chartCaption}>
+              {filteredOcorrencias.length} ocorrência{filteredOcorrencias.length === 1 ? '' : 's'} visível{filteredOcorrencias.length === 1 ? '' : 'eis'}
+            </div>
+            {statusChartData.length ? (
+              <div className={styles.mapChart}>
+                <ResponsiveContainer width="100%" height={150}>
+                  <BarChart data={statusChartData} layout="vertical" margin={{ top: 0, right: 4, left: 0, bottom: 0 }}>
+                    <XAxis type="number" allowDecimals={false} hide />
+                    <YAxis type="category" dataKey="status" width={76} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6 }} />
+                    <Bar dataKey="total" name="Ocorrências" radius={[0, 4, 4, 0]} fill="#2F80ED" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className={styles.chartEmpty}>Nenhuma ocorrência para o filtro atual.</div>
+            )}
           </div>
 
           <div className={styles.sideSection}>

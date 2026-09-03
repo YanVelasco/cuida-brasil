@@ -141,7 +141,16 @@ public class SolicitacaoService {
 
         sol.setStatus(req.getStatus());
         if (req.getPrioridade() != null) sol.setPrioridade(req.getPrioridade());
-        if (req.getIdEquipe() != null) equipeRepository.findById(req.getIdEquipe()).ifPresent(sol::setEquipe);
+        if (req.getIdEquipe() != null) {
+            EquipePublica equipe = equipeRepository.findById(req.getIdEquipe()).orElse(null);
+            if (equipe != null) {
+                sol.setEquipe(equipe);
+                if (req.getStatusEquipe() != null && !req.getStatusEquipe().isBlank()) {
+                    equipe.setStatusOperacional(req.getStatusEquipe());
+                    equipeRepository.save(equipe);
+                }
+            }
+        }
         if ("CONCLUIDA".equals(req.getStatus())) sol.setDataConclusao(LocalDate.now());
 
         sol = solicitacaoRepository.save(sol);

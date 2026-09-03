@@ -1,12 +1,28 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { equipeService, orgaoService, ocorrenciaService } from '../../services/api';
 import { MapPin, CheckCircle, Shield } from 'lucide-react';
 import styles from './Equipes.module.css';
 
 const PAGE_SIZE = 10;
+
+const REGION_COORDINATES = {
+  Centro: [-23.5505, -46.6333],
+  Norte: [-23.4705, -46.5600],
+  Sul: [-23.6505, -46.6500],
+  Leste: [-23.5505, -46.4800],
+  Oeste: [-23.5605, -46.7800],
+};
+
+function getTeamCoordinates(team, index) {
+  const [latitude, longitude] = REGION_COORDINATES[team.regiao] || REGION_COORDINATES.Centro;
+  const offset = (index % 5) * 0.006;
+  return [latitude + offset, longitude + offset];
+}
 
 export default function Equipes() {
   const location = useLocation();
@@ -38,6 +54,7 @@ export default function Equipes() {
   const [showNewMemberModal, setShowNewMemberModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedEquipeId, setSelectedEquipeId] = useState(null);
+  const [statusEquipe, setStatusEquipe] = useState('EM_CAMPO');
 
   // Forms state
   const [newEquipeData, setNewEquipeData] = useState({ nome: '', idOrgao: '' });
@@ -133,6 +150,8 @@ export default function Equipes() {
 
   const handleOpenAssignModal = async (equipeId, selectedIncident = null) => {
     setSelectedEquipeId(equipeId);
+    const equipe = equipes.find((item) => String(item.id) === String(equipeId));
+    setStatusEquipe(equipe?.status === 'Disponível' ? 'DISPONIVEL' : equipe?.status === 'Sobrecarr.' ? 'SOBRECARREGADA' : 'EM_CAMPO');
     try {
       const resp = await ocorrenciaService.listar({ page: 0, size: 200 });
       const items = resp.data?.data?.content || resp.data?.content || [];
@@ -192,6 +211,7 @@ export default function Equipes() {
       await ocorrenciaService.atualizarStatus(selectedIncidentId, { 
         status: 'TRIAGEM', 
         idEquipe: Number(selectedEquipeId), 
+        statusEquipe,
         comentario: 'Atribuído à equipe pelo painel.' 
       });
       alert('Incidente atribuído com sucesso!');
@@ -327,53 +347,40 @@ export default function Equipes() {
             <h3>Mapa de Alocação (Visão Geral)</h3>
           </div>
           <div className={styles.mapContainer}>
-            {hoverInfo && (
-              <div className={styles.mapTooltip}>
-                {hoverInfo.type === 'district' ? (
-                  <>
-                    <strong style={{fontSize:'0.78rem', display:'block', marginBottom:'2px', color:'var(--primary)'}}>{hoverInfo.title}</strong>
-                    <div>{hoverInfo.details}</div>
-                  </>
-                ) : (
-                  <>
-                    <strong style={{fontSize:'0.78rem', display:'block', color: hoverInfo.status === 'Sobrecarr.' ? '#EB5757' : 'var(--primary)'}}>{hoverInfo.title}</strong>
-                    <div style={{fontSize:'0.65rem', color:'var(--text-muted)', marginBottom:'4px'}}>{hoverInfo.tipo}</div>
-                    <div style={{marginTop:'4px'}}>• Supervisor: <strong>{hoverInfo.supervisor}</strong></div>
-                    <div>• Casos: <strong>{hoverInfo.casos}</strong></div>
-                    <div style={{marginTop:'4px', display:'flex', alignItems:'center', gap:'4px'}}>
-                      <span style={{
-                        width:'6px', height:'6px', borderRadius:'50%', 
-                        background: hoverInfo.status === 'Sobrecarr.' ? '#EB5757' : hoverInfo.status === 'Disponível' ? '#F2C94C' : '#27AE60'
-                      }}/>
-                      Status: <strong>{hoverInfo.status}</strong>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            <svg viewBox="0 0 360 200" className={styles.mapSvg}>
-              <path d="M 20 20 L 340 20 L 290 80 L 90 80 Z" className={styles.districtPath} onMouseEnter={() => handleDistrictHover('Região Norte', 'Equipes operando na zona norte')} onMouseLeave={handleMouseLeave} />
-              <path d="M 90 80 L 290 80 L 250 140 L 130 140 Z" className={styles.districtPath} onMouseEnter={() => handleDistrictHover('Região Centro', 'Equipes operando no centro')} onMouseLeave={handleMouseLeave} />
-              <path d="M 130 140 L 250 140 L 210 190 L 170 190 Z" className={styles.districtPath} onMouseEnter={() => handleDistrictHover('Região Sul', 'Equipes operando na zona sul')} onMouseLeave={handleMouseLeave} />
-              <path d="M 20 20 L 90 80 L 130 140 L 170 190 L 20 190 Z" className={styles.districtPath} onMouseEnter={() => handleDistrictHover('Região Oeste', 'Equipes operando na zona oeste')} onMouseLeave={handleMouseLeave} />
-              <path d="M 340 20 L 290 80 L 250 140 L 210 190 L 340 190 Z" className={styles.districtPath} onMouseEnter={() => handleDistrictHover('Região Leste', 'Equipes operando na zona leste')} onMouseLeave={handleMouseLeave} />
-              
-              {equipes.map((eq, idx) => {
-                 let cx = 180, cy = 95;
-                 if (eq.regiao === 'Norte') { cx = 200 + (idx*10); cy = 55; }
-                 else if (eq.regiao === 'Sul') { cx = 190 + (idx*10); cy = 150; }
-                 else if (eq.regiao === 'Leste') { cx = 280 + (idx*5); cy = 105 + (idx*5); }
-                 else if (eq.regiao === 'Oeste') { cx = 95 + (idx*5); cy = 110 + (idx*5); }
-                 else { cx = 180 + (idx*15); cy = 95; }
-                 return (
-                   <g key={eq.id} className={styles.mapPinGroup} onMouseEnter={() => handlePinHover(eq)} onMouseLeave={handleMouseLeave}>
-                     <circle cx={cx} cy={cy} r="10" fill={eq.statusColor} opacity="0.35" className={styles.pulsingRing} />
-                     <circle cx={cx} cy={cy} r="4.5" fill={eq.statusColor} className={styles.mapPinCircle} />
-                   </g>
-                 );
+            <MapContainer center={REGION_COORDINATES.Centro} zoom={10} scrollWheelZoom className={styles.allocationMap}>
+              <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              {filteredEquipes.map((team, index) => {
+                const coordinates = getTeamCoordinates(team, index);
+                return (
+                  <CircleMarker key={team.id} center={coordinates} radius={9} pathOptions={{ color: '#fff', weight: 2, fillColor: team.statusColor, fillOpacity: 0.9 }}>
+                    <Popup>
+                      <strong>{team.nome}</strong><br />
+                      Supervisor: {team.supervisor}<br />
+                      Região: {team.regiao}<br />
+                      Casos abertos: {team.casosAbertos}<br />
+                      Status: {team.status}
+                    </Popup>
+                  </CircleMarker>
+                );
               })}
-            </svg>
+            </MapContainer>
+            <div className={styles.mapLegendSimple}>
+              {[
+                { label: 'Em campo', color: '#27AE60' },
+                { label: 'Disponível', color: '#F2C94C' },
+                { label: 'Sobrecarr.', color: '#EB5757' },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  className={statusFilter === item.label ? styles.mapLegendActive : ''}
+                  onClick={() => setStatusFilter((current) => current === item.label ? '' : item.label)}
+                  aria-pressed={statusFilter === item.label}
+                >
+                  <i style={{ background: item.color }} /> {item.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -521,6 +528,18 @@ export default function Equipes() {
               {equipes.map((equipe) => (
                 <option key={equipe.id} value={String(equipe.id)}>{equipe.nome}</option>
               ))}
+            </select>
+
+            <label style={{ display: 'block', marginTop: '12px', fontSize: '0.82rem', fontWeight: 600 }}>Status operacional da equipe</label>
+            <select
+              value={statusEquipe}
+              onChange={(event) => setStatusEquipe(event.target.value)}
+              className={styles.filterSelect}
+              style={{ width: '100%', margin: '8px 0', padding: '10px' }}
+            >
+              <option value="DISPONIVEL">Disponível</option>
+              <option value="EM_CAMPO">Em campo</option>
+              <option value="SOBRECARREGADA">Sobrecarregada</option>
             </select>
             
             <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>

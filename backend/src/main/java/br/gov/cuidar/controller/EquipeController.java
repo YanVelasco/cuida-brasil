@@ -100,7 +100,11 @@ public class EquipeController {
             
             // SLA e Status simulado/baseado nos casos
             dto.setSlaMedio((90 - (casos * 2)) + "%");
-            if (casos == 0) {
+            if (eq.getStatusOperacional() != null && !eq.getStatusOperacional().isBlank()) {
+                String status = eq.getStatusOperacional();
+                dto.setStatus("DISPONIVEL".equals(status) ? "Disponível" : "SOBRECARREGADA".equals(status) ? "Sobrecarr." : "Em campo");
+                dto.setStatusColor("DISPONIVEL".equals(status) ? "#F2C94C" : "SOBRECARREGADA".equals(status) ? "#EB5757" : "#27AE60");
+            } else if (casos == 0) {
                 dto.setStatus("Disponível");
                 dto.setStatusColor("#F2C94C");
             } else if (casos > 15) {

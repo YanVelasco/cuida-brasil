@@ -151,6 +151,22 @@
   background: var(--background);
   font-family: var(--font);
 }
+.chartCaption {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+.mapChart {
+  width: 100%;
+  min-height: 150px;
+}
+.chartEmpty {
+  min-height: 80px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-align: center;
+}
 .prioFilters { display: flex; flex-wrap: wrap; gap: 6px; }
 .prioBtn {
   padding: 4px 12px;
