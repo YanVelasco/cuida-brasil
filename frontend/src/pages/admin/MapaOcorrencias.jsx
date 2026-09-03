@@ -160,6 +160,35 @@ function MapFitBounds({ items, selected, selectedRegion }) {
   return null;
 }
 
+function OccurrenceMiniMap({ gps }) {
+  if (!gps) {
+    return <div className={styles.miniMapEmpty}>Localização GPS não informada</div>;
+  }
+
+  return (
+    <div className={styles.miniMap} aria-label="Mapa da ocorrência">
+      <MapContainer
+        center={[gps.latitude, gps.longitude]}
+        zoom={15}
+        scrollWheelZoom={false}
+        dragging={false}
+        doubleClickZoom={false}
+        zoomControl={false}
+        attributionControl={false}
+        className={styles.miniMapLeaflet}
+      >
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <CircleMarker
+          center={[gps.latitude, gps.longitude]}
+          radius={8}
+          pathOptions={{ color: '#fff', weight: 2, fillColor: '#EB5757', fillOpacity: 0.95 }}
+        />
+      </MapContainer>
+      <span className={styles.miniMapLabel}>Localização da ocorrência</span>
+    </div>
+  );
+}
+
 export default function MapaOcorrencias() {
   const [ocorrencias, setOcorrencias] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -509,12 +538,12 @@ export default function MapaOcorrencias() {
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '10px' }}>
                   Equipe: {activeSelected.nomeEquipe || 'Ainda não atribuída'}
                 </div>
-                <div className={styles.selectedImg} />
+                <OccurrenceMiniMap gps={parseGps(activeSelected.gps)} />
               </div>
             ) : (
               <div className={styles.noSelected}>
                 <span className={styles.urgentBadge} style={{ background: '#EB5757' }}>Sem seleção</span>
-                <div className={styles.selectedImg} />
+                <div className={styles.miniMapEmpty}>Selecione uma ocorrência para visualizar a localização</div>
               </div>
             )}
             <button className={styles.blueBtn} onClick={handleAssignEquipe} type="button" disabled={!canAssignEquipe}>

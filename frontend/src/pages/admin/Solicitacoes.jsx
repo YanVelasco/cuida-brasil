@@ -338,9 +338,28 @@ export default function Solicitacoes() {
       {/* UPDATE MODAL */}
       {showUpdateModal && (
         <div className={styles.modalOverlay} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className={styles.modalContent} style={{ background: 'var(--surface)', padding: '24px', borderRadius: '8px', width: '100%', maxWidth: '400px', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
-            <h3 style={{ marginTop: 0, color: 'var(--text-primary)' }}>Atualizar Solicitação</h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>{selectedSolicitacao?.protocolo} - {selectedSolicitacao?.categoriaServico}</p>
+          <div className={styles.modalContent} style={{ background: 'var(--surface)', padding: '24px', borderRadius: '8px', width: '100%', maxWidth: '620px', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '4px', color: 'var(--text-primary)' }}>Detalhe da Ocorrência</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 16px' }}>
+              {selectedSolicitacao?.protocolo} · registrada por {selectedSolicitacao?.nomeUsuario || 'cidadão'}
+            </p>
+
+            <div style={{ padding: '14px', marginBottom: '18px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--background)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px 18px', fontSize: '0.82rem' }}>
+                <div><strong>Tipo de serviço</strong><br />{selectedSolicitacao?.categoriaServico || '—'}{selectedSolicitacao?.subcategoriaServico ? ` · ${selectedSolicitacao.subcategoriaServico}` : ''}</div>
+                <div><strong>Data de abertura</strong><br />{selectedSolicitacao?.dataCriacao ? new Date(selectedSolicitacao.dataCriacao).toLocaleString('pt-BR') : '—'}</div>
+                <div><strong>Localização</strong><br />{selectedSolicitacao?.endereco || selectedSolicitacao?.gps || 'Não informada'}</div>
+                <div><strong>Equipe atual</strong><br />{selectedSolicitacao?.nomeEquipe || 'Sem equipe atribuída'}</div>
+              </div>
+              <div style={{ marginTop: '16px' }}>
+                <strong style={{ fontSize: '0.82rem' }}>O que o cidadão escreveu</strong>
+                <div style={{ marginTop: '6px', padding: '10px', borderLeft: '3px solid var(--primary)', color: 'var(--text-secondary)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                  {selectedSolicitacao?.descricao || 'Descrição não informada.'}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>Atualizar atendimento</div>
             
             <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>Status</label>
             <select 

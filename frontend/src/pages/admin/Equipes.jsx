@@ -111,11 +111,18 @@ export default function Equipes() {
   };
 
   const handleAddMember = async () => {
+    if (!selectedEquipeId || !newMemberData.nome || !newMemberData.cpf || !newMemberData.email || !newMemberData.senha) {
+      return alert('Preencha todos os dados do membro.');
+    }
+
     try {
-      await equipeService.adicionarMembro(selectedEquipeId, newMemberData);
+      const equipeId = Number(selectedEquipeId);
+      await equipeService.adicionarMembro(equipeId, newMemberData);
       alert('Membro adicionado com sucesso!');
       setShowNewMemberModal(false);
+      setNewMemberData({ nome: '', cpf: '', email: '', senha: '', perfil: 'TRABALHADOR' });
       carregarDados();
+      await carregarMembros(equipeId, 0);
     } catch (err) {
       alert('Erro ao adicionar membro. ' + (err.response?.data?.message || ''));
     }
