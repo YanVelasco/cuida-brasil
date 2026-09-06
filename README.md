@@ -20,12 +20,51 @@ O repositório está dividido nas seguintes partes:
 
 ## ✨ Funcionalidades
 
+### Núcleo
 - 🔐 **Autenticação JWT Stateless** com perfis de acesso (Cidadão, Gestor, Administrador)
-- 📋 **Gestão de Solicitações** — abertura, acompanhamento e atualização de status
-- 👥 **Gestão de Equipes** — criação, listagem e atribuição de solicitações
-- 📊 **Dashboard Administrativo e Relatórios** — métricas e gráficos em tempo real gerados a partir do banco (com isolamento de dados por perfil)
+- 📋 **Gestão de Solicitações (CRUD completo)** — abertura, acompanhamento, atualização de status e exclusão auditada (DELETE exclusivo do ADMIN)
+- 👥 **Gestão de Equipes** — criação de equipes e adição de membros (exclusivos do Gestor) e atribuição de incidentes à equipe
+- 🧑‍💼 **Gestão de Gestores** — o ADMIN lista, adiciona e remove gestores da plataforma
+- 🧑‍🤝‍🧑 **Listagem de Usuários** — ADMIN vê todos os cidadãos cadastrados; Gestor vê apenas os usuários atrelados à sua equipe
+- 📎 **Upload de Anexos** — o cidadão envia fotos do problema (validadas por IA de visão); admin e gestor visualizam e baixam as imagens
+
+### Dashboards, Relatórios e Auditoria
+- 📊 **Dashboard Executivo** — métricas e gráficos em tempo real gerados a partir do banco (com isolamento de dados por perfil)
+- 🖥️ **Exibição de Relatório em tela** antes da exportação
+- 📄 **Exportação de Relatórios em PDF** (jsPDF + autotable) e **Excel** (SheetJS)
+- 🕵️ **Auditoria Corporativa** — trilha de auditoria de ações sensíveis e **Login Auditado** (sucessos e falhas), com exportação PDF/Excel
+- 📈 **Indicadores Nacionais Reais** — tempo médio de resolução, volumes por status/categoria e tendência mensal produzidos pelo sistema
+- 🗺️ **Inteligência Territorial** — agregação de ocorrências por região/bairro (endereço ou GPS)
+- 🤖 **Tabela Serviço × Prioridade × Equipe** — base de conhecimento para IA
+
+### Geolocalização e Mapas
+- 📍 **Geolocalização no cadastro** — captura de GPS e resolução do endereço completo (rua e número) via geocodificação reversa (Nominatim → Photon → BigDataCloud), persistido no banco
+- 🗺️ **Mapa de Alocação** (Gestor) — equipes e ocorrências atribuídas em tempo real
+- 🌎 **Mapa Geral de Ocorrências** (Admin) — todas as ocorrências ativas coloridas por prioridade
+- 🔎 **Filtro global por região** aplicado em dashboards, mapas, solicitações e equipes
+
+### IA e Acessibilidade
 - 🤖 **Luna — Assistente de IA (RAG)** — chatbot inteligente com isolamento JWT. Retorna apenas dados de interesse do solicitante.
+- 👁️ **Validação de imagens via Gemini Vision** no cadastro de solicitações
 - ♿ **Acessibilidade** — integração com VLibras para tradução em Língua Brasileira de Sinais
+
+---
+
+## 🔐 Modelo de Permissões
+
+| Ação | Cidadão | Gestor | Admin |
+| :--- | :---: | :---: | :---: |
+| Abrir solicitação (com fotos e GPS) | ✅ | — | — |
+| Acompanhar as próprias solicitações | ✅ | — | — |
+| Criar equipes / adicionar membros (trabalhadores) | — | ✅ | — |
+| Atribuir incidentes a uma equipe | — | ✅ (própria equipe) | ❌ |
+| Atualizar status/prioridade de ocorrências | — | ✅ (própria equipe) | ❌ |
+| Adicionar / remover gestores | — | — | ✅ |
+| Excluir solicitações (auditado) | — | — | ✅ |
+| Auditoria e Login Auditado | — | — | ✅ |
+| Mapa de Alocação da equipe | — | ✅ | — |
+| Mapa Geral de Ocorrências | — | — | ✅ |
+| Listagem de cidadãos | — | ✅ (da sua equipe) | ✅ (todos) |
 
 ---
 
@@ -151,17 +190,21 @@ docker-compose logs -f
 Todo o front-end e o assistente Luna consomem dados reais do backend. O acesso aos dados é restrito com base no perfil autenticado no token JWT:
 - **Cidadão (`CITIZEN`)**: Tem acesso exclusivo e limitado a suas próprias solicitações abertas (na IA e nas telas de acompanhamento).
 - **Gestor (`GESTOR`)**: Visualiza e interage unicamente com os indicadores de dashboard, chamados e respostas da IA referentes à sua **Equipe Pública** designada. Não acessa os dados gerais de outras equipes da prefeitura.
-- **Administrador (`ADMIN`)**: Acesso irrestrito a todos os dados, dashboards integrados e todas as solicitações para auditoria e relatórios amplos.
+- **Administrador (`ADMIN`)**: Acesso de leitura a todos os dados, dashboards integrados, auditoria e relatórios amplos. Gerencia gestores e exclui solicitações, mas **não** atribui incidentes nem atualiza ocorrências (ações operacionais exclusivas dos gestores).
 
 ---
 
 ## 🛠 Tecnologias Principais
 
 ### Front-End
-- **React 18** + **Vite** — framework e build tool
+- **React 19** + **Vite** — framework e build tool
 - **Axios** — cliente HTTP com interceptors JWT
-- **React Router DOM** — roteamento SPA
-- **Phosphor Icons** — biblioteca de ícones
+- **React Router DOM 7** — roteamento SPA
+- **Leaflet / React-Leaflet** — mapas interativos
+- **Recharts** — gráficos do dashboard
+- **jsPDF + jspdf-autotable** — exportação de relatórios em PDF
+- **SheetJS (xlsx)** — exportação de relatórios em Excel
+- **Lucide React** — biblioteca de ícones
 - **CSS Modules** — estilização por componente
 - **VLibras** — acessibilidade em Libras
 
@@ -180,6 +223,9 @@ Todo o front-end e o assistente Luna consomem dados reais do backend. O acesso a
 - **gemini-embedding-001** — geração de embeddings (3072 dims)
 - **gemini-2.0-flash** — modelo de linguagem para o chatbot
 - **pgvector** — busca semântica por similaridade vetorial (HNSW)
+
+### Geocodificação (APIs públicas)
+- **Nominatim (OpenStreetMap)** → **Photon (Komoot)** → **BigDataCloud** — cadeia de fallback para resolução reversa de endereços (rua e número) a partir do GPS
 
 ### DevOps & Infraestrutura
 - **Docker** + **Docker Compose** — containerização
