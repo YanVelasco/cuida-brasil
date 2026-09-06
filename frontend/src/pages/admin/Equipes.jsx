@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRegion } from '../../contexts/RegionContext';
 import { MapContainer, TileLayer, CircleMarker, Circle, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import AdminLayout from '../../components/layout/AdminLayout';
-import { equipeService, orgaoService, ocorrenciaService } from '../../services/api';
+import { equipeService, orgaoService, ocorrenciaService, gestorService } from '../../services/api';
+import useEnderecos from '../../hooks/useEnderecos';
 import { MapPin, CheckCircle, Shield } from 'lucide-react';
 import styles from './Equipes.module.css';
 
@@ -132,6 +134,14 @@ function MapBoundsController({ teams, incidentesAtivos }) {
       points.push(getTeamCoordinates(team, index));
     });
 
+    // Mapa geral (sem camada de equipes): enquadra todas as ocorrências
+    if (!teams.length) {
+      incidentesAtivos
+        .map((incidente) => parseGps(incidente.gps))
+        .filter(Boolean)
+        .forEach((ponto) => points.push([ponto.latitude, ponto.longitude]));
+    }
+
     if (points.length === 0) return;
 
     if (points.length === 1) {
@@ -152,7 +162,9 @@ function MapBoundsController({ teams, incidentesAtivos }) {
 export default function Equipes() {
   const location = useLocation();
   const { user } = useAuth();
+  const { selectedRegion } = useRegion();
   const isAdmin = user?.perfil === 'ADMIN';
+  const isGestor = user?.perfil === 'GESTOR';
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [regiaoFilter, setRegiaoFilter] = useState('');
@@ -173,6 +185,7 @@ export default function Equipes() {
   const [membrosTotalPages, setMembrosTotalPages] = useState(1);
   const [viewingEquipeId, setViewingEquipeId] = useState(null);
   const [incidentesAtivos, setIncidentesAtivos] = useState([]);
+  const enderecosIncidentes = useEnderecos(incidentesAtivos);
 
   // Map Hover
   const [hoverInfo, setHoverInfo] = useState(null);
@@ -193,6 +206,19 @@ export default function Equipes() {
   const [unassignedIncidents, setUnassignedIncidents] = useState([]);
   const [selectedIncidentId, setSelectedIncidentId] = useState('');
   const [selectedIncidentDetail, setSelectedIncidentDetail] = useState(null);
+
+  // Gestores da plataforma (visão do ADMIN)
+  const [gestores, setGestores] = useState([]);
+
+  const carregarGestores = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const resp = await gestorService.listar();
+      setGestores(resp.data?.data || []);
+    } catch (err) {
+      console.error('Erro ao carregar gestores:', err);
+    }
+  }, [isAdmin]);
 
   const carregarDados = useCallback(async () => {
     try {
@@ -229,9 +255,10 @@ export default function Equipes() {
         const items = response.data?.data?.content || response.data?.content || [];
         const ativos = items.filter((incidente) =>
           incidente &&
-          incidente.idEquipe !== null &&
-          incidente.idEquipe !== undefined &&
-          ['EM_ANDAMENTO', 'EM_CAMPO'].includes((incidente.status || '').toUpperCase()) &&
+          (isAdmin || (incidente.idEquipe !== null && incidente.idEquipe !== undefined)) &&
+          (isAdmin
+            ? !['CONCLUIDA', 'CANCELADA'].includes((incidente.status || '').toUpperCase())
+            : ['EM_ANDAMENTO', 'EM_CAMPO'].includes((incidente.status || '').toUpperCase())) &&
           parseGps(incidente.gps)
         );
         setIncidentesAtivos(ativos);
@@ -252,6 +279,7 @@ export default function Equipes() {
       }
     }
     loadOrgaos();
+    carregarGestores();
   }, [carregarDados]);
 
   const carregarMembros = async (equipeId, pageNum = 0) => {
@@ -279,19 +307,44 @@ export default function Equipes() {
     }
   };
 
-  const handleAddMember = async () => {
-    if (!selectedEquipeId || !newMemberData.nome || !newMemberData.cpf || !newMemberData.email || !newMemberData.senha) {
+  const handleRemoverGestor = async (membro) => {
+    if (!window.confirm(`Remover o gestor ${membro.nome} da equipe? O acesso dele será desativado.`)) return;
+    try {
+      await equipeService.removerMembro(membro.id);
+      alert('Gestor removido com sucesso!');
+      carregarDados();
+      carregarGestores();
+      await carregarMembros(viewingEquipeId, membrosPage);
+    } catch (err) {
+      alert('Erro ao remover gestor. ' + (err.response?.data?.message || ''));
+    }
+  };
+
+  const handleRemoverGestorPlataforma = async (gestor) => {
+    if (!window.confirm(`Remover o gestor ${gestor.nome} (equipe ${gestor.equipeNome})? O acesso dele será desativado.`)) return;
+    try {
+      await equipeService.removerMembro(gestor.id);
+      alert('Gestor removido com sucesso!');
+      carregarDados();
+      carregarGestores();
+    } catch (err) {
+      alert('Erro ao remover gestor. ' + (err.response?.data?.message || ''));
+    }
+  };
+
+  const handleAddMember = async () => {    if (!selectedEquipeId || !newMemberData.nome || !newMemberData.cpf || !newMemberData.email || !newMemberData.senha) {
       return alert('Preencha todos os dados do membro.');
     }
 
     try {
       const equipeId = Number(selectedEquipeId);
       await equipeService.adicionarMembro(equipeId, newMemberData);
-      alert('Membro adicionado com sucesso!');
+      alert(isAdmin ? 'Gestor adicionado com sucesso!' : 'Membro adicionado com sucesso!');
       setShowNewMemberModal(false);
       setNewMemberData({ nome: '', cpf: '', email: '', senha: '', perfil: 'TRABALHADOR' });
       carregarDados();
-      await carregarMembros(equipeId, 0);
+      carregarGestores();
+      if (!isAdmin) await carregarMembros(equipeId, 0);
     } catch (err) {
       alert('Erro ao adicionar membro. ' + (err.response?.data?.message || ''));
     }
@@ -320,7 +373,7 @@ export default function Equipes() {
 
   useEffect(() => {
     const selectedIncidentIdFromState = location.state?.selectedIncidentId;
-    if (!selectedIncidentIdFromState) return;
+    if (!selectedIncidentIdFromState || !isGestor) return;
 
     setSelectedIncidentId(String(selectedIncidentIdFromState));
     setShowAssignModal(true);
@@ -393,6 +446,7 @@ export default function Equipes() {
     return matchesSearch &&
       (!statusFilter || equipe.status === statusFilter) &&
       (!regiaoFilter || equipe.regiao === regiaoFilter) &&
+      (!selectedRegion || equipe.regiao === selectedRegion) &&
       (!tipoFilter || equipe.tipoServico === tipoFilter);
   });
 
@@ -438,7 +492,7 @@ export default function Equipes() {
     <AdminLayout>
       <div className={styles.topBar}>
         <h1 className={styles.title}>Gestão de Equipes</h1>
-        {isAdmin && <button className={styles.newBtn} onClick={() => setShowNewEquipeModal(true)}>+ Nova Equipe</button>}
+        {isGestor && <button className={styles.newBtn} onClick={() => setShowNewEquipeModal(true)}>+ Nova Equipe</button>}
       </div>
 
       <div className={styles.filterBar}>
@@ -505,8 +559,15 @@ export default function Equipes() {
                   </td>
                   <td>
                     <div style={{display:'flex', gap:'5px'}}>
-                      <button className={styles.actionBtnPurple} onClick={() => handleOpenAssignModal(e.id)}>+ Incidente</button>
-                      <button className={styles.actionBtnBlue} onClick={() => { setSelectedEquipeId(e.id); setShowNewMemberModal(true); }}>+ Membro</button>
+                      {isGestor && (
+                        <>
+                          <button className={styles.actionBtnPurple} onClick={() => handleOpenAssignModal(e.id)}>+ Incidente</button>
+                          <button className={styles.actionBtnBlue} onClick={() => { setSelectedEquipeId(e.id); setNewMemberData(d => ({ ...d, perfil: 'TRABALHADOR' })); setShowNewMemberModal(true); }}>+ Membro</button>
+                        </>
+                      )}
+                      {isAdmin && (
+                        <button className={styles.actionBtnPurple} onClick={() => { setSelectedEquipeId(e.id); setNewMemberData(d => ({ ...d, perfil: 'GESTOR' })); setShowNewMemberModal(true); }}>+ Gestor</button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -525,12 +586,87 @@ export default function Equipes() {
         </div>
       </div>
 
+      {/* Gestores da Plataforma (ADMIN) */}
+      {isAdmin && (
+        <div className={styles.tableCard} style={{ marginTop: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px 0' }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-primary)' }}>Gestores da Plataforma</h3>
+              <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                {gestores.length} gestor(es) ativo(s) — o administrador pode adicionar e remover gestores
+              </p>
+            </div>
+            <button
+              className={styles.newBtn}
+              onClick={() => { setSelectedEquipeId(null); setNewMemberData({ nome: '', cpf: '', email: '', senha: '', perfil: 'GESTOR' }); setShowNewMemberModal(true); }}
+            >
+              + Gestor
+            </button>
+          </div>
+          <div className={styles.tableWrapper}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>ID</th><th>NOME</th><th>E-MAIL</th><th>CPF</th><th>EQUIPE</th><th>AÇÕES</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gestores.map((g) => (
+                  <tr key={g.id}>
+                    <td className={styles.id}>GST-{String(g.id).padStart(2, '0')}</td>
+                    <td className={styles.teamName}>{g.nome}</td>
+                    <td className={styles.muted}>{g.email}</td>
+                    <td className={styles.muted}>{g.cpf}</td>
+                    <td>{g.equipeNome}</td>
+                    <td>
+                      <button
+                        style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '4px', background: '#EB5757', color: '#fff', border: 'none', cursor: 'pointer' }}
+                        onClick={() => handleRemoverGestorPlataforma(g)}
+                      >
+                        Remover
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {gestores.length === 0 && (
+                  <tr><td colSpan="6" style={{textAlign:'center', padding:'20px'}}>Nenhum gestor cadastrado.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Bottom Row */}
       <div className={styles.bottomGrid}>
         <div className={styles.mapCard}>
           <div className={styles.mapCardHeader}>
-            <h3>Mapa de Alocação (Visão Geral)</h3>
-            <div className={styles.mapSummary}>Em campo: {equipesEmCampo.length}</div>
+            <div>
+              <h3>{isAdmin ? 'Mapa Geral de Ocorrências' : 'Mapa de Alocação (Visão Geral)'}</h3>
+              <p className={styles.mapSubtitle}>
+                {isAdmin
+                  ? 'Visão nacional de todas as ocorrências ativas registradas no sistema'
+                  : 'Distribuição das equipes e ocorrências atribuídas em tempo real'}
+              </p>
+            </div>
+            <div className={styles.mapStats}>
+              {isGestor && (
+                <>
+                  <span className={styles.mapStat}>
+                    <span className={styles.mapStatDot} style={{ background: '#2F80ED' }} />
+                    {visibleMapTeams.length} equipes no mapa
+                  </span>
+                  <span className={styles.mapStat}>
+                    <span className={styles.mapStatDot} style={{ background: '#27AE60' }} />
+                    {equipesEmCampo.length} em campo
+                  </span>
+                </>
+              )}
+              <span className={styles.mapStat}>
+                <span className={styles.mapStatDot} style={{ background: '#EB5757' }} />
+                {incidentesAtivos.length} ocorrências ativas
+              </span>
+            </div>
           </div>
           <div className={styles.mapContainer}>
             <MapContainer
@@ -542,9 +678,40 @@ export default function Equipes() {
               scrollWheelZoom
               className={styles.allocationMap}
             >
-              <MapBoundsController teams={filteredEquipes} incidentesAtivos={incidentesAtivos} />
+              <MapBoundsController teams={isGestor ? filteredEquipes : []} incidentesAtivos={incidentesAtivos} />
               <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-              {visibleMapTeams.map((team, index) => {
+              {isAdmin && visibleIncidentMarkers.map((incidente) => {
+                const gps = parseGps(incidente.gps);
+                if (!gps) return null;
+                const incidentColor = getIncidentColor(incidente);
+                return (
+                  <CircleMarker
+                    key={`geral-${incidente.id}`}
+                    center={[gps.latitude, gps.longitude]}
+                    radius={6}
+                    pathOptions={{ color: '#ffffff', weight: 1.5, fillColor: incidentColor, fillOpacity: 0.8 }}
+                  >
+                    <Popup className={styles.mapPopup}>
+                      <div className={styles.popupTitle} style={{ borderLeftColor: incidentColor }}>
+                        {incidente.descricao || 'Ocorrência registrada'}
+                      </div>
+                      <div className={styles.popupBadges}>
+                        <span className={styles.popupBadge} style={{ background: incidentColor }}>
+                          {incidente.prioridade || 'NORMAL'}
+                        </span>
+                        <span className={styles.popupBadgeOutline}>{String(incidente.status || '').replace('_', ' ')}</span>
+                      </div>
+                      {incidente.nomeEquipe && (
+                        <div className={styles.popupRow}><span>Equipe</span><strong>{incidente.nomeEquipe}</strong></div>
+                      )}
+                      <div className={styles.popupAddress}>
+                        📍 {incidente.endereco || enderecosIncidentes[incidente.gps] || incidente.gps || 'Localização disponível'}
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                );
+              })}
+              {isGestor && visibleMapTeams.map((team, index) => {
                 const teamColor = getTeamColor(team, index);
                 const ocorrenciasDaEquipe = visibleIncidentMarkers.filter((incidente) => Number(incidente.idEquipe) === Number(team.id));
                 const pontosAtuacao = ocorrenciasDaEquipe
@@ -580,13 +747,15 @@ export default function Equipes() {
                     )}
 
                     <CircleMarker key={`team-${team.id}`} center={coordinates} radius={9} pathOptions={{ color: '#fff', weight: 2, fillColor: teamColor, fillOpacity: 0.9 }}>
-                      <Popup>
-                        <strong>{team.nome}</strong><br />
-                        Supervisor: {team.supervisor}<br />
-                        Região: {team.regiao}<br />
-                        Casos abertos: {team.casosAbertos}<br />
-                        Status: {team.status}<br />
-                        {pontosAtuacao.length > 0 ? `${pontosAtuacao.length} ocorrência(ões) em atuação` : 'Sem ocorrências em andamento'}
+                      <Popup className={styles.mapPopup}>
+                        <div className={styles.popupTitle} style={{ borderLeftColor: teamColor }}>{team.nome}</div>
+                        <div className={styles.popupRow}><span>Supervisor</span><strong>{team.supervisor}</strong></div>
+                        <div className={styles.popupRow}><span>Região</span><strong>{team.regiao}</strong></div>
+                        <div className={styles.popupRow}><span>Casos abertos</span><strong>{team.casosAbertos}</strong></div>
+                        <div className={styles.popupRow}><span>Status</span><strong>{team.status}</strong></div>
+                        <div className={styles.popupFooter}>
+                          {pontosAtuacao.length > 0 ? `${pontosAtuacao.length} ocorrência(s) em atuação` : 'Sem ocorrências em andamento'}
+                        </div>
                       </Popup>
                     </CircleMarker>
 
@@ -609,11 +778,19 @@ export default function Equipes() {
                             opacity: 0.7,
                           }}
                         >
-                          <Popup>
-                            <strong>{incidente.descricao || 'Ocorrência em andamento'}</strong><br />
-                            Status: {incidente.status}<br />
-                            Prioridade: {incidente.prioridade || 'NORMAL'}<br />
-                            {incidente.endereco || incidente.gps || 'Localização disponível'}
+                          <Popup className={styles.mapPopup}>
+                            <div className={styles.popupTitle} style={{ borderLeftColor: incidentColor }}>
+                              {incidente.descricao || 'Ocorrência em andamento'}
+                            </div>
+                            <div className={styles.popupBadges}>
+                              <span className={styles.popupBadge} style={{ background: incidentColor }}>
+                                {incidente.prioridade || 'NORMAL'}
+                              </span>
+                              <span className={styles.popupBadgeOutline}>{String(incidente.status || '').replace('_', ' ')}</span>
+                            </div>
+                            <div className={styles.popupAddress}>
+                              📍 {incidente.endereco || enderecosIncidentes[incidente.gps] || incidente.gps || 'Localização disponível'}
+                            </div>
                           </Popup>
                         </CircleMarker>
                       );
@@ -625,6 +802,7 @@ export default function Equipes() {
           </div>
 
           <div className={styles.mapLegend}>
+            {isGestor && (
             <div className={styles.legendSection}>
               <div className={styles.legendSectionTitle}>Equipes</div>
               <div className={styles.legendItems}>
@@ -637,10 +815,7 @@ export default function Equipes() {
                       className={[styles.legendItem, isActive ? styles.legendItemActive : ''].join(' ')}
                       onClick={() => toggleMapTeam(team.id)}
                       aria-pressed={isActive}
-                      style={{
-                        borderColor: isActive ? team.mapColor : 'rgba(255,255,255,0.08)',
-                        background: isActive ? 'rgba(255,255,255,0.04)' : 'transparent',
-                      }}
+                      style={isActive ? { borderColor: team.mapColor, background: `${team.mapColor}1a` } : { opacity: 0.55 }}
                     >
                       <span className={styles.legendDot} style={{ background: team.mapColor }} />
                       <span>{team.nome.replace('Equipe ', '')}</span>
@@ -649,6 +824,7 @@ export default function Equipes() {
                 })}
               </div>
             </div>
+            )}
 
             <div className={styles.legendSection}>
               <div className={styles.legendSectionTitle}>Ocorrências</div>
@@ -662,10 +838,7 @@ export default function Equipes() {
                       className={[styles.legendItem, isActive ? styles.legendItemActive : ''].join(' ')}
                       onClick={() => toggleIncidentPriority(item.label)}
                       aria-pressed={isActive}
-                      style={{
-                        borderColor: isActive ? item.color : 'rgba(255,255,255,0.08)',
-                        background: isActive ? 'rgba(255,255,255,0.04)' : 'transparent',
-                      }}
+                      style={isActive ? { borderColor: item.color, background: `${item.color}1a` } : { opacity: 0.55 }}
                     >
                       <span className={styles.legendDot} style={{ background: item.color }} />
                       <span>{item.label}</span>
@@ -676,12 +849,13 @@ export default function Equipes() {
             </div>
           </div>
 
-          {equipesEmCampo.length > 0 && (
+          {isGestor && equipesEmCampo.length > 0 && (
             <div className={styles.fieldDetailsList}>
+              <span className={styles.fieldDetailsLabel}>Em campo agora</span>
               {equipesEmCampo.map((equipe) => (
                 <div key={equipe.id} className={styles.fieldDetailItem}>
                   <span className={styles.fieldDot} />
-                  <span>{equipe.nome}</span>
+                  <span>{equipe.nome.replace('Equipe ', '')}</span>
                 </div>
               ))}
             </div>
@@ -693,12 +867,25 @@ export default function Equipes() {
       {showNewMemberModal && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
-            <h3>Adicionar Membro da Equipe</h3>
-            
-            <select value={newMemberData.perfil} onChange={e => setNewMemberData({...newMemberData, perfil: e.target.value})} className={styles.filterSelect} style={{width: '100%', margin: '10px 0'}}>
-              <option value="TRABALHADOR">Trabalhador Operacional</option>
-              <option value="GESTOR">Gestor Supervisor</option>
-            </select>
+            <h3>{isAdmin ? 'Adicionar Gestor à Equipe' : 'Adicionar Membro da Equipe'}</h3>
+
+            <div style={{margin: '10px 0', padding: '8px 12px', borderRadius: '6px', background: 'var(--background)', border: '1px solid var(--border)', fontSize: '0.82rem', color: 'var(--text-secondary)'}}>
+              Perfil: <strong style={{color: 'var(--text-primary)'}}>{isAdmin ? 'Gestor Supervisor' : 'Trabalhador Operacional'}</strong>
+            </div>
+
+            {isAdmin && (
+              <select
+                value={selectedEquipeId || ''}
+                onChange={e => setSelectedEquipeId(e.target.value ? Number(e.target.value) : null)}
+                className={styles.filterSelect}
+                style={{width: '100%', margin: '10px 0'}}
+              >
+                <option value="">Selecione a equipe do gestor…</option>
+                {equipes.map((e) => (
+                  <option key={e.id} value={e.id}>{e.nome}</option>
+                ))}
+              </select>
+            )}
 
             <input placeholder="Nome Completo" autoComplete="off" value={newMemberData.nome} onChange={e => setNewMemberData({...newMemberData, nome: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
             <input placeholder="CPF (Ex: 999.999.999-99)" autoComplete="off" value={newMemberData.cpf} onChange={e => setNewMemberData({...newMemberData, cpf: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
@@ -706,7 +893,7 @@ export default function Equipes() {
             <input placeholder="Senha" type="password" autoComplete="new-password" value={newMemberData.senha} onChange={e => setNewMemberData({...newMemberData, senha: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
             
             <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
-              <button className={styles.newBtn} onClick={handleAddMember}>Salvar Membro</button>
+              <button className={styles.newBtn} onClick={handleAddMember}>{isAdmin ? 'Salvar Gestor' : 'Salvar Membro'}</button>
               <button className={styles.clearBtn} onClick={() => setShowNewMemberModal(false)}>Cancelar</button>
             </div>
           </div>
@@ -749,6 +936,7 @@ export default function Equipes() {
                     <th>NOME</th>
                     <th>EMAIL</th>
                     <th>PERFIL / CARGO</th>
+                    {isAdmin && <th>AÇÕES</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -764,10 +952,23 @@ export default function Equipes() {
                           {m.perfil === 'GESTOR' ? 'Supervisor' : 'Trabalhador'}
                         </span>
                       </td>
+                      {isAdmin && (
+                        <td>
+                          {m.perfil === 'GESTOR' && (
+                            <button
+                              className={styles.clearBtn}
+                              style={{ color: 'var(--danger)', borderColor: 'var(--danger)', fontSize: '0.72rem', padding: '4px 10px' }}
+                              onClick={() => handleRemoverGestor(m)}
+                            >
+                              Remover
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                   {membrosEquipe.length === 0 && (
-                    <tr><td colSpan="3" style={{textAlign:'center', padding:'15px'}}>Nenhum membro encontrado.</td></tr>
+                    <tr><td colSpan={isAdmin ? 4 : 3} style={{textAlign:'center', padding:'15px'}}>Nenhum membro encontrado.</td></tr>
                   )}
                 </tbody>
               </table>

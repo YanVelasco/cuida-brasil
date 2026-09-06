@@ -83,8 +83,12 @@
 .bottomGrid { display: block; width: 100%; }
 .mapCard, .metricsCard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; }
 .mapCard { width: 100%; display: flex; flex-direction: column; }
-.mapCardHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; order: 1; }
-.mapCardHeader h3, .metricsCard h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 12px; }
+.mapCardHeader { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; order: 1; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.mapCardHeader h3, .metricsCard h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 2px; }
+.mapSubtitle { font-size: 0.72rem; color: var(--text-muted); margin: 0; }
+.mapStats { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mapStat { display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); padding: 5px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--background); white-space: nowrap; }
+.mapStatDot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .mapZoomBtn { width: 26px; height: 26px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 1rem; background: var(--surface); transition: all 0.2s ease; cursor: pointer; }
 .mapZoomBtn:hover { border-color: var(--primary); color: var(--primary); transform: scale(1.05); }
 
@@ -102,7 +106,6 @@
 
 .mapSummary {
   font-size: 0.72rem;
-  color: var(--text-secondary);
   padding: 4px 8px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -113,21 +116,32 @@
 .fieldDetailsList {
   order: 2;
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+.fieldDetailsLabel {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-right: 2px;
 }
 
 .fieldDetailItem {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+  gap: 7px;
+  padding: 5px 12px;
   border-radius: 999px;
-  background: rgba(39, 174, 96, 0.08);
-  border: 1px solid rgba(39, 174, 96, 0.25);
-  color: #bff7d7;
+  background: rgba(39, 174, 96, 0.1);
+  border: 1px solid rgba(39, 174, 96, 0.35);
+  color: var(--success);
   font-size: 0.72rem;
+  font-weight: 600;
 }
 
 .fieldDot {
@@ -148,35 +162,31 @@
   display: flex;
   align-items: flex-start;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px 12px 0;
-  background: rgba(11, 18, 31, 0.72);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  border-bottom-left-radius: 10px;
-  border-bottom-right-radius: 10px;
-  color: #e5eefb;
-  backdrop-filter: blur(6px);
-  z-index: 1;
+  gap: 20px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
 }
 
 .legendSection {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
   min-width: 0;
 }
 
 .legendSection + .legendSection {
-  padding-left: 10px;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  padding-left: 20px;
+  border-left: 1px solid var(--border);
 }
 
 .legendSectionTitle {
-  padding-left: 2px;
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 0.6rem;
+  color: var(--text-muted);
+  font-size: 0.62rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 
@@ -189,24 +199,28 @@
 .legendItem {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.7rem;
-  color: #dfeaf9;
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.08);
+  gap: 7px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 4px 8px;
+  padding: 5px 11px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .legendItem:hover {
-  border-color: rgba(255,255,255,0.2);
-  background: rgba(255,255,255,0.03);
+  border-color: var(--primary);
+  color: var(--text-primary);
+  transform: translateY(-1px);
 }
 
 .legendItemActive {
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
 .legendDot {
@@ -214,7 +228,8 @@
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.12);
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(127, 127, 127, 0.15);
 }
 
 @media (max-width: 600px) {
@@ -224,10 +239,92 @@
 
   .legendSection + .legendSection {
     padding-left: 0;
-    padding-top: 8px;
+    padding-top: 10px;
     border-left: 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid var(--border);
   }
+}
+
+/* Styled Leaflet popups */
+.mapPopup :global(.leaflet-popup-content-wrapper) {
+  background: var(--surface);
+  color: var(--text-primary);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.mapPopup :global(.leaflet-popup-content) {
+  margin: 12px 14px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  min-width: 190px;
+}
+
+.mapPopup :global(.leaflet-popup-tip) {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.popupTitle {
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding-left: 8px;
+  border-left: 3px solid var(--primary);
+  margin-bottom: 8px;
+}
+
+.popupRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.74rem;
+  padding: 2px 0;
+}
+
+.popupRow span { color: var(--text-muted); }
+.popupRow strong { font-weight: 600; text-align: right; }
+
+.popupFooter {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.popupBadges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.popupBadge {
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.popupBadgeOutline {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.popupAddress {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
 }
 
 :global([data-theme='dark']) .mapContainer {
@@ -337,7 +434,6 @@
   }
 }
 
-.mapLegend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
 .mapLegendItem { display: flex; align-items: center; gap: 5px; font-size: 0.72rem; color: var(--text-secondary); }
 .mapLegendDot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 

@@ -43,3 +43,93 @@
 .slaPct { width: 35px; font-size: 0.78rem; font-weight: 700; text-align: right; }
 
 @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2,1fr); } .chartGrid { grid-template-columns: 1fr; } .slaGrid { grid-template-columns: 1fr; } }
+
+/* ===== Relatório em tela (pré-visualização antes da exportação) ===== */
+.reportOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.reportModal {
+  background: var(--surface, #fff);
+  border-radius: 12px;
+  width: min(900px, 100%);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.reportHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  background: #1351B4;
+  color: #fff;
+}
+
+.reportHeader h2 {
+  font-size: 1.1rem;
+  margin: 0 0 4px;
+}
+
+.reportHeader p {
+  font-size: 0.8rem;
+  margin: 0;
+  opacity: 0.85;
+}
+
+.reportActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.closeBtn {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.closeBtn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.reportBody {
+  padding: 20px 24px;
+  overflow-y: auto;
+}
+
+.reportBody h3 {
+  font-size: 0.95rem;
+  margin: 20px 0 8px;
+  color: var(--text-primary, #1a1a2e);
+}
+
+.reportBody h3:first-child {
+  margin-top: 0;
+}
+
+.reportFooter {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-muted, #8a8fa3);
+  border-top: 1px solid var(--border, #e5e9f0);
+  padding-top: 12px;
+}

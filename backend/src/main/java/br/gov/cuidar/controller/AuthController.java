@@ -16,8 +16,8 @@ public class AuthController {
     public AuthController(AuthService authService) { this.authService = authService; }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest req) {
-        return ResponseEntity.ok(ApiResponse.ok("Login realizado com sucesso", authService.login(req)));
+    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest req, jakarta.servlet.http.HttpServletRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok("Login realizado com sucesso", authService.login(req, request)));
     }
     @PostMapping("/cadastro")
     public ResponseEntity<ApiResponse<AuthResponse>> cadastro(@Valid @RequestBody RegisterRequest req) {

@@ -93,8 +93,12 @@ export default function Login() {
           <span className={styles.plus} style={{color: 'var(--success)'}}>+</span>
           <span style={{color: 'var(--success)'}}>BRASIL</span>
         </div>
-        <p className={styles.brandLocation}>ZELADORA URBANA - CANAL DO CIDADÃO</p>
+        <p className={styles.brandLocation}>ZELADORIA URBANA - CANAL DO CIDADÃO</p>
         <p className={styles.brandTagline}>Sua cidade está limpa, com sua participação.</p>
+        <p className={styles.brandTagline} style={{marginTop: 12, fontSize: '0.78rem', opacity: 0.85}}>
+          🏛️ Plataforma GovTech de Zeladoria Urbana Inteligente — conectando cidadãos,
+          gestores públicos e inteligência artificial para cidades mais eficientes e transparentes.
+        </p>
       </div>
 
       {/* Right - Form */}

@@ -30,6 +30,12 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
     @Query("SELECT s FROM Solicitacao s WHERE s.status = :status AND s.equipe.id IN (SELECT g.equipe.id FROM Gestor g WHERE LOWER(g.usuario.nome) = LOWER(:gestor))")
     Page<Solicitacao> findByStatusAndGestorNome(@Param("status") String status, @Param("gestor") String gestor, Pageable pageable);
     
+    @Query("SELECT s FROM Solicitacao s WHERE s.equipe IS NOT NULL ORDER BY s.dataCriacao DESC")
+    List<Solicitacao> findComEquipe();
+
+    @Query("SELECT s FROM Solicitacao s WHERE s.equipe.id = :equipeId ORDER BY s.dataCriacao DESC")
+    List<Solicitacao> findComEquipeByEquipeId(@Param("equipeId") Long equipeId);
+
     @Query("SELECT s FROM Solicitacao s WHERE s.equipe IS NULL AND s.status IN ('PENDENTE', 'TRIAGEM') ORDER BY s.dataCriacao ASC")
     List<Solicitacao> findNaoAtribuidas();
     long countByStatus(String status);
@@ -77,5 +83,26 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
 
     @Query(value = "SELECT MONTH(s.data_criacao) as mes, YEAR(s.data_criacao) as ano, COUNT(DISTINCT s.id) as total FROM TB_SOLICITACAO s LEFT JOIN TB_EQUIPE_PUBLICA e ON e.id = s.id_equipe LEFT JOIN TB_GESTOR g ON g.id_equipe = e.id LEFT JOIN TB_USUARIO u ON u.id = g.id_usuario WHERE s.data_criacao >= :inicio AND s.data_criacao < :fim AND (:gestor IS NULL OR LOWER(u.nome) = LOWER(:gestor)) GROUP BY YEAR(s.data_criacao), MONTH(s.data_criacao) ORDER BY ano, mes", nativeQuery = true)
     List<Object[]> tendenciaMensalPeriod(@Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim, @Param("gestor") String gestor);
+
+    // Indicadores reais: tempo médio de resolução em dias
+    @Query(value = "SELECT AVG(CAST(DATEDIFF(day, data_criacao, data_conclusao) AS FLOAT)) FROM TB_SOLICITACAO WHERE status = 'CONCLUIDA' AND data_conclusao IS NOT NULL", nativeQuery = true)
+    Double tempoMedioResolucaoDias();
+
+    // Tabela Serviço x Prioridade x Equipe (base de conhecimento para IA)
+    @Query("SELECT s.servico.categoria, s.prioridade, s.equipe.nome, COUNT(s) FROM Solicitacao s WHERE s.equipe IS NOT NULL AND s.prioridade IS NOT NULL GROUP BY s.servico.categoria, s.prioridade, s.equipe.nome ORDER BY s.servico.categoria, s.prioridade, COUNT(s) DESC")
+    List<Object[]> matrizServicoPrioridadeEquipe();
+
+    @Query("SELECT s.usuario.id, COUNT(s) FROM Solicitacao s GROUP BY s.usuario.id")
+    List<Object[]> countPorUsuario();
+
+    @Query("SELECT DISTINCT s.usuario FROM Solicitacao s WHERE s.equipe.id = :equipeId ORDER BY s.usuario.nome")
+    List<br.gov.cuidar.entity.Usuario> findUsuariosByEquipeId(@Param("equipeId") Long equipeId);
+
+    @Query("SELECT s.usuario.id, COUNT(s) FROM Solicitacao s WHERE s.equipe.id = :equipeId GROUP BY s.usuario.id")
+    List<Object[]> countPorUsuarioAndEquipe(@Param("equipeId") Long equipeId);
+
+    // Inteligência territorial: dados brutos para agregação por região
+    @Query("SELECT s.endereco, s.gps, s.status, s.prioridade FROM Solicitacao s")
+    List<Object[]> dadosTerritoriais();
 }
 

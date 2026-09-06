@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { dashboardService, ocorrenciaService } from '../../services/api';
 import { useRegion } from '../../contexts/RegionContext';
+import useEnderecos from '../../hooks/useEnderecos';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -84,6 +85,7 @@ export default function Dashboard() {
   // Estado para dados reais
   const [kpiData, setKpiData]     = useState(null);
   const [tableData, setTableData] = useState([]);
+  const enderecos = useEnderecos(tableData);
   const [loadingKpi, setLoadingKpi] = useState(true);
   const [loadingTable, setLoadingTable] = useState(true);
 
@@ -487,7 +489,7 @@ export default function Dashboard() {
               <div><strong>Cidadão:</strong> {selectedProtocol.nomeUsuario || '—'}</div>
               <div><strong>Serviço:</strong> {selectedProtocol.categoriaServico} — {selectedProtocol.subcategoriaServico}</div>
               <div><strong>Equipe:</strong> {selectedProtocol.nomeEquipe || 'Não atribuída'}</div>
-              <div><strong>Localização:</strong> {selectedProtocol.gps || '—'}</div>
+              <div><strong>Localização:</strong> {selectedProtocol.endereco || enderecos[selectedProtocol.gps] || selectedProtocol.gps || '—'}</div>
               <div><strong>Prioridade:</strong> {selectedProtocol.prioridade || '—'}</div>
               <div><strong>Data:</strong> {selectedProtocol.dataCriacao ? new Date(selectedProtocol.dataCriacao).toLocaleString('pt-BR') : '—'}</div>
               <div><strong>Descrição:</strong> {selectedProtocol.descricao}</div>

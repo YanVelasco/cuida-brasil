@@ -134,7 +134,7 @@ public class EquipeController {
         return ResponseEntity.ok(ApiResponse.ok(dtos));
     }
 
-    @PostMapping @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping @PreAuthorize("hasRole('GESTOR')")
     public ResponseEntity<ApiResponse<EquipePublica>> criarEquipe(@RequestBody NovaEquipeDTO dto) {
         Long orgaoId = java.util.Objects.requireNonNull(dto.getIdOrgao(), "ID do órgão não pode ser nulo");
         OrgaoPublico orgao = orgaoRepo.findById(orgaoId).orElseThrow(() -> new RuntimeException("Órgão não encontrado"));
@@ -145,10 +145,21 @@ public class EquipeController {
         return ResponseEntity.ok(ApiResponse.ok(eqRepo.save(equipe)));
     }
 
+    /**
+     * ADMIN adiciona/gerencia apenas GESTORES; GESTOR adiciona apenas membros
+     * operacionais (TRABALHADOR) da própria equipe.
+     */
     @PostMapping("/{id}/membros") @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
     public ResponseEntity<ApiResponse<Gestor>> adicionarMembro(@PathVariable Long id, @RequestBody NovoGestorDTO dto,
                                                                 @AuthenticationPrincipal Usuario usuario) {
         validarEquipeDoGestor(id, usuario);
+        String perfil = dto.getPerfil() != null ? dto.getPerfil().toUpperCase() : "TRABALHADOR";
+        if ("ADMIN".equals(usuario.getPerfil()) && !"GESTOR".equals(perfil)) {
+            throw new IllegalStateException("Administradores podem adicionar apenas gestores");
+        }
+        if (isGestor(usuario) && "GESTOR".equals(perfil)) {
+            throw new IllegalStateException("Gestores podem adicionar apenas membros operacionais");
+        }
         Long equipeId = java.util.Objects.requireNonNull(id, "ID da equipe não pode ser nulo");
         EquipePublica equipe = eqRepo.findById(equipeId).orElseThrow(() -> new RuntimeException("Equipe não encontrada"));
         
@@ -157,7 +168,7 @@ public class EquipeController {
         user.setCpf(dto.getCpf());
         user.setEmail(dto.getEmail());
         user.setSenha(passwordEncoder.encode(dto.getSenha()));
-        user.setPerfil(dto.getPerfil() != null ? dto.getPerfil().toUpperCase() : "TRABALHADOR");
+        user.setPerfil(perfil);
         user.setAtivo(true);
         user = userRepo.save(user);
 
@@ -167,6 +178,21 @@ public class EquipeController {
         gestor = gestorRepo.save(gestor);
 
         return ResponseEntity.ok(ApiResponse.ok(gestor));
+    }
+
+    /** ADMIN remove um gestor da equipe (desativa o usuário vinculado). */
+    @DeleteMapping("/membros/{membroId}") @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> removerGestor(@PathVariable Long membroId) {
+        Gestor membro = gestorRepo.findById(membroId)
+                .orElseThrow(() -> new RuntimeException("Membro não encontrado"));
+        if (!"GESTOR".equals(membro.getUsuario().getPerfil())) {
+            throw new IllegalStateException("Administradores podem remover apenas gestores");
+        }
+        Usuario user = membro.getUsuario();
+        gestorRepo.delete(membro);
+        user.setAtivo(false);
+        userRepo.save(user);
+        return ResponseEntity.ok(ApiResponse.ok("Gestor removido com sucesso", null));
     }
 
     private boolean isGestor(Usuario usuario) {

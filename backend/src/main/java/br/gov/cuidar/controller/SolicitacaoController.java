@@ -5,7 +5,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -45,6 +47,11 @@ public class SolicitacaoController {
     public ResponseEntity<ApiResponse<java.util.List<Response>>> listarNaoAtribuidas() {
         return ResponseEntity.ok(ApiResponse.ok(sService.listarNaoAtribuidas()));
     }
+    /** Cidadãos que atrelaram um problema a um gestor: ADMIN vê todos, GESTOR só os da própria equipe. */
+    @GetMapping("/cidadaos") @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
+    public ResponseEntity<ApiResponse<java.util.List<java.util.Map<String, Object>>>> listarCidadaos(@AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(ApiResponse.ok(sService.listarCidadaosPorGestor(usuario)));
+    }
     @GetMapping("/minhas")
     public ResponseEntity<ApiResponse<Page<Response>>> minhas(@AuthenticationPrincipal Usuario usuario, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(ApiResponse.ok(sService.listarPorUsuario(usuario.getId(), page, size)));
@@ -57,8 +64,18 @@ public class SolicitacaoController {
     public ResponseEntity<ApiResponse<Response>> buscarPorProtocolo(@PathVariable String protocolo) {
         return ResponseEntity.ok(ApiResponse.ok(sService.buscarPorProtocolo(protocolo)));
     }
-    @PutMapping("/{id}/status") @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
+    @PutMapping("/{id}/status") @PreAuthorize("hasRole('GESTOR')")
     public ResponseEntity<ApiResponse<Response>> atualizarStatus(@PathVariable Long id, @Valid @RequestBody UpdateStatusRequest req, @AuthenticationPrincipal Usuario usuario) {
         return ResponseEntity.ok(ApiResponse.ok(sService.atualizarStatus(id, req, usuario.getId())));
+    }
+    /** Persiste o endereço resolvido por geocodificação reversa (só preenche se ainda estiver vazio). */
+    @PatchMapping("/{id}/endereco")
+    public ResponseEntity<ApiResponse<Response>> atualizarEndereco(@PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
+        return ResponseEntity.ok(ApiResponse.ok(sService.atualizarEndereco(id, body.get("endereco"))));
+    }
+    @DeleteMapping("/{id}") @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> excluir(@PathVariable Long id, @AuthenticationPrincipal Usuario usuario, jakarta.servlet.http.HttpServletRequest request) {
+        sService.excluir(id, usuario, request);
+        return ResponseEntity.ok(ApiResponse.ok("Solicitacao excluida com sucesso", null));
     }
 }

@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { ocorrenciaService, equipeService } from '../../services/api';
+import { ocorrenciaService, equipeService, anexoService, usuarioService } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { useRegion } from '../../contexts/RegionContext';
+import { resolveRegionFromGps } from '../../utils/geo';
+import useEnderecos from '../../hooks/useEnderecos';
 import AdminLayout from '../../components/layout/AdminLayout';
-import { Search, RefreshCw } from 'lucide-react';
+import { Search, RefreshCw, Trash2, Camera, Download } from 'lucide-react';
 import styles from './Solicitacoes.module.css';
 
 const STATUS_STYLE = {
@@ -25,6 +29,10 @@ const PAGE_SIZE = 10;
 
 export default function Solicitacoes() {
   const location = useLocation();
+  const { user } = useAuth();
+  const { selectedRegion } = useRegion();
+  const isAdmin = user?.perfil === 'ADMIN';
+  const isGestor = user?.perfil === 'GESTOR';
   const [items, setItems]         = useState([]);
   const [search, setSearch]       = useState('');
   const [page, setPage]           = useState(0);
@@ -41,6 +49,83 @@ export default function Solicitacoes() {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [selectedSolicitacao, setSelectedSolicitacao] = useState(null);
   const [updateData, setUpdateData] = useState({ status: '', prioridade: '', idEquipe: null });
+  const [showFotosModal, setShowFotosModal] = useState(false);
+  const [fotosSolicitacao, setFotosSolicitacao] = useState(null);
+  const [fotos, setFotos] = useState([]);
+  const [fotosLoading, setFotosLoading] = useState(false);
+  const [cidadaos, setCidadaos] = useState([]);
+  const [cidadaosLoading, setCidadaosLoading] = useState(true);
+  const [usuariosComuns, setUsuariosComuns] = useState([]);
+  const [usuariosLoading, setUsuariosLoading] = useState(true);
+  const enderecos = useEnderecos(items);
+
+  useEffect(() => {
+    let ativo = true;
+    usuarioService.listarCidadaos()
+      .then((resp) => { if (ativo) setUsuariosComuns(resp.data?.data || []); })
+      .catch((err) => console.error('Erro ao carregar usuários comuns:', err))
+      .finally(() => { if (ativo) setUsuariosLoading(false); });
+    return () => { ativo = false; };
+  }, []);
+
+  useEffect(() => {
+    let ativo = true;
+    ocorrenciaService.cidadaos()
+      .then((resp) => { if (ativo) setCidadaos(resp.data?.data || []); })
+      .catch((err) => console.error('Erro ao carregar cidadãos:', err))
+      .finally(() => { if (ativo) setCidadaosLoading(false); });
+    return () => { ativo = false; };
+  }, []);
+
+  const EXTENSOES_IMAGEM = /\.(jpe?g|png|gif|bmp|webp|heic)$/i;
+
+  const handleVerFotos = async (row) => {
+    setFotosSolicitacao(row);
+    setShowFotosModal(true);
+    setFotosLoading(true);
+    setFotos([]);
+    try {
+      const resp = await anexoService.listar(row.id);
+      const anexos = resp.data?.data || [];
+      const carregados = await Promise.all(anexos.map(async (anexo) => {
+        const ehImagem = EXTENSOES_IMAGEM.test(anexo.arquivo || '');
+        let url = null;
+        if (ehImagem) {
+          try {
+            const blobResp = await anexoService.download(anexo.id);
+            url = URL.createObjectURL(blobResp.data);
+          } catch { /* mantém sem preview */ }
+        }
+        return { ...anexo, ehImagem, url };
+      }));
+      setFotos(carregados);
+    } catch (err) {
+      alert('Erro ao carregar anexos: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setFotosLoading(false);
+    }
+  };
+
+  const handleFecharFotos = () => {
+    fotos.forEach((f) => { if (f.url) URL.revokeObjectURL(f.url); });
+    setFotos([]);
+    setFotosSolicitacao(null);
+    setShowFotosModal(false);
+  };
+
+  const handleBaixarAnexo = async (anexo) => {
+    try {
+      const blobResp = await anexoService.download(anexo.id);
+      const url = URL.createObjectURL(blobResp.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = anexo.arquivo || `anexo-${anexo.id}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Erro ao baixar anexo: ' + (err.response?.data?.message || err.message));
+    }
+  };
 
   const fetchData = useCallback(() => {
     setLoading(true);
@@ -109,6 +194,16 @@ export default function Solicitacoes() {
       handleOpenUpdate(match);
     }
   }, [items, location.state]);
+
+  const handleDelete = async (row) => {
+    if (!window.confirm(`Excluir a solicitação ${row.protocolo}? Esta ação não pode ser desfeita e ficará registrada na auditoria.`)) return;
+    try {
+      await ocorrenciaService.excluir(row.id);
+      fetchData();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Erro ao excluir solicitação.');
+    }
+  };
 
   const handleOpenUpdate = async (row) => {
     const availableEquipes = await loadEquipes();
@@ -187,7 +282,8 @@ export default function Solicitacoes() {
         it.subcategoriaServico?.toLowerCase().includes(search.toLowerCase());
     return matchesSearch &&
       (!categoriaFilter || it.categoriaServico === categoriaFilter) &&
-      (!prioridadeFilter || (it.prioridade || '').toUpperCase() === prioridadeFilter);
+      (!prioridadeFilter || (it.prioridade || '').toUpperCase() === prioridadeFilter) &&
+      (!selectedRegion || resolveRegionFromGps(it.gps) === selectedRegion);
   });
 
   const categorias = [...new Set(items.map((item) => item.categoriaServico).filter(Boolean))].sort();
@@ -306,7 +402,9 @@ export default function Solicitacoes() {
                         }}>{st.label}</span>
                       </td>
                       <td>{row.categoriaServico}<br/><small style={{color:'var(--text-secondary)'}}>{row.subcategoriaServico}</small></td>
-                      <td className={styles.muted} style={{fontSize:'0.8rem'}}>{row.gps || '—'}</td>
+                      <td className={styles.muted} style={{fontSize:'0.8rem', maxWidth: 220}} title={row.gps || ''}>
+                        {row.endereco || enderecos[row.gps] || row.gps || '—'}
+                      </td>
                       <td>
                         {row.prioridade ? (
                           <span style={{
@@ -322,13 +420,33 @@ export default function Solicitacoes() {
                       </td>
                       <td style={{fontSize:'0.8rem',color:'var(--text-secondary)'}}>{data}</td>
                       <td>
-                        <button 
-                          className={styles.newBtn} 
-                          style={{ padding: '4px 8px', fontSize: '0.75rem', borderRadius: '4px' }}
-                          onClick={() => handleOpenUpdate(row)}
-                        >
-                          Atualizar
-                        </button>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <button
+                            title="Ver fotos do problema"
+                            style={{ padding: '4px 8px', fontSize: '0.75rem', borderRadius: '4px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            onClick={() => handleVerFotos(row)}
+                          >
+                            <Camera size={14}/> Fotos
+                          </button>
+                          {isGestor && (
+                            <button 
+                              className={styles.newBtn} 
+                              style={{ padding: '4px 8px', fontSize: '0.75rem', borderRadius: '4px' }}
+                              onClick={() => handleOpenUpdate(row)}
+                            >
+                              Atualizar
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <button
+                              title="Excluir solicitação"
+                              style={{ padding: '4px 8px', fontSize: '0.75rem', borderRadius: '4px', background: '#EB5757', color: '#fff', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                              onClick={() => handleDelete(row)}
+                            >
+                              <Trash2 size={14}/>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -368,6 +486,103 @@ export default function Solicitacoes() {
         </div>
       </div>
 
+      {/* Cidadãos com problemas atribuídos a gestores */}
+      <div className={styles.tableCard} style={{ marginTop: '20px' }}>
+        <div style={{ padding: '14px 16px 0' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-primary)' }}>
+            {isGestor ? 'Cidadãos com problemas atribuídos à sua equipe' : 'Cidadãos com problemas atribuídos a gestores'}
+          </h3>
+          <p style={{ margin: '4px 0 10px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+            {isGestor
+              ? 'Usuários cujas solicitações estão sob responsabilidade da sua equipe'
+              : 'Todos os usuários cujas solicitações foram atribuídas a um gestor'}
+            {!cidadaosLoading && ` — ${cidadaos.length} registro(s)`}
+          </p>
+        </div>
+        {cidadaosLoading ? (
+          <p className={styles.empty}>Carregando…</p>
+        ) : cidadaos.length === 0 ? (
+          <p className={styles.empty}>Nenhum cidadão com problema atribuído a gestor.</p>
+        ) : (
+          <div className={styles.tableWrapper} style={{ overflowX: 'auto' }}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>CIDADÃO</th><th>E-MAIL</th><th>PROTOCOLO</th><th>SERVIÇO</th>
+                  {isAdmin && <th>GESTOR RESPONSÁVEL</th>}
+                  <th>EQUIPE</th><th>STATUS</th><th>DATA</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cidadaos.map((c) => {
+                  const st = STATUS_STYLE[c.status] || { label: c.status, color: '#828282' };
+                  return (
+                    <tr key={c.id}>
+                      <td style={{ fontWeight: 600 }}>{c.cidadaoNome}</td>
+                      <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{c.cidadaoEmail || '—'}</td>
+                      <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{c.protocolo}</td>
+                      <td>{c.categoria}{c.subcategoria ? ` · ${c.subcategoria}` : ''}</td>
+                      {isAdmin && <td>{c.gestorNome}</td>}
+                      <td>{c.equipeNome}</td>
+                      <td><span style={{ background: st.color, color: '#fff', padding: '3px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: 600 }}>{st.label}</span></td>
+                      <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{c.dataCriacao ? new Date(c.dataCriacao).toLocaleDateString('pt-BR') : '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Usuários comuns: ADMIN vê todos; GESTOR vê os atrelados à sua equipe */}
+      {(isAdmin || isGestor) && (
+        <div className={styles.tableCard} style={{ marginTop: '20px' }}>
+          <div style={{ padding: '14px 16px 0' }}>
+            <h3 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-primary)' }}>
+              {isGestor ? 'Usuários atrelados a você' : 'Usuários Comuns (Cidadãos)'}
+            </h3>
+            <p style={{ margin: '4px 0 10px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+              {isGestor
+                ? 'Cidadãos com solicitações atribuídas à sua equipe'
+                : 'Todos os cidadãos cadastrados na plataforma'}
+              {!usuariosLoading && ` — ${usuariosComuns.length} usuário(s)`}
+            </p>
+          </div>
+          {usuariosLoading ? (
+            <p className={styles.empty}>Carregando…</p>
+          ) : usuariosComuns.length === 0 ? (
+            <p className={styles.empty}>{isGestor ? 'Nenhum usuário atrelado à sua equipe.' : 'Nenhum usuário comum cadastrado.'}</p>
+          ) : (
+            <div className={styles.tableWrapper} style={{ overflowX: 'auto' }}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>ID</th><th>NOME</th><th>E-MAIL</th><th>CPF</th><th>SOLICITAÇÕES</th><th>SITUAÇÃO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usuariosComuns.map((u) => (
+                    <tr key={u.id}>
+                      <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>USR-{String(u.id).padStart(3, '0')}</td>
+                      <td style={{ fontWeight: 600 }}>{u.nome}</td>
+                      <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{u.email || '—'}</td>
+                      <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{u.cpf || '—'}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 600 }}>{u.totalSolicitacoes}</td>
+                      <td>
+                        <span style={{ background: u.ativo ? '#27AE60' : '#828282', color: '#fff', padding: '3px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: 600 }}>
+                          {u.ativo ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* UPDATE MODAL */}
       {showUpdateModal && (
         <div className={styles.modalOverlay} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
@@ -381,7 +596,7 @@ export default function Solicitacoes() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px 18px', fontSize: '0.82rem' }}>
                 <div><strong>Tipo de serviço</strong><br />{selectedSolicitacao?.categoriaServico || '—'}{selectedSolicitacao?.subcategoriaServico ? ` · ${selectedSolicitacao.subcategoriaServico}` : ''}</div>
                 <div><strong>Data de abertura</strong><br />{selectedSolicitacao?.dataCriacao ? new Date(selectedSolicitacao.dataCriacao).toLocaleString('pt-BR') : '—'}</div>
-                <div><strong>Localização</strong><br />{selectedSolicitacao?.endereco || selectedSolicitacao?.gps || 'Não informada'}</div>
+                <div><strong>Localização</strong><br />{selectedSolicitacao?.endereco || enderecos[selectedSolicitacao?.gps] || selectedSolicitacao?.gps || 'Não informada'}</div>
                 <div><strong>Equipe atual</strong><br />{selectedSolicitacao?.nomeEquipe || 'Sem equipe atribuída'}</div>
               </div>
               <div style={{ marginTop: '16px' }}>
@@ -428,22 +643,92 @@ export default function Solicitacoes() {
             )}
             <select
               value={selectedEquipeId}
+              disabled={!isGestor}
               onChange={(e) => {
                 const nextValue = e.target.value;
                 setSelectedEquipeId(nextValue);
                 setUpdateData((current) => ({ ...current, idEquipe: nextValue ? Number(nextValue) : null }));
               }}
-              style={{ width: '100%', padding: '8px', marginBottom: '24px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-primary)' }}
+              style={{ width: '100%', padding: '8px', marginBottom: isGestor ? '24px' : '6px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-primary)', opacity: isGestor ? 1 : 0.6 }}
             >
               <option value="">Sem equipe</option>
               {equipes.map((equipe) => (
                 <option key={equipe.id} value={String(equipe.id)}>{equipe.nome}</option>
               ))}
             </select>
+            {!isGestor && (
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '24px' }}>
+                Apenas gestores podem atribuir incidentes a uma equipe.
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button onClick={() => { setShowUpdateModal(false); setSelectedSolicitacao(null); setSelectedEquipeId(''); }} style={{ padding: '8px 16px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '4px', cursor: 'pointer' }}>Cancelar</button>
               <button onClick={handleUpdateSubmit} style={{ padding: '8px 16px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showFotosModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={handleFecharFotos}>
+          <div style={{ background: 'var(--surface)', borderRadius: '8px', padding: '24px', width: '640px', maxWidth: '92vw', maxHeight: '85vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>Fotos do problema</h3>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{fotosSolicitacao?.protocolo}</span>
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+              {fotosSolicitacao?.categoriaServico || ''}{fotosSolicitacao?.subcategoriaServico ? ` · ${fotosSolicitacao.subcategoriaServico}` : ''}
+            </div>
+
+            {fotosLoading && (
+              <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>Carregando anexos…</div>
+            )}
+
+            {!fotosLoading && fotos.length === 0 && (
+              <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)', border: '1px dashed var(--border)', borderRadius: '6px' }}>
+                O cidadão não enviou fotos para esta solicitação.
+              </div>
+            )}
+
+            {!fotosLoading && fotos.some((f) => f.ehImagem) && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+                {fotos.filter((f) => f.ehImagem).map((f) => (
+                  <figure key={f.id} style={{ margin: 0, border: '1px solid var(--border)', borderRadius: '6px', overflow: 'hidden', background: 'var(--background)' }}>
+                    {f.url ? (
+                      <img
+                        src={f.url}
+                        alt={f.arquivo}
+                        style={{ width: '100%', height: '160px', objectFit: 'cover', display: 'block', cursor: 'pointer' }}
+                        onClick={() => window.open(f.url, '_blank')}
+                        title="Clique para ampliar"
+                      />
+                    ) : (
+                      <div style={{ height: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Falha ao carregar</div>
+                    )}
+                    <figcaption style={{ padding: '6px 8px', fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.arquivo}</span>
+                      <button title="Baixar" onClick={() => handleBaixarAnexo(f)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', display: 'inline-flex' }}><Download size={14}/></button>
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+            )}
+
+            {!fotosLoading && fotos.some((f) => !f.ehImagem) && (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>Outros anexos</div>
+                {fotos.filter((f) => !f.ehImagem).map((f) => (
+                  <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: '6px', marginBottom: '6px', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+                    <span>{f.arquivo}</span>
+                    <button title="Baixar" onClick={() => handleBaixarAnexo(f)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', display: 'inline-flex' }}><Download size={14}/></button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={handleFecharFotos} style={{ padding: '8px 16px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: '4px', cursor: 'pointer' }}>Fechar</button>
             </div>
           </div>
         </div>

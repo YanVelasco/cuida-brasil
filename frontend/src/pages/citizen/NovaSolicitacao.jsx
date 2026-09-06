@@ -5,6 +5,7 @@ import MobileLayout from '../../components/layout/MobileLayout';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { MapPin, Tag, FileText, ChevronLeft, Camera, Image as ImageIcon, X } from 'lucide-react';
+import { resolverEndereco } from '../../hooks/useEnderecos';
 import styles from './NovaSolicitacao.module.css';
 
 export default function NovaSolicitacao() {
@@ -28,18 +29,13 @@ export default function NovaSolicitacao() {
           const lng = position.coords.longitude;
           setForm(f => ({ ...f, gps: `${lat}, ${lng}` }));
           setLocStatus(`GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-          
-          // Reverse Geocoding via Nominatim
-          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
-            .then(res => res.json())
-            .then(data => {
-              if (data && data.display_name) {
-                const address = data.address;
-                const road = address.road || '';
-                const suburb = address.suburb || address.neighbourhood || '';
-                const shortAddress = road ? `${road}${suburb ? ' - ' + suburb : ''}` : data.display_name.split(',').slice(0, 2).join(',');
-                setForm(f => ({ ...f, endereco: shortAddress }));
-                setLocStatus(shortAddress);
+
+          // Geocodificação reversa com fallbacks (Nominatim → Photon → BigDataCloud)
+          resolverEndereco(lat, lng)
+            .then(({ texto }) => {
+              if (texto) {
+                setForm(f => ({ ...f, endereco: f.endereco || texto }));
+                setLocStatus(texto);
               }
             })
             .catch(err => console.error('Erro na geocodificação', err));
@@ -97,7 +93,16 @@ export default function NovaSolicitacao() {
     e.preventDefault();
     setLoading(true); setError('');
     try {
-      await ocorrenciaService.criar(form);
+      // Garante que o endereço completo seja salvo no sistema, não só as coordenadas
+      let dados = form;
+      if (!form.endereco && form.gps) {
+        const [lat, lng] = form.gps.split(',').map((v) => parseFloat(v.trim()));
+        if (!isNaN(lat) && !isNaN(lng)) {
+          const { texto } = await resolverEndereco(lat, lng).catch(() => ({ texto: '' }));
+          if (texto) dados = { ...form, endereco: texto };
+        }
+      }
+      await ocorrenciaService.criar(dados);
       setSuccess(true);
       setTimeout(() => navigate('/app'), 2000);
     } catch (err) { 

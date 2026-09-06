@@ -8,4 +8,5 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     boolean existsByCpf(String cpf);
     boolean existsByEmail(String email);
     long countByPerfil(String perfil);
+    java.util.List<Usuario> findByPerfilOrderByNome(String perfil);
 }

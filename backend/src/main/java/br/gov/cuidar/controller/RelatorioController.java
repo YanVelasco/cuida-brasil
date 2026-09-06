@@ -17,8 +17,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import br.gov.cuidar.dto.ApiResponse;
 import br.gov.cuidar.entity.Usuario;
+import br.gov.cuidar.repository.EquipePublicaRepository;
 import br.gov.cuidar.repository.GestorRepository;
+import br.gov.cuidar.repository.OrgaoPublicoRepository;
 import br.gov.cuidar.repository.SolicitacaoRepository;
+import br.gov.cuidar.repository.UsuarioRepository;
 
 @RestController
 @RequestMapping("/api/relatorios")
@@ -27,10 +30,17 @@ public class RelatorioController {
 
     private final SolicitacaoRepository solRepo;
     private final GestorRepository gestorRepo;
+    private final UsuarioRepository usuarioRepo;
+    private final EquipePublicaRepository equipeRepo;
+    private final OrgaoPublicoRepository orgaoRepo;
 
-    public RelatorioController(SolicitacaoRepository solRepo, GestorRepository gestorRepo) {
+    public RelatorioController(SolicitacaoRepository solRepo, GestorRepository gestorRepo,
+            UsuarioRepository usuarioRepo, EquipePublicaRepository equipeRepo, OrgaoPublicoRepository orgaoRepo) {
         this.solRepo = solRepo;
         this.gestorRepo = gestorRepo;
+        this.usuarioRepo = usuarioRepo;
+        this.equipeRepo = equipeRepo;
+        this.orgaoRepo = orgaoRepo;
     }
 
         @GetMapping("/resumo")
@@ -144,6 +154,130 @@ public class RelatorioController {
             result.add(item);
         }
         return ResponseEntity.ok(ApiResponse.ok(result));
+    }
+
+    /**
+     * Indicadores nacionais reais produzidos pelo sistema:
+     * taxa de conclusão, tempo médio de resolução, cobertura territorial, engajamento.
+     */
+    @GetMapping("/indicadores")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> indicadores() {
+        long total = solRepo.count();
+        long concluidas = solRepo.countByStatus("CONCLUIDA");
+        Double tempoMedio = solRepo.tempoMedioResolucaoDias();
+        long regioes = solRepo.dadosTerritoriais().stream()
+            .map(row -> extrairRegiao((String) row[0], (String) row[1]))
+            .filter(r -> !"Não informada".equals(r))
+            .distinct().count();
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("totalSolicitacoes", total);
+        result.put("concluidas", concluidas);
+        result.put("taxaConclusao", total > 0 ? Math.round(concluidas * 1000.0 / total) / 10.0 : 0);
+        result.put("tempoMedioResolucaoDias", tempoMedio != null ? Math.round(tempoMedio * 10.0) / 10.0 : null);
+        result.put("urgentesAbertas", solRepo.countUrgentes());
+        result.put("cidadaosCadastrados", usuarioRepo.countByPerfil("CITIZEN"));
+        result.put("gestoresAtivos", usuarioRepo.countByPerfil("GESTOR"));
+        result.put("equipesOperacionais", equipeRepo.count());
+        result.put("orgaosIntegrados", orgaoRepo.count());
+        result.put("regioesAtendidas", regioes);
+        return ResponseEntity.ok(ApiResponse.ok(result));
+    }
+
+    /**
+     * Tabela Serviço x Prioridade x Equipe — base de conhecimento real
+     * usada pela IA para sugerir a equipe mais adequada a cada demanda.
+     */
+    @GetMapping("/matriz-ia")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> matrizIA() {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object[] row : solRepo.matrizServicoPrioridadeEquipe()) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("servico", row[0]);
+            item.put("prioridade", row[1]);
+            item.put("equipe", row[2]);
+            item.put("atendimentos", ((Number) row[3]).longValue());
+            result.add(item);
+        }
+        return ResponseEntity.ok(ApiResponse.ok(result));
+    }
+
+    /**
+     * Inteligência territorial: agrega solicitações por região (bairro/localidade
+     * extraída do endereço), com abertas, concluídas e urgentes por região.
+     */
+    @GetMapping("/territorial")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> territorial() {
+        Map<String, long[]> porRegiao = new LinkedHashMap<>();
+        for (Object[] row : solRepo.dadosTerritoriais()) {
+            String regiao = extrairRegiao((String) row[0], (String) row[1]);
+            String status = (String) row[2];
+            String prioridade = (String) row[3];
+            long[] contadores = porRegiao.computeIfAbsent(regiao, k -> new long[4]);
+            contadores[0]++;
+            if ("CONCLUIDA".equals(status)) contadores[1]++;
+            else if (!"CANCELADA".equals(status)) contadores[2]++;
+            if (("ALTA".equals(prioridade) || "URGENTE".equals(prioridade))
+                    && !"CONCLUIDA".equals(status) && !"CANCELADA".equals(status)) contadores[3]++;
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        porRegiao.entrySet().stream()
+            .sorted((a, b) -> Long.compare(b.getValue()[0], a.getValue()[0]))
+            .forEach(entry -> {
+                long[] c = entry.getValue();
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("regiao", entry.getKey());
+                item.put("total", c[0]);
+                item.put("concluidas", c[1]);
+                item.put("abertas", c[2]);
+                item.put("urgentes", c[3]);
+                item.put("criticidade", c[0] > 0 ? Math.round(c[3] * 100.0 / c[0]) : 0);
+                result.add(item);
+            });
+        return ResponseEntity.ok(ApiResponse.ok(result));
+    }
+
+    /** Extrai a região (bairro/localidade) do endereço livre; sem endereço, classifica o GPS em zonas. */
+    private String extrairRegiao(String endereco, String gps) {
+        if (endereco != null && !endereco.isBlank()) {
+            String[] porHifen = endereco.split(" - ");
+            if (porHifen.length > 1) {
+                String candidato = porHifen[1].split(",")[0].trim();
+                if (!candidato.isBlank() && !ehNumero(candidato)) return candidato;
+            }
+            // Ignora números de rua/CEP: pega o bairro (2ª parte textual após a rua)
+            List<String> partes = new ArrayList<>();
+            for (String parte : endereco.split(",")) {
+                String p = parte.trim();
+                if (!p.isBlank() && !ehNumero(p)) partes.add(p);
+            }
+            if (partes.size() > 1) return partes.get(1);
+            if (partes.size() == 1) return partes.get(0);
+        }
+        return regiaoPorGps(gps);
+    }
+
+    /** Verifica se o trecho é numérico (número de rua, CEP etc.), não um nome de bairro. */
+    private boolean ehNumero(String texto) {
+        return texto.matches("\\d[\\d\\s./-]*[A-Za-z]?");
+    }
+
+    /** Classifica coordenadas GPS em zonas geográficas relativas ao centro de São Paulo. */
+    private String regiaoPorGps(String gps) {
+        if (gps == null || gps.isBlank()) return "Não informada";
+        try {
+            String[] partes = gps.replaceAll("[^0-9.,\\-]", "").split(",");
+            if (partes.length < 2) return "Não informada";
+            double lat = Double.parseDouble(partes[0].trim());
+            double lng = Double.parseDouble(partes[1].trim());
+            double dLat = lat - (-23.5505); // centro de São Paulo
+            double dLng = lng - (-46.6333);
+            if (Math.abs(dLat) < 0.02 && Math.abs(dLng) < 0.02) return "Centro";
+            if (Math.abs(dLat) >= Math.abs(dLng)) return dLat > 0 ? "Zona Norte" : "Zona Sul";
+            return dLng > 0 ? "Zona Leste" : "Zona Oeste";
+        } catch (NumberFormatException e) {
+            return "Não informada";
+        }
     }
 
     private Long getEquipeId(Usuario usuario) {

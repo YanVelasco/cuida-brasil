@@ -6,7 +6,9 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { useRegion } from '../../contexts/RegionContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { ocorrenciaService, equipeService } from '../../services/api';
+import useEnderecos from '../../hooks/useEnderecos';
 import styles from './MapaOcorrencias.module.css';
 
 const STATUS_META = {
@@ -192,6 +194,7 @@ function OccurrenceMiniMap({ gps }) {
 
 export default function MapaOcorrencias() {
   const [ocorrencias, setOcorrencias] = useState([]);
+  const enderecos = useEnderecos(ocorrencias);
   const [selected, setSelected] = useState(null);
   const [activeFilter, setActiveFilter] = useState(null);
   const [legendFilter, setLegendFilter] = useState('');
@@ -201,6 +204,8 @@ export default function MapaOcorrencias() {
   const [gestores, setGestores] = useState([]);
   const [loading, setLoading] = useState(true);
   const { selectedRegion } = useRegion();
+  const { user } = useAuth();
+  const isGestor = user?.perfil === 'GESTOR';
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -449,7 +454,7 @@ export default function MapaOcorrencias() {
                       >
                         <strong>{oc.descricao || 'Ocorrência'}</strong><br />
                         {oc.statusMeta.label}<br />
-                        {oc.endereco || oc.gps || 'Localização não informada'}
+                        {oc.endereco || enderecos[oc.gps] || oc.gps || 'Localização não informada'}
                       </Popup>
                     </CircleMarker>
                   );
@@ -564,7 +569,7 @@ export default function MapaOcorrencias() {
                 </span>
                 <p className={styles.selectedTitle}>{activeSelected.descricao || 'Ocorrência sem descrição'}</p>
                 <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '10px' }}>
-                  {activeSelected.endereco || activeSelected.gps || 'Localização não informada'}
+                  {activeSelected.endereco || enderecos[activeSelected.gps] || activeSelected.gps || 'Localização não informada'}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
                   Protocolo: {activeSelected.protocolo || '—'}
@@ -583,9 +588,11 @@ export default function MapaOcorrencias() {
                 <div className={styles.miniMapEmpty}>Selecione uma ocorrência para visualizar a localização</div>
               </div>
             )}
-            <button className={styles.blueBtn} onClick={handleAssignEquipe} type="button" disabled={!canAssignEquipe}>
-              {assignButtonLabel}
-            </button>
+            {isGestor && (
+              <button className={styles.blueBtn} onClick={handleAssignEquipe} type="button" disabled={!canAssignEquipe}>
+                {assignButtonLabel}
+              </button>
+            )}
             <button className={styles.outlineBtn} onClick={handleVerDetalhes} type="button" disabled={!canAssignEquipe}>Ver detalhes</button>
           </div>
         </div>

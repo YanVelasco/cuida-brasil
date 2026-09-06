@@ -37,8 +37,9 @@ public class SolicitacaoService {
     private final HistoricoRepository historicoRepository;
     private final VisionValidationService visionValidationService;
     private final GestorRepository gestorRepository;
+    private final AuditoriaService auditoriaService;
 
-    public SolicitacaoService(SolicitacaoRepository solicitacaoRepository, UsuarioRepository usuarioRepository, ServicoRepository servicoRepository, EquipePublicaRepository equipeRepository, HistoricoRepository historicoRepository, VisionValidationService visionValidationService, GestorRepository gestorRepository) {
+    public SolicitacaoService(SolicitacaoRepository solicitacaoRepository, UsuarioRepository usuarioRepository, ServicoRepository servicoRepository, EquipePublicaRepository equipeRepository, HistoricoRepository historicoRepository, VisionValidationService visionValidationService, GestorRepository gestorRepository, AuditoriaService auditoriaService) {
         this.solicitacaoRepository = solicitacaoRepository;
         this.usuarioRepository = usuarioRepository;
         this.servicoRepository = servicoRepository;
@@ -46,6 +47,7 @@ public class SolicitacaoService {
         this.historicoRepository = historicoRepository;
         this.visionValidationService = visionValidationService;
         this.gestorRepository = gestorRepository;
+        this.auditoriaService = auditoriaService;
     }
 
     @Transactional
@@ -82,8 +84,20 @@ public class SolicitacaoService {
         return toResponse(sol);
     }
 
-    public Page<Response> listarTodas(String status, String gestor, int page, int size, Usuario usuario) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("dataCriacao").descending());
+    /** Salva o endereço legível resolvido no frontend; nunca sobrescreve um endereço já informado. */
+    @Transactional
+    public Response atualizarEndereco(Long id, String endereco) {
+        Solicitacao sol = solicitacaoRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Solicitacao nao encontrada"));
+        if ((sol.getEndereco() == null || sol.getEndereco().isBlank())
+                && endereco != null && !endereco.isBlank()) {
+            sol.setEndereco(endereco.trim());
+            sol = solicitacaoRepository.save(sol);
+        }
+        return toResponse(sol);
+    }
+
+    public Page<Response> listarTodas(String status, String gestor, int page, int size, Usuario usuario) {        Pageable pageable = PageRequest.of(page, size, Sort.by("dataCriacao").descending());
         Page<Solicitacao> result;
 
         if (usuario != null && "GESTOR".equals(usuario.getPerfil())) {
@@ -113,6 +127,45 @@ public class SolicitacaoService {
             .collect(Collectors.toList());
     }
 
+    /**
+     * Cidadãos que atrelaram um problema a um gestor (solicitações com equipe atribuída).
+     * ADMIN vê todos; GESTOR vê apenas os cidadãos da própria equipe.
+     */
+    public List<java.util.Map<String, Object>> listarCidadaosPorGestor(Usuario usuario) {
+        List<Solicitacao> sols;
+        if ("GESTOR".equals(usuario.getPerfil())) {
+            Long equipeId = gestorRepository.findEquipeIdByUsuarioId(usuario.getId()).orElse(null);
+            if (equipeId == null) return List.of();
+            sols = solicitacaoRepository.findComEquipeByEquipeId(equipeId);
+        } else {
+            sols = solicitacaoRepository.findComEquipe();
+        }
+
+        java.util.Map<Long, String> gestorPorEquipe = new java.util.HashMap<>();
+        return sols.stream().map(s -> {
+            Long equipeId = s.getEquipe().getId();
+            String gestorNome = gestorPorEquipe.computeIfAbsent(equipeId, id ->
+                gestorRepository.findByEquipeId(id).stream()
+                    .filter(g -> "GESTOR".equals(g.getUsuario().getPerfil()) && Boolean.TRUE.equals(g.getUsuario().getAtivo()))
+                    .map(g -> g.getUsuario().getNome())
+                    .findFirst().orElse("—"));
+
+            java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("id", s.getId());
+            m.put("protocolo", s.getProtocolo());
+            m.put("cidadaoNome", s.getUsuario().getNome());
+            m.put("cidadaoEmail", s.getUsuario().getEmail());
+            m.put("categoria", s.getServico().getCategoria());
+            m.put("subcategoria", s.getServico().getSubcategoria());
+            m.put("status", s.getStatus());
+            m.put("prioridade", s.getPrioridade());
+            m.put("equipeNome", s.getEquipe().getNome());
+            m.put("gestorNome", gestorNome);
+            m.put("dataCriacao", s.getDataCriacao());
+            return m;
+        }).collect(Collectors.toList());
+    }
+
     public Page<Response> listarPorUsuario(Long usuarioId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("dataCriacao").descending());
         return solicitacaoRepository.findByUsuarioId(usuarioId, pageable).map(this::toResponse);
@@ -138,6 +191,10 @@ public class SolicitacaoService {
                     || (req.getIdEquipe() != null && !equipeDoGestor.equals(req.getIdEquipe()))) {
                 throw new IllegalStateException("Gestor só pode operar na própria equipe");
             }
+        } else if (req.getIdEquipe() != null
+                && (sol.getEquipe() == null || !req.getIdEquipe().equals(sol.getEquipe().getId()))) {
+            // Atribuição de incidente a equipe é exclusiva de gestores
+            throw new IllegalStateException("Apenas gestores podem atribuir incidentes a uma equipe");
         }
 
         sol.setStatus(req.getStatus());
@@ -163,6 +220,21 @@ public class SolicitacaoService {
         historicoRepository.save(h);
 
         return toResponse(sol);
+    }
+
+    /**
+     * Exclui uma solicitação (completa o CRUD). Apenas ADMIN.
+     * Históricos e anexos são removidos em cascata e a exclusão é auditada.
+     */
+    @Transactional
+    public void excluir(Long id, Usuario usuario, jakarta.servlet.http.HttpServletRequest request) {
+        Solicitacao sol = solicitacaoRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Nao encontrada"));
+        String protocolo = sol.getProtocolo();
+        solicitacaoRepository.delete(sol);
+        auditoriaService.registrar("EXCLUSAO_SOLICITACAO",
+            "Solicitacao " + protocolo + " excluida por " + usuario.getNome(),
+            usuario.getCpf(), usuario, true, request);
     }
 
     private Response toResponse(Solicitacao s) {

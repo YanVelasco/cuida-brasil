@@ -161,7 +161,7 @@ export default function CitizenHome() {
                     <div className={styles.cardTop}>
                       <div className={styles.cardInfo}>
                         <p className={styles.cardTitle}>{oc.categoriaServico} — {oc.subcategoriaServico}</p>
-                        <p className={styles.cardLocal}>{oc.protocolo} · {oc.gps}</p>
+                        <p className={styles.cardLocal}>{oc.protocolo} · {oc.endereco || oc.gps}</p>
                       </div>
                       <span className={styles.statusBadge} style={{background: st.bg, color: st.color, borderColor: st.border}}>
                         {st.label}

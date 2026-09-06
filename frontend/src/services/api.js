@@ -46,16 +46,53 @@ export const ocorrenciaService = {
     api.get('/api/solicitacoes', { params }),
   listarNaoAtribuidas: () =>
     api.get('/api/solicitacoes/nao-atribuidas'),
+  cidadaos: () =>
+    api.get('/api/solicitacoes/cidadaos'),
   minhas: (params) =>
     api.get('/api/solicitacoes/minhas', { params }),
   buscarPorId: (id) =>
     api.get(`/api/solicitacoes/${id}`),
   buscarPorProtocolo: (protocolo) =>
     api.get(`/api/solicitacoes/protocolo/${protocolo}`),
+  atualizarEndereco: (id, endereco) =>
+    api.patch(`/api/solicitacoes/${id}/endereco`, { endereco }),
   atualizarStatus: (id, dados) =>
     api.put(`/api/solicitacoes/${id}/status`, dados),
+  excluir: (id) =>
+    api.delete(`/api/solicitacoes/${id}`),
   avaliar: (id, dados) =>
     api.post(`/api/solicitacoes/${id}/avaliar`, dados),
+};
+
+// ============ ANEXOS ============
+export const anexoService = {
+  upload: (solicitacaoId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/api/solicitacoes/${solicitacaoId}/anexos`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  listar: (solicitacaoId) =>
+    api.get(`/api/solicitacoes/${solicitacaoId}/anexos`),
+  download: (anexoId) =>
+    api.get(`/api/anexos/${anexoId}/download`, { responseType: 'blob' }),
+  excluir: (anexoId) =>
+    api.delete(`/api/anexos/${anexoId}`),
+};
+
+// ============ USUARIOS ============
+export const usuarioService = {
+  listarCidadaos: () =>
+    api.get('/api/usuarios/cidadaos'),
+};
+
+// ============ AUDITORIA ============
+export const auditoriaService = {
+  listar: (params) =>
+    api.get('/api/auditoria', { params }),
+  resumoLogins: () =>
+    api.get('/api/auditoria/resumo-logins'),
 };
 
 // ============ DASHBOARD ============
@@ -74,6 +111,9 @@ export const relatorioService = {
   porCategoria: (params) => api.get('/api/relatorios/por-categoria', { params }),
   porStatus: (params) => api.get('/api/relatorios/por-status', { params }),
   tendenciaMensal: (params) => api.get('/api/relatorios/tendencia-mensal', { params }),
+  indicadores: () => api.get('/api/relatorios/indicadores'),
+  matrizIA: () => api.get('/api/relatorios/matriz-ia'),
+  territorial: () => api.get('/api/relatorios/territorial'),
 };
 
 export const chatService = {
@@ -81,6 +121,8 @@ export const chatService = {
 };
 
 export const gestorService = {
+  listar: () =>
+    api.get('/api/gestores'),
   atualizarLocalizacao: (dados) =>
     api.put('/api/gestores/localizacao', dados),
 };
@@ -97,6 +139,8 @@ export const equipeService = {
     api.post('/api/equipes', dados),
   adicionarMembro: (id, dados) =>
     api.post(`/api/equipes/${id}/membros`, dados),
+  removerMembro: (membroId) =>
+    api.delete(`/api/equipes/membros/${membroId}`),
 };
 
 // ============ ORGAOS ============

@@ -21,6 +21,24 @@ public class GestorController {
         this.gestorRepo = gestorRepo;
     }
 
+    /** Listagem de todos os gestores ativos da plataforma (visão do ADMIN). */
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<java.util.List<java.util.Map<String, Object>>>> listarGestores() {
+        java.util.List<java.util.Map<String, Object>> gestores = gestorRepo.findAllGestoresAtivos().stream()
+                .map(g -> {
+                    java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+                    m.put("id", g.getId());
+                    m.put("nome", g.getUsuario().getNome());
+                    m.put("email", g.getUsuario().getEmail());
+                    m.put("cpf", g.getUsuario().getCpf());
+                    m.put("equipeId", g.getEquipe().getId());
+                    m.put("equipeNome", g.getEquipe().getNome());
+                    return m;
+                }).toList();
+        return ResponseEntity.ok(ApiResponse.ok(gestores));
+    }
+
     @PutMapping("/localizacao")
     @PreAuthorize("hasRole('GESTOR')")
     public ResponseEntity<ApiResponse<String>> atualizarLocalizacao(@RequestBody LocalizacaoDTO dto, Authentication auth) {

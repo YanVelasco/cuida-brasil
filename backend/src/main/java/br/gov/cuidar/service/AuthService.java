@@ -8,29 +8,36 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 @Service
 public class AuthService {
 
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtProvider;
+    private final AuditoriaService auditoriaService;
 
-    public AuthService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder, JwtTokenProvider jwtProvider) {
+    public AuthService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder, JwtTokenProvider jwtProvider, AuditoriaService auditoriaService) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtProvider = jwtProvider;
+        this.auditoriaService = auditoriaService;
     }
 
-    public AuthResponse login(LoginRequest req) {
-        Usuario user = usuarioRepository.findByCpf(req.getCpf())
-            .orElseThrow(() -> new RuntimeException("CPF ou senha invalidos"));
+    public AuthResponse login(LoginRequest req, HttpServletRequest request) {
+        Usuario user = usuarioRepository.findByCpf(req.getCpf()).orElse(null);
 
-        if (!passwordEncoder.matches(req.getSenha(), user.getSenha())) {
+        if (user == null || !passwordEncoder.matches(req.getSenha(), user.getSenha())) {
+            auditoriaService.registrar("LOGIN", "Tentativa de login com credenciais invalidas", req.getCpf(), user, false, request);
             throw new RuntimeException("CPF ou senha invalidos");
         }
         if (!user.getAtivo()) {
+            auditoriaService.registrar("LOGIN", "Tentativa de login em conta desativada", req.getCpf(), user, false, request);
             throw new RuntimeException("Conta desativada. Entre em contato com o suporte.");
         }
+
+        auditoriaService.registrar("LOGIN", "Login realizado com sucesso (" + user.getPerfil() + ")", user.getCpf(), user, true, request);
 
         String token = jwtProvider.generateToken(user.getId(), user.getCpf(), user.getNome(), user.getPerfil());
         return new AuthResponse(token, "Bearer", user.getId(), user.getNome(), user.getCpf(), user.getEmail(), user.getPerfil());
