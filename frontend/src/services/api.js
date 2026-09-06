@@ -2,6 +2,36 @@ import axios from 'axios';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
+const parseJwtPayload = (token) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((char) => `%${('00' + char.charCodeAt(0).toString(16)).slice(-2)}`)
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+};
+
+export const authUtils = {
+  isTokenExpired: (token) => {
+    if (!token) return true;
+    const payload = parseJwtPayload(token);
+    if (!payload || !payload.exp) return false;
+    return Date.now() >= payload.exp * 1000;
+  },
+  clearSessionAndRedirect: (redirect = true) => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    if (redirect) window.location.replace('/login');
+  },
+};
+
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 30000,
@@ -11,7 +41,11 @@ const api = axios.create({
 // Interceptor: adiciona JWT em cada requisicao
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (token && !authUtils.isTokenExpired(token)) {
+    config.headers.Authorization = `Bearer ${token}`;
+  } else if (token) {
+    authUtils.clearSessionAndRedirect(false);
+  }
   return config;
 });
 
@@ -20,9 +54,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      authUtils.clearSessionAndRedirect();
     }
     return Promise.reject(error);
   }

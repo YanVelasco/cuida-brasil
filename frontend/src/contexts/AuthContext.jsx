@@ -1,5 +1,5 @@
 ﻿import { createContext, useContext, useState, useEffect } from 'react';
-import { authService } from '../services/api';
+import { authService, authUtils } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -11,8 +11,12 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const token = localStorage.getItem('token');
     const saved = localStorage.getItem('user');
-    if (token && saved) {
+
+    if (token && !authUtils.isTokenExpired(token) && saved) {
       try { setUser(JSON.parse(saved)); } catch {}
+    } else {
+      authUtils.clearSessionAndRedirect(false);
+      setUser(null);
     }
     setLoading(false);
   }, []);
@@ -20,6 +24,9 @@ export function AuthProvider({ children }) {
   const login = async (cpf, senha) => {
     const res = await authService.login(cpf, senha);
     const { token, ...userData } = res.data.data;
+    if (authUtils.isTokenExpired(token)) {
+      throw new Error('Token expirado recebido do servidor.');
+    }
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
@@ -29,6 +36,9 @@ export function AuthProvider({ children }) {
   const cadastro = async (dados) => {
     const res = await authService.cadastro(dados);
     const { token, ...userData } = res.data.data;
+    if (authUtils.isTokenExpired(token)) {
+      throw new Error('Token expirado recebido do servidor.');
+    }
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
@@ -36,8 +46,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    authUtils.clearSessionAndRedirect(false);
     setUser(null);
   };
 
