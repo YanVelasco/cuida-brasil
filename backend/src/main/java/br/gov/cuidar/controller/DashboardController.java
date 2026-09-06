@@ -37,12 +37,15 @@ public class DashboardController {
             Long equipeId = gestorRepo.findEquipeIdByUsuarioId(usuario.getId()).orElse(null);
             if (equipeId != null) {
                 abertas    = solRepo.countByStatusAndEquipeId("PENDENTE", equipeId)
-                           + solRepo.countByStatusAndEquipeId("TRIAGEM", equipeId);
+                           + solRepo.countByStatusAndEquipeId("TRIAGEM", equipeId)
+                           + solRepo.countByStatusAndEquipeNull("PENDENTE")
+                           + solRepo.countByStatusAndEquipeNull("TRIAGEM");
                 andamento  = solRepo.countByStatusAndEquipeId("EM_ANDAMENTO", equipeId)
                            + solRepo.countByStatusAndEquipeId("EM_CAMPO", equipeId);
                 concluidas = solRepo.countByStatusAndEquipeId("CONCLUIDA", equipeId);
-                pendentes  = solRepo.countByStatusAndEquipeId("PENDENTE", equipeId);
-                urgentes   = solRepo.countUrgentesByEquipeId(equipeId);
+                pendentes  = solRepo.countByStatusAndEquipeId("PENDENTE", equipeId)
+                           + solRepo.countByStatusAndEquipeNull("PENDENTE");
+                urgentes   = solRepo.countUrgentesByEquipeId(equipeId) + solRepo.countUrgentesByEquipeNull();
             } else {
                 abertas = andamento = concluidas = pendentes = urgentes = 0;
             }

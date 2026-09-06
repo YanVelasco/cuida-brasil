@@ -21,8 +21,14 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
     @Query("SELECT s FROM Solicitacao s WHERE s.status = :status AND s.equipe.id = :equipeId")
     Page<Solicitacao> findByStatusAndEquipeIdOrNull(@Param("status") String status, @Param("equipeId") Long equipeId, Pageable pageable);
 
+    @Query("SELECT s FROM Solicitacao s WHERE s.status = :status AND (s.equipe.id = :equipeId OR s.equipe IS NULL)")
+    Page<Solicitacao> findByStatusAndEquipeIdOrNullAndUnassigned(@Param("status") String status, @Param("equipeId") Long equipeId, Pageable pageable);
+
     @Query("SELECT s FROM Solicitacao s WHERE s.equipe.id = :equipeId")
     Page<Solicitacao> findByEquipeIdOrNull(@Param("equipeId") Long equipeId, Pageable pageable);
+
+    @Query("SELECT s FROM Solicitacao s WHERE s.equipe.id = :equipeId OR s.equipe IS NULL")
+    Page<Solicitacao> findByEquipeIdOrNullAndUnassigned(@Param("equipeId") Long equipeId, Pageable pageable);
 
     @Query("SELECT s FROM Solicitacao s WHERE s.equipe.id IN (SELECT g.equipe.id FROM Gestor g WHERE LOWER(g.usuario.nome) = LOWER(:gestor))")
     Page<Solicitacao> findByGestorNome(@Param("gestor") String gestor, Pageable pageable);
@@ -43,8 +49,14 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
     @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.status = :status AND s.equipe.id = :equipeId")
     long countByStatusAndEquipeId(@Param("status") String status, @Param("equipeId") Long equipeId);
 
+    @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.status = :status AND s.equipe IS NULL")
+    long countByStatusAndEquipeNull(@Param("status") String status);
+
     @Query("SELECT COUNT(s) FROM Solicitacao s WHERE (s.prioridade = 'ALTA' OR s.prioridade = 'URGENTE') AND s.status NOT IN ('CONCLUIDA', 'CANCELADA') AND s.equipe.id = :equipeId")
     long countUrgentesByEquipeId(@Param("equipeId") Long equipeId);
+
+    @Query("SELECT COUNT(s) FROM Solicitacao s WHERE (s.prioridade = 'ALTA' OR s.prioridade = 'URGENTE') AND s.status NOT IN ('CONCLUIDA', 'CANCELADA') AND s.equipe IS NULL")
+    long countUrgentesByEquipeNull();
 
     @Query("SELECT COUNT(s) FROM Solicitacao s WHERE (s.prioridade = 'ALTA' OR s.prioridade = 'URGENTE') AND s.status NOT IN ('CONCLUIDA', 'CANCELADA')")
     long countUrgentes();
