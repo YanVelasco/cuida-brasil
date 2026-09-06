@@ -29,7 +29,7 @@ public class DashboardController {
     }
 
     @GetMapping("/dashboard")
-    @PreAuthorize("hasAnyRole('GESTOR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'ADMIN', 'ANALYTICS_ADMIN')")
     public ResponseEntity<ApiResponse<DashboardDTO>> dashboard(@AuthenticationPrincipal Usuario usuario) {
         long abertas, andamento, concluidas, pendentes, urgentes;
 
@@ -61,7 +61,7 @@ public class DashboardController {
     }
 
     @GetMapping("/system-dashboard")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYTICS_ADMIN')")
     public ResponseEntity<ApiResponse<DashboardAdminDTO>> systemDashboard() {
         long totalGestores = usuarioRepo.countByPerfil("GESTOR");
         long totalUsuarios = usuarioRepo.countByPerfil("CITIZEN");

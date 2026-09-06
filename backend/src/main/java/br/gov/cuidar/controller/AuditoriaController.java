@@ -20,7 +20,7 @@ import br.gov.cuidar.repository.AuditoriaRepository;
 
 @RestController
 @RequestMapping("/api/auditoria")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'ANALYTICS_ADMIN')")
 public class AuditoriaController {
 
     private final AuditoriaRepository auditoriaRepository;

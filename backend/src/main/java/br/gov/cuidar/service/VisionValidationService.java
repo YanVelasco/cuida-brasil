@@ -31,12 +31,8 @@ public class VisionValidationService {
         }
 
         try {
-            String pureBase64 = base64Image;
-            if (base64Image.contains(",")) {
-                pureBase64 = base64Image.split(",")[1];
-            }
-
-            byte[] imageBytes = Base64.getDecoder().decode(pureBase64);
+            byte[] imageBytes = extrairBytesImagem(base64Image);
+            Media media = criarMediaDaImagem(base64Image);
 
             String instruction = """
                     Você é um especialista em análise de imagem para zeladoria urbana e infraestrutura municipal.
@@ -55,7 +51,7 @@ public class VisionValidationService {
 
             UserMessage userMessage = new UserMessage(
                     instruction,
-                    List.of(new Media(MimeTypeUtils.IMAGE_JPEG, new ByteArrayResource(imageBytes)))
+                    List.of(media)
             );
 
             ChatResponse response = chatModel.call(new Prompt(userMessage));
@@ -81,5 +77,65 @@ public class VisionValidationService {
         } catch (Exception e) {
             System.err.println("Erro ao validar imagem com a IA: " + e.getMessage());
         }
+    }
+
+    public String determinarPrioridade(String descricao, String categoriaServico, String base64Image) {
+        if (descricao == null || descricao.isBlank()) {
+            return "MEDIA";
+        }
+
+        try {
+            StringBuilder prompt = new StringBuilder();
+            prompt.append("Você é um especialista em priorização de demandas de zeladoria urbana e infraestrutura municipal. ");
+            prompt.append("Analise a descrição do problema, a categoria e a imagem quando houver. ");
+            prompt.append("Retorne ESTRITAMENTE um JSON no formato: {\"prioridade\":\"BAIXA|MEDIA|ALTA|URGENTE\",\"motivo\":\"breve explicação\"}. ");
+            prompt.append("Critérios: risco à segurança pública, impacto na mobilidade, danos estruturais, risco de acidente, urgência sanitária, quantidade de pessoas afetadas, severidade visual e acessibilidade. ");
+            prompt.append("Descrição: ").append(descricao).append(". ");
+            prompt.append("Categoria: ").append(categoriaServico != null ? categoriaServico : "Geral").append(". ");
+
+            UserMessage userMessage;
+            if (base64Image != null && !base64Image.isBlank()) {
+                userMessage = new UserMessage(
+                    prompt.toString(),
+                    List.of(criarMediaDaImagem(base64Image))
+                );
+            } else {
+                userMessage = new UserMessage(prompt.toString());
+            }
+
+            ChatResponse response = chatModel.call(new Prompt(userMessage));
+            String jsonResult = response.getResult().getOutput().getContent().trim();
+            if (jsonResult.startsWith("```json")) {
+                jsonResult = jsonResult.replace("```json", "").replace("```", "").trim();
+            } else if (jsonResult.startsWith("```")) {
+                jsonResult = jsonResult.replace("```", "").trim();
+            }
+
+            JsonNode rootNode = objectMapper.readTree(jsonResult);
+            String prioridade = rootNode.has("prioridade") ? rootNode.get("prioridade").asText().toUpperCase() : "MEDIA";
+            if (List.of("BAIXA", "MEDIA", "ALTA", "URGENTE").contains(prioridade)) {
+                return prioridade;
+            }
+            return "MEDIA";
+        } catch (Exception e) {
+            System.err.println("Erro ao priorizar demanda pela IA: " + e.getMessage());
+            return "MEDIA";
+        }
+    }
+
+    private Media criarMediaDaImagem(String base64Image) {
+        byte[] imageBytes = extrairBytesImagem(base64Image);
+        String mimeType = base64Image.startsWith("data:image/png")
+                ? MimeTypeUtils.IMAGE_PNG_VALUE
+                : MimeTypeUtils.IMAGE_JPEG_VALUE;
+        return new Media(MimeTypeUtils.parseMimeType(mimeType), new ByteArrayResource(imageBytes));
+    }
+
+    private byte[] extrairBytesImagem(String base64Image) {
+        String pureBase64 = base64Image;
+        if (base64Image.contains(",")) {
+            pureBase64 = base64Image.split(",")[1];
+        }
+        return Base64.getDecoder().decode(pureBase64);
     }
 }

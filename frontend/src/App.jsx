@@ -24,16 +24,17 @@ import Equipes from './pages/admin/Equipes';
 import Relatorios from './pages/admin/Relatorios';
 import Suporte from './pages/admin/Suporte';
 
-function PrivateRoute({ children, role }) {
+function PrivateRoute({ children, role, roles }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  if (role && user.perfil !== role) return <Navigate to="/login" replace />;
+  const allowed = roles ?? [role].filter(Boolean);
+  if (allowed.length > 0 && !allowed.includes(user.perfil)) return <Navigate to="/login" replace />;
   return children;
 }
 
 function AdminHome() {
   const { user } = useAuth();
-  if (user?.perfil === 'ADMIN') return <SystemDashboard />;
+  if (user?.perfil === 'ADMIN' || user?.perfil === 'ANALYTICS_ADMIN') return <SystemDashboard />;
   if (user?.perfil === 'GESTOR') return <Navigate to="/admin/dashboard" replace />;
   return <Navigate to="/login" replace />;
 }
@@ -56,11 +57,11 @@ function AppRoutes() {
 
       {/* Admin */}
       <Route path="/admin" element={<PrivateRoute><AdminHome /></PrivateRoute>} />
-      <Route path="/admin/dashboard" element={<PrivateRoute role="GESTOR"><Dashboard /></PrivateRoute>} />
-      <Route path="/admin/mapa" element={<PrivateRoute><MapaOcorrencias /></PrivateRoute>} />
-      <Route path="/admin/solicitacoes" element={<PrivateRoute><Solicitacoes /></PrivateRoute>} />
-      <Route path="/admin/equipes" element={<PrivateRoute><Equipes /></PrivateRoute>} />
-      <Route path="/admin/relatorios" element={<PrivateRoute><Relatorios /></PrivateRoute>} />
+      <Route path="/admin/dashboard" element={<PrivateRoute roles={['GESTOR', 'ANALYTICS_ADMIN']}><Dashboard /></PrivateRoute>} />
+      <Route path="/admin/mapa" element={<PrivateRoute roles={['ADMIN', 'GESTOR']}><MapaOcorrencias /></PrivateRoute>} />
+      <Route path="/admin/solicitacoes" element={<PrivateRoute roles={['ADMIN', 'GESTOR']}><Solicitacoes /></PrivateRoute>} />
+      <Route path="/admin/equipes" element={<PrivateRoute roles={['ADMIN', 'GESTOR']}><Equipes /></PrivateRoute>} />
+      <Route path="/admin/relatorios" element={<PrivateRoute roles={['ADMIN', 'GESTOR', 'ANALYTICS_ADMIN']}><Relatorios /></PrivateRoute>} />
       <Route path="/admin/suporte" element={<PrivateRoute role="GESTOR"><Suporte /></PrivateRoute>} />
 
       {/* Fallback */}

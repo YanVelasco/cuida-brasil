@@ -26,6 +26,18 @@ const getNavSections = (perfil, solicitacoesCount) => {
     ];
   }
 
+  if (perfil === 'ANALYTICS_ADMIN') {
+    return [
+      {
+        label: 'ANALÍTICA',
+        items: [
+          { to: '/admin', label: 'Dashboard Geral', end: true },
+          { to: '/admin/relatorios', label: 'Relatórios Administrativos' },
+        ]
+      }
+    ];
+  }
+
   // Gestor
   return [
     {
@@ -150,7 +162,11 @@ export default function Sidebar({ isOpen, onClose }) {
           <div className={styles.avatar}>{user?.nome?.[0] ?? 'A'}</div>
           <div>
             <div className={styles.userName}>{user?.nome?.split(' ')[0] ?? 'Usuário A.'}</div>
-            <div className={styles.userRole}>{user?.perfil === 'ADMIN' ? 'Administrador' : 'Gestor'}</div>
+            <div className={styles.userRole}>{
+              user?.perfil === 'ADMIN' ? 'Administrador' :
+              user?.perfil === 'ANALYTICS_ADMIN' ? 'Administrador de Analytics' :
+              'Gestor'
+            }</div>
           </div>
         </div>
         <button className={styles.logoutBtn} onClick={handleLogout} title="Sair">

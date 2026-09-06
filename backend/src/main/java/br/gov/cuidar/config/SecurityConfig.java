@@ -43,8 +43,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/servicos").permitAll()
-                .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "GESTOR")
-                .requestMatchers("/api/relatorios/**").hasAnyRole("ADMIN", "GESTOR")
+                .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "GESTOR", "ANALYTICS_ADMIN")
+                .requestMatchers("/api/relatorios/**").hasAnyRole("ADMIN", "GESTOR", "ANALYTICS_ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

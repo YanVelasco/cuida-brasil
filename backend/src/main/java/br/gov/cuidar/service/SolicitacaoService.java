@@ -1,7 +1,12 @@
 package br.gov.cuidar.service;
 
+import java.text.Normalizer;
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
@@ -74,6 +79,8 @@ public class SolicitacaoService {
         sol.setStatus("PENDENTE");
         sol.setUsuario(usuario);
         sol.setServico(servico);
+        sol.setPrioridade(visionValidationService.determinarPrioridade(req.getDescricao(), servico.getSubcategoria(), req.getFotos()));
+        sol.setEquipe(resolverEquipeParaServico(servico));
         sol = solicitacaoRepository.save(sol);
 
         Historico hist = new Historico();
@@ -81,6 +88,10 @@ public class SolicitacaoService {
         hist.setSolicitacao(sol);
         hist.setUsuario(usuario);
         historicoRepository.save(hist);
+
+        auditoriaService.registrar("CRIACAO_SOLICITACAO",
+            "Solicitacao " + sol.getProtocolo() + " criada por " + usuario.getNome() + " para o servico " + servico.getCategoria() + " / " + servico.getSubcategoria(),
+            usuario.getCpf(), usuario, true, null);
 
         return toResponse(sol);
     }
@@ -94,6 +105,9 @@ public class SolicitacaoService {
                 && endereco != null && !endereco.isBlank()) {
             sol.setEndereco(endereco.trim());
             sol = solicitacaoRepository.save(sol);
+            auditoriaService.registrar("ATUALIZACAO_ENDERECO",
+                "Endereco resolvido para solicitacao " + sol.getProtocolo() + ": " + endereco,
+                sol.getUsuario().getCpf(), sol.getUsuario(), true, null);
         }
         return toResponse(sol);
     }
@@ -220,6 +234,10 @@ public class SolicitacaoService {
         h.setUsuario(usuario);
         historicoRepository.save(h);
 
+        auditoriaService.registrar("ALTERACAO_STATUS_SOLICITACAO",
+            "Solicitacao " + sol.getProtocolo() + " atualizada para status " + req.getStatus() + (req.getIdEquipe() != null ? " e equipe " + req.getIdEquipe() : "") + (req.getPrioridade() != null ? " / prioridade " + req.getPrioridade() : ""),
+            usuario.getCpf(), usuario, true, null);
+
         return toResponse(sol);
     }
 
@@ -238,6 +256,9 @@ public class SolicitacaoService {
         if (req.getComentario() != null) sol.setFeedbackComentario(req.getComentario().trim());
 
         sol = solicitacaoRepository.save(sol);
+        auditoriaService.registrar("AVALIACAO_SOLICITACAO",
+            "Solicitacao " + sol.getProtocolo() + " avaliada por " + usuario.getNome() + " com notas Prazos=" + sol.getNotaPrazos() + ", Qualidade=" + sol.getNotaQualidade() + ", Atendimento=" + sol.getNotaAtendimento(),
+            usuario.getCpf(), usuario, true, null);
         return toResponse(sol);
     }
 
@@ -254,6 +275,74 @@ public class SolicitacaoService {
         auditoriaService.registrar("EXCLUSAO_SOLICITACAO",
             "Solicitacao " + protocolo + " excluida por " + usuario.getNome(),
             usuario.getCpf(), usuario, true, request);
+    }
+
+    private EquipePublica resolverEquipeParaServico(Servico servico) {
+        if (servico == null) return null;
+
+        String referencia = normalizar(servico.getCategoria() + " " + servico.getSubcategoria());
+        if (referencia.isBlank()) {
+            return null;
+        }
+
+        EquipePublica melhorEquipe = null;
+        int melhorScore = 0;
+
+        for (EquipePublica equipe : equipeRepository.findByAtivoTrue()) {
+            if (equipe == null || !Boolean.TRUE.equals(equipe.getAtivo())) {
+                continue;
+            }
+
+            String nomeEquipe = normalizar(equipe.getNome());
+            int score = calcularScoreSemelhanca(referencia, nomeEquipe);
+            if (score > melhorScore) {
+                melhorScore = score;
+                melhorEquipe = equipe;
+            }
+        }
+
+        return melhorScore > 0 ? melhorEquipe : null;
+    }
+
+    private int calcularScoreSemelhanca(String referencia, String nomeEquipe) {
+        if (referencia == null || nomeEquipe == null || referencia.isBlank() || nomeEquipe.isBlank()) {
+            return 0;
+        }
+
+        Set<String> tokensReferencia = tokens(referencia);
+        Set<String> tokensEquipe = tokens(nomeEquipe);
+        if (tokensReferencia.isEmpty() || tokensEquipe.isEmpty()) {
+            return 0;
+        }
+
+        Set<String> interseccao = new HashSet<>(tokensReferencia);
+        interseccao.retainAll(tokensEquipe);
+
+        return interseccao.size();
+    }
+
+    private Set<String> tokens(String valor) {
+        if (valor == null || valor.isBlank()) {
+            return Set.of();
+        }
+
+        return Arrays.stream(valor.split("[^a-z0-9]+"))
+            .map(String::trim)
+            .filter(token -> !token.isBlank())
+            .collect(Collectors.toCollection(HashSet::new));
+    }
+
+    private String normalizar(String valor) {
+        if (valor == null) {
+            return "";
+        }
+
+        String normalizado = Normalizer.normalize(valor, Normalizer.Form.NFD);
+        normalizado = normalizado.replaceAll("[\\p{InCombiningDiacriticalMarks}]", "");
+        normalizado = normalizado.toLowerCase(Locale.ROOT);
+        normalizado = normalizado.replaceAll("[^a-z0-9\\s]", " ");
+        normalizado = normalizado.replaceAll("\\s+", " ").trim();
+        return normalizado;
     }
 
     private Response toResponse(Solicitacao s) {

@@ -10,6 +10,7 @@ import br.gov.cuidar.entity.Usuario;
 import br.gov.cuidar.entity.Gestor;
 import br.gov.cuidar.dto.NovaEquipeDTO;
 import br.gov.cuidar.dto.NovoGestorDTO;
+import br.gov.cuidar.service.AuditoriaService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.ResponseEntity;
@@ -30,28 +31,49 @@ public class EquipeController {
     private final GestorRepository gestorRepo;
     private final br.gov.cuidar.repository.SolicitacaoRepository solRepo;
     private final PasswordEncoder passwordEncoder;
+    private final AuditoriaService auditoriaService;
 
     public EquipeController(EquipePublicaRepository eqRepo, OrgaoPublicoRepository orgaoRepo,
                             UsuarioRepository userRepo, GestorRepository gestorRepo,
                             br.gov.cuidar.repository.SolicitacaoRepository solRepo,
-                            PasswordEncoder passwordEncoder) { 
+                            PasswordEncoder passwordEncoder, AuditoriaService auditoriaService) { 
         this.eqRepo = eqRepo; 
         this.orgaoRepo = orgaoRepo;
         this.userRepo = userRepo;
         this.gestorRepo = gestorRepo;
         this.solRepo = solRepo;
         this.passwordEncoder = passwordEncoder;
+        this.auditoriaService = auditoriaService;
     }
     @GetMapping @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
-    public ResponseEntity<ApiResponse<List<EquipePublica>>> listar(@AuthenticationPrincipal Usuario usuario) {
+    public ResponseEntity<ApiResponse<List<java.util.Map<String, Object>>>> listar(@AuthenticationPrincipal Usuario usuario) {
+        List<EquipePublica> equipes;
         if (isGestor(usuario)) {
-            return ResponseEntity.ok(ApiResponse.ok(gestorRepo.findEquipeIdByUsuarioId(usuario.getId())
+            equipes = gestorRepo.findEquipeIdByUsuarioId(usuario.getId())
                     .flatMap(eqRepo::findById)
                     .filter(equipe -> Boolean.TRUE.equals(equipe.getAtivo()))
                     .map(List::of)
-                    .orElseGet(List::of)));
+                    .orElseGet(List::of);
+        } else {
+            equipes = eqRepo.findByAtivoTrue();
         }
-        return ResponseEntity.ok(ApiResponse.ok(eqRepo.findByAtivoTrue()));
+
+        List<java.util.Map<String, Object>> response = equipes.stream().map(equipe -> {
+            java.util.Map<String, Object> item = new java.util.LinkedHashMap<>();
+            item.put("id", equipe.getId());
+            item.put("nome", equipe.getNome());
+            item.put("ativo", equipe.getAtivo());
+            item.put("statusOperacional", equipe.getStatusOperacional());
+            item.put("orgao", equipe.getOrgao() != null ? java.util.Map.of(
+                "id", equipe.getOrgao().getId(),
+                "nome", equipe.getOrgao().getNome(),
+                "sigla", equipe.getOrgao().getSigla(),
+                "areaAtendimento", equipe.getOrgao().getAreaAtendimento()
+            ) : null);
+            return item;
+        }).toList();
+
+        return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
     @GetMapping("/dashboard") @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
@@ -135,14 +157,18 @@ public class EquipeController {
     }
 
     @PostMapping @PreAuthorize("hasRole('GESTOR')")
-    public ResponseEntity<ApiResponse<EquipePublica>> criarEquipe(@RequestBody NovaEquipeDTO dto) {
+    public ResponseEntity<ApiResponse<EquipePublica>> criarEquipe(@RequestBody NovaEquipeDTO dto, @AuthenticationPrincipal Usuario usuario) {
         Long orgaoId = java.util.Objects.requireNonNull(dto.getIdOrgao(), "ID do órgão não pode ser nulo");
         OrgaoPublico orgao = orgaoRepo.findById(orgaoId).orElseThrow(() -> new RuntimeException("Órgão não encontrado"));
         EquipePublica equipe = new EquipePublica();
         equipe.setNome(dto.getNome());
         equipe.setOrgao(orgao);
         equipe.setAtivo(true);
-        return ResponseEntity.ok(ApiResponse.ok(eqRepo.save(equipe)));
+        equipe = eqRepo.save(equipe);
+        auditoriaService.registrar("CRIACAO_EQUIPE",
+            "Equipe " + equipe.getNome() + " criada pelo gestor " + usuario.getNome() + " para o orgao " + orgao.getNome(),
+            usuario.getCpf(), usuario, true, null);
+        return ResponseEntity.ok(ApiResponse.ok(equipe));
     }
 
     /**
@@ -177,12 +203,16 @@ public class EquipeController {
         gestor.setEquipe(equipe);
         gestor = gestorRepo.save(gestor);
 
+        auditoriaService.registrar("ADICAO_MEMBRO_EQUIPE",
+            "Usuario " + user.getNome() + " (" + perfil + ") adicionado na equipe " + equipe.getNome() + " por " + usuario.getNome(),
+            usuario.getCpf(), usuario, true, null);
+
         return ResponseEntity.ok(ApiResponse.ok(gestor));
     }
 
     /** ADMIN remove um gestor da equipe (desativa o usuário vinculado). */
     @DeleteMapping("/membros/{membroId}") @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> removerGestor(@PathVariable Long membroId) {
+    public ResponseEntity<ApiResponse<Void>> removerGestor(@PathVariable Long membroId, @AuthenticationPrincipal Usuario usuario) {
         Gestor membro = gestorRepo.findById(membroId)
                 .orElseThrow(() -> new RuntimeException("Membro não encontrado"));
         if (!"GESTOR".equals(membro.getUsuario().getPerfil())) {
@@ -192,6 +222,9 @@ public class EquipeController {
         gestorRepo.delete(membro);
         user.setAtivo(false);
         userRepo.save(user);
+        auditoriaService.registrar("REMOCAO_MEMBRO_EQUIPE",
+            "Gestor " + user.getNome() + " removido da equipe " + membro.getEquipe().getNome() + " por " + usuario.getNome(),
+            usuario.getCpf(), usuario, true, null);
         return ResponseEntity.ok(ApiResponse.ok("Gestor removido com sucesso", null));
     }
 

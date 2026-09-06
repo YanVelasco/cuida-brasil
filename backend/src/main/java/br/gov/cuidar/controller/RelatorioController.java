@@ -22,10 +22,12 @@ import br.gov.cuidar.repository.GestorRepository;
 import br.gov.cuidar.repository.OrgaoPublicoRepository;
 import br.gov.cuidar.repository.SolicitacaoRepository;
 import br.gov.cuidar.repository.UsuarioRepository;
+import br.gov.cuidar.service.AuditoriaService;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/relatorios")
-@PreAuthorize("hasAnyRole('ADMIN', 'GESTOR')")
+@PreAuthorize("hasAnyRole('ADMIN', 'GESTOR', 'ANALYTICS_ADMIN')")
 public class RelatorioController {
 
     private final SolicitacaoRepository solRepo;
@@ -33,21 +35,25 @@ public class RelatorioController {
     private final UsuarioRepository usuarioRepo;
     private final EquipePublicaRepository equipeRepo;
     private final OrgaoPublicoRepository orgaoRepo;
+    private final AuditoriaService auditoriaService;
 
     public RelatorioController(SolicitacaoRepository solRepo, GestorRepository gestorRepo,
-            UsuarioRepository usuarioRepo, EquipePublicaRepository equipeRepo, OrgaoPublicoRepository orgaoRepo) {
+            UsuarioRepository usuarioRepo, EquipePublicaRepository equipeRepo, OrgaoPublicoRepository orgaoRepo,
+            AuditoriaService auditoriaService) {
         this.solRepo = solRepo;
         this.gestorRepo = gestorRepo;
         this.usuarioRepo = usuarioRepo;
         this.equipeRepo = equipeRepo;
         this.orgaoRepo = orgaoRepo;
+        this.auditoriaService = auditoriaService;
     }
 
         @GetMapping("/resumo")
         public ResponseEntity<ApiResponse<Map<String, Long>>> resumo(
             @AuthenticationPrincipal Usuario usuario,
             @RequestParam String inicio, @RequestParam String fim,
-            @RequestParam(required = false) String gestor) {
+            @RequestParam(required = false) String gestor,
+            HttpServletRequest request) {
         LocalDateTime inicioData = LocalDate.parse(inicio).atStartOfDay();
         LocalDateTime fimData = LocalDate.parse(fim).plusDays(1).atStartOfDay();
         String filtroGestor = "GESTOR".equals(usuario.getPerfil()) ? usuario.getNome() : gestor;
@@ -59,6 +65,9 @@ public class RelatorioController {
         result.put("abertas", solRepo.countByStatusAndPeriod("PENDENTE", inicioData, fimData, filtroGestor)
             + solRepo.countByStatusAndPeriod("TRIAGEM", inicioData, fimData, filtroGestor));
         result.put("urgentes", solRepo.countUrgentesByPeriod(inicioData, fimData, filtroGestor));
+        auditoriaService.registrar("CONSULTA_RELATORIO_RESUMO",
+            "Resumo solicitado por " + usuario.getNome() + " no periodo " + inicio + " a " + fim + (gestor != null ? " para gestor " + gestor : ""),
+            usuario.getCpf(), usuario, true, request);
         return ResponseEntity.ok(ApiResponse.ok(result));
         }
 
@@ -70,7 +79,8 @@ public class RelatorioController {
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> porCategoria(
             @AuthenticationPrincipal Usuario usuario,
             @RequestParam String inicio, @RequestParam String fim,
-            @RequestParam(required = false) String gestor) {
+            @RequestParam(required = false) String gestor,
+            HttpServletRequest request) {
 
         List<Object[]> raw;
         if (inicio != null && fim != null) {
@@ -97,6 +107,9 @@ public class RelatorioController {
             item.put("pct", pct);
             result.add(item);
         }
+        auditoriaService.registrar("CONSULTA_RELATORIO_CATEGORIA",
+            "Relatorio por categoria solicitado por " + usuario.getNome() + " no periodo " + inicio + " a " + fim,
+            usuario.getCpf(), usuario, true, request);
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
@@ -107,8 +120,9 @@ public class RelatorioController {
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> porStatus(
             @AuthenticationPrincipal Usuario usuario,
             @RequestParam String inicio, @RequestParam String fim,
-            @RequestParam(required = false) String gestor) {
-
+            @RequestParam(required = false) String gestor,
+            HttpServletRequest request) {
+ 
         List<Object[]> raw;
         if (inicio != null && fim != null) {
             LocalDateTime inicioData = LocalDate.parse(inicio).atStartOfDay();
@@ -121,7 +135,7 @@ public class RelatorioController {
         } else {
             raw = solRepo.countByStatusGrouped();
         }
-
+ 
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object[] row : raw) {
             Map<String, Object> item = new LinkedHashMap<>();
@@ -129,6 +143,9 @@ public class RelatorioController {
             item.put("total", ((Number) row[1]).longValue());
             result.add(item);
         }
+        auditoriaService.registrar("CONSULTA_RELATORIO_STATUS",
+            "Relatorio por status solicitado por " + usuario.getNome() + " no periodo " + inicio + " a " + fim,
+            usuario.getCpf(), usuario, true, request);
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
@@ -136,10 +153,12 @@ public class RelatorioController {
      * Retorna a tendência mensal dos últimos 6 meses (global — apenas ADMIN).
      */
     @GetMapping("/tendencia-mensal")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYTICS_ADMIN')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> tendenciaMensal(
             @RequestParam(required = false) String inicio, @RequestParam(required = false) String fim,
-            @RequestParam(required = false) String gestor) {
+            @RequestParam(required = false) String gestor,
+            @AuthenticationPrincipal Usuario usuario,
+            HttpServletRequest request) {
         LocalDateTime fimData = fim != null ? LocalDate.parse(fim).plusDays(1).atStartOfDay() : LocalDateTime.now().plusDays(1);
         LocalDateTime inicioData = inicio != null ? LocalDate.parse(inicio).atStartOfDay() : fimData.minusMonths(6);
         List<Object[]> raw = solRepo.tendenciaMensalPeriod(inicioData, fimData, gestor);
@@ -153,6 +172,9 @@ public class RelatorioController {
             item.put("total", ((Number) row[2]).longValue());
             result.add(item);
         }
+        auditoriaService.registrar("CONSULTA_RELATORIO_TENDENCIA",
+            "Tendencia mensal consultada por " + usuario.getNome() + " com filtro gestor=" + gestor,
+            usuario.getCpf(), usuario, true, request);
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
@@ -161,7 +183,7 @@ public class RelatorioController {
      * taxa de conclusão, tempo médio de resolução, cobertura territorial, engajamento.
      */
     @GetMapping("/indicadores")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> indicadores() {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> indicadores(@AuthenticationPrincipal Usuario usuario, HttpServletRequest request) {
         long total = solRepo.count();
         long concluidas = solRepo.countByStatus("CONCLUIDA");
         Double tempoMedio = solRepo.tempoMedioResolucaoDias();
@@ -181,6 +203,9 @@ public class RelatorioController {
         result.put("equipesOperacionais", equipeRepo.count());
         result.put("orgaosIntegrados", orgaoRepo.count());
         result.put("regioesAtendidas", regioes);
+        auditoriaService.registrar("CONSULTA_INDICADORES_NACIONAIS",
+            "Indicadores nacionais consultados por " + usuario.getNome(),
+            usuario.getCpf(), usuario, true, request);
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
@@ -189,7 +214,7 @@ public class RelatorioController {
      * usada pela IA para sugerir a equipe mais adequada a cada demanda.
      */
     @GetMapping("/matriz-ia")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> matrizIA() {
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> matrizIA(@AuthenticationPrincipal Usuario usuario, HttpServletRequest request) {
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object[] row : solRepo.matrizServicoPrioridadeEquipe()) {
             Map<String, Object> item = new LinkedHashMap<>();
@@ -199,6 +224,9 @@ public class RelatorioController {
             item.put("atendimentos", ((Number) row[3]).longValue());
             result.add(item);
         }
+        auditoriaService.registrar("CONSULTA_MATRIZ_IA",
+            "Matriz IA consultada por " + usuario.getNome(),
+            usuario.getCpf(), usuario, true, request);
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
@@ -207,7 +235,7 @@ public class RelatorioController {
      * extraída do endereço), com abertas, concluídas e urgentes por região.
      */
     @GetMapping("/territorial")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> territorial() {
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> territorial(@AuthenticationPrincipal Usuario usuario, HttpServletRequest request) {
         Map<String, long[]> porRegiao = new LinkedHashMap<>();
         for (Object[] row : solRepo.dadosTerritoriais()) {
             String regiao = extrairRegiao((String) row[0], (String) row[1]);
@@ -234,6 +262,9 @@ public class RelatorioController {
                 item.put("criticidade", c[0] > 0 ? Math.round(c[3] * 100.0 / c[0]) : 0);
                 result.add(item);
             });
+        auditoriaService.registrar("CONSULTA_RELATORIO_TERRITORIAL",
+            "Relatorio territorial consultado por " + usuario.getNome(),
+            usuario.getCpf(), usuario, true, request);
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 

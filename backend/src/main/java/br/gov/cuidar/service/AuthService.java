@@ -61,6 +61,10 @@ public class AuthService {
         
         user = usuarioRepository.save(user);
 
+        auditoriaService.registrar("CADASTRO_USUARIO",
+            "Cadastro realizado com sucesso para " + user.getNome() + " (" + user.getPerfil() + ")",
+            user.getCpf(), user, true, null);
+
         String token = jwtProvider.generateToken(user.getId(), user.getCpf(), user.getNome(), user.getPerfil());
         return new AuthResponse(token, "Bearer", user.getId(), user.getNome(), user.getCpf(), user.getEmail(), user.getPerfil());
     }
