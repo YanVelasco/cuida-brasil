@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { RegionProvider } from './contexts/RegionContext';
@@ -69,15 +69,27 @@ function AppRoutes() {
   );
 }
 
+function AppShell() {
+  const location = useLocation();
+  const { user } = useAuth();
+  const showVLibras = !location.pathname.startsWith('/app') && user?.perfil !== 'CITIZEN';
+
+  return (
+    <>
+      <AppRoutes />
+      <AIChatbot />
+      {showVLibras && <VLibrasWidget />}
+    </>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <ThemeProvider>
           <RegionProvider>
-            <AppRoutes />
-            <AIChatbot />
-            <VLibrasWidget />
+            <AppShell />
           </RegionProvider>
         </ThemeProvider>
       </AuthProvider>

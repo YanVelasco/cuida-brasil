@@ -22,6 +22,14 @@ public class Solicitacao {
     private String status = "PENDENTE";
     @Column(length = 20)
     private String prioridade;
+    @Column
+    private Integer notaPrazos;
+    @Column
+    private Integer notaQualidade;
+    @Column
+    private Integer notaAtendimento;
+    @Column(length = 2000)
+    private String feedbackComentario;
     @Column(nullable = false)
     private LocalDateTime dataCriacao = LocalDateTime.now();
     private LocalDate dataConclusao;
@@ -48,6 +56,10 @@ public class Solicitacao {
     public String getEndereco() { return endereco; } public void setEndereco(String endereco) { this.endereco = endereco; }
     public String getStatus() { return status; } public void setStatus(String status) { this.status = status; }
     public String getPrioridade() { return prioridade; } public void setPrioridade(String prioridade) { this.prioridade = prioridade; }
+    public Integer getNotaPrazos() { return notaPrazos; } public void setNotaPrazos(Integer notaPrazos) { this.notaPrazos = notaPrazos; }
+    public Integer getNotaQualidade() { return notaQualidade; } public void setNotaQualidade(Integer notaQualidade) { this.notaQualidade = notaQualidade; }
+    public Integer getNotaAtendimento() { return notaAtendimento; } public void setNotaAtendimento(Integer notaAtendimento) { this.notaAtendimento = notaAtendimento; }
+    public String getFeedbackComentario() { return feedbackComentario; } public void setFeedbackComentario(String feedbackComentario) { this.feedbackComentario = feedbackComentario; }
     public LocalDateTime getDataCriacao() { return dataCriacao; } public void setDataCriacao(LocalDateTime dataCriacao) { this.dataCriacao = dataCriacao; }
     public LocalDate getDataConclusao() { return dataConclusao; } public void setDataConclusao(LocalDate dataConclusao) { this.dataConclusao = dataConclusao; }
     public Usuario getUsuario() { return usuario; } public void setUsuario(Usuario usuario) { this.usuario = usuario; }

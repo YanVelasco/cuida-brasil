@@ -11,6 +11,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import br.gov.cuidar.dto.SolicitacaoDTO.AvaliacaoRequest;
 import br.gov.cuidar.dto.SolicitacaoDTO.CreateRequest;
 import br.gov.cuidar.dto.SolicitacaoDTO.HistoricoDTO;
 import br.gov.cuidar.dto.SolicitacaoDTO.Response;
@@ -222,6 +223,24 @@ public class SolicitacaoService {
         return toResponse(sol);
     }
 
+    @Transactional
+    public Response avaliar(Long solicitacaoId, AvaliacaoRequest req, Usuario usuario) {
+        Solicitacao sol = solicitacaoRepository.findById(solicitacaoId)
+            .orElseThrow(() -> new RuntimeException("Solicitacao nao encontrada"));
+
+        if (!sol.getUsuario().getId().equals(usuario.getId()) && !"ADMIN".equals(usuario.getPerfil())) {
+            throw new IllegalStateException("Você só pode avaliar sua própria solicitação");
+        }
+
+        if (req.getPrazos() != null) sol.setNotaPrazos(req.getPrazos());
+        if (req.getQualidade() != null) sol.setNotaQualidade(req.getQualidade());
+        if (req.getAtendimento() != null) sol.setNotaAtendimento(req.getAtendimento());
+        if (req.getComentario() != null) sol.setFeedbackComentario(req.getComentario().trim());
+
+        sol = solicitacaoRepository.save(sol);
+        return toResponse(sol);
+    }
+
     /**
      * Exclui uma solicitação (completa o CRUD). Apenas ADMIN.
      * Históricos e anexos são removidos em cascata e a exclusão é auditada.
@@ -245,7 +264,7 @@ public class SolicitacaoService {
         Response r = new Response();
         r.setId(s.getId()); r.setProtocolo(s.getProtocolo()); r.setDescricao(s.getDescricao());
         r.setGps(s.getGps()); r.setEndereco(s.getEndereco()); r.setStatus(s.getStatus()); r.setPrioridade(s.getPrioridade());
-        r.setFotos(s.getFotos()); r.setDataCriacao(s.getDataCriacao()); r.setDataConclusao(s.getDataConclusao());
+        r.setFotos(s.getFotos()); r.setNotaPrazos(s.getNotaPrazos()); r.setNotaQualidade(s.getNotaQualidade()); r.setNotaAtendimento(s.getNotaAtendimento()); r.setFeedbackComentario(s.getFeedbackComentario()); r.setDataCriacao(s.getDataCriacao()); r.setDataConclusao(s.getDataConclusao());
         r.setNomeUsuario(s.getUsuario().getNome());
         r.setNomeEquipe(s.getEquipe() != null ? s.getEquipe().getNome() : null);
         r.setIdEquipe(s.getEquipe() != null ? s.getEquipe().getId() : null);

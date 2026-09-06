@@ -33,9 +33,21 @@ public class SolicitacaoDTO {
         public String getComentario() { return comentario; } public void setComentario(String comentario) { this.comentario = comentario; }
     }
 
+    public static class AvaliacaoRequest {
+        @Min(1) @Max(5) private Integer prazos;
+        @Min(1) @Max(5) private Integer qualidade;
+        @Min(1) @Max(5) private Integer atendimento;
+        @Size(max = 2000) private String comentario;
+        public AvaliacaoRequest() {}
+        public Integer getPrazos() { return prazos; } public void setPrazos(Integer prazos) { this.prazos = prazos; }
+        public Integer getQualidade() { return qualidade; } public void setQualidade(Integer qualidade) { this.qualidade = qualidade; }
+        public Integer getAtendimento() { return atendimento; } public void setAtendimento(Integer atendimento) { this.atendimento = atendimento; }
+        public String getComentario() { return comentario; } public void setComentario(String comentario) { this.comentario = comentario; }
+    }
+
     public static class Response {
         private Long id; private String protocolo; private String descricao; private String gps; private String endereco;
-        private String status; private String prioridade; private String fotos; private LocalDateTime dataCriacao;
+        private String status; private String prioridade; private String fotos; private Integer notaPrazos; private Integer notaQualidade; private Integer notaAtendimento; private String feedbackComentario; private LocalDateTime dataCriacao;
         private LocalDate dataConclusao; private String nomeUsuario; private String nomeEquipe; private Long idEquipe;
         private String categoriaServico; private String subcategoriaServico; private List<HistoricoDTO> historicos;
         public Response() {}
@@ -47,6 +59,10 @@ public class SolicitacaoDTO {
         public String getStatus() { return status; } public void setStatus(String status) { this.status = status; }
         public String getPrioridade() { return prioridade; } public void setPrioridade(String prioridade) { this.prioridade = prioridade; }
         public String getFotos() { return fotos; } public void setFotos(String fotos) { this.fotos = fotos; }
+        public Integer getNotaPrazos() { return notaPrazos; } public void setNotaPrazos(Integer notaPrazos) { this.notaPrazos = notaPrazos; }
+        public Integer getNotaQualidade() { return notaQualidade; } public void setNotaQualidade(Integer notaQualidade) { this.notaQualidade = notaQualidade; }
+        public Integer getNotaAtendimento() { return notaAtendimento; } public void setNotaAtendimento(Integer notaAtendimento) { this.notaAtendimento = notaAtendimento; }
+        public String getFeedbackComentario() { return feedbackComentario; } public void setFeedbackComentario(String feedbackComentario) { this.feedbackComentario = feedbackComentario; }
         public LocalDateTime getDataCriacao() { return dataCriacao; } public void setDataCriacao(LocalDateTime dataCriacao) { this.dataCriacao = dataCriacao; }
         public LocalDate getDataConclusao() { return dataConclusao; } public void setDataConclusao(LocalDate dataConclusao) { this.dataConclusao = dataConclusao; }
         public String getNomeUsuario() { return nomeUsuario; } public void setNomeUsuario(String nomeUsuario) { this.nomeUsuario = nomeUsuario; }

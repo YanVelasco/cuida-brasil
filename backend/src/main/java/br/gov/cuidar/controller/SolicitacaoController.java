@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import br.gov.cuidar.dto.ApiResponse;
+import br.gov.cuidar.dto.SolicitacaoDTO.AvaliacaoRequest;
 import br.gov.cuidar.dto.SolicitacaoDTO.CreateRequest;
 import br.gov.cuidar.dto.SolicitacaoDTO.Response;
 import br.gov.cuidar.dto.SolicitacaoDTO.UpdateStatusRequest;
@@ -67,6 +68,10 @@ public class SolicitacaoController {
     @PutMapping("/{id}/status") @PreAuthorize("hasRole('GESTOR')")
     public ResponseEntity<ApiResponse<Response>> atualizarStatus(@PathVariable Long id, @Valid @RequestBody UpdateStatusRequest req, @AuthenticationPrincipal Usuario usuario) {
         return ResponseEntity.ok(ApiResponse.ok(sService.atualizarStatus(id, req, usuario.getId())));
+    }
+    @PostMapping("/{id}/avaliar")
+    public ResponseEntity<ApiResponse<Response>> avaliar(@PathVariable Long id, @Valid @RequestBody AvaliacaoRequest req, @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(ApiResponse.ok(sService.avaliar(id, req, usuario)));
     }
     /** Persiste o endereço resolvido por geocodificação reversa (só preenche se ainda estiver vazio). */
     @PatchMapping("/{id}/endereco")
