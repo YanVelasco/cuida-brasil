@@ -38,7 +38,7 @@ public class UsuarioController {
      * atrelados a ele (com solicitações atribuídas à sua equipe).
      */
     @GetMapping("/cidadaos")
-    @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listarCidadaos(@AuthenticationPrincipal Usuario usuario) {
         List<Usuario> usuarios;
         Map<Long, Long> solicitacoesPorUsuario;

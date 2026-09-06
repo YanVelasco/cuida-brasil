@@ -35,7 +35,7 @@ public class SolicitacaoController {
     public ResponseEntity<ApiResponse<Response>> criar(@Valid @RequestBody CreateRequest req, @AuthenticationPrincipal Usuario usuario) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Solicitacao criada", sService.criar(req, usuario.getId())));
     }
-    @GetMapping @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
+    @GetMapping @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")
     public ResponseEntity<ApiResponse<Page<Response>>> listar(@AuthenticationPrincipal Usuario usuario,
                                                             @RequestParam(required = false) String status,
                                                             @RequestParam(required = false) String gestor,
@@ -44,12 +44,12 @@ public class SolicitacaoController {
         return ResponseEntity.ok(ApiResponse.ok(sService.listarTodas(status, gestor, page, size, usuario)));
     }
     
-    @GetMapping("/nao-atribuidas") @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
+    @GetMapping("/nao-atribuidas") @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")
     public ResponseEntity<ApiResponse<java.util.List<Response>>> listarNaoAtribuidas() {
         return ResponseEntity.ok(ApiResponse.ok(sService.listarNaoAtribuidas()));
     }
-    /** Cidadãos que atrelaram um problema a um gestor: ADMIN vê todos, GESTOR só os da própria equipe. */
-    @GetMapping("/cidadaos") @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
+    /** Cidadãos que atrelaram um problema a um gestor: ADMIN e ANALYTICS_ADMIN vêem tudo, GESTOR só os da própria equipe. */
+    @GetMapping("/cidadaos") @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")
     public ResponseEntity<ApiResponse<java.util.List<java.util.Map<String, Object>>>> listarCidadaos(@AuthenticationPrincipal Usuario usuario) {
         return ResponseEntity.ok(ApiResponse.ok(sService.listarCidadaosPorGestor(usuario)));
     }

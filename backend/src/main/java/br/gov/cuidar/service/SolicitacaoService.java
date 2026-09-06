@@ -123,7 +123,8 @@ public class SolicitacaoService {
             result = status != null
                 ? solicitacaoRepository.findByStatusAndEquipeIdOrNullAndUnassigned(status, equipeId, pageable)
                 : solicitacaoRepository.findByEquipeIdOrNullAndUnassigned(equipeId, pageable);
-        } else if (gestor != null && !gestor.isBlank() && usuario != null && "ADMIN".equals(usuario.getPerfil())) {
+        } else if (gestor != null && !gestor.isBlank() && usuario != null
+                && ("ADMIN".equals(usuario.getPerfil()) || "ANALYTICS_ADMIN".equals(usuario.getPerfil()))) {
             result = status != null
                 ? solicitacaoRepository.findByStatusAndGestorNome(status, gestor, pageable)
                 : solicitacaoRepository.findByGestorNome(gestor, pageable);

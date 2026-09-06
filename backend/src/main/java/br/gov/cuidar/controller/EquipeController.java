@@ -45,7 +45,7 @@ public class EquipeController {
         this.passwordEncoder = passwordEncoder;
         this.auditoriaService = auditoriaService;
     }
-    @GetMapping @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
+    @GetMapping @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")
     public ResponseEntity<ApiResponse<List<java.util.Map<String, Object>>>> listar(@AuthenticationPrincipal Usuario usuario) {
         List<EquipePublica> equipes;
         if (isGestor(usuario)) {
@@ -76,7 +76,7 @@ public class EquipeController {
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
-    @GetMapping("/dashboard") @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
+    @GetMapping("/dashboard") @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")
     public ResponseEntity<ApiResponse<Page<br.gov.cuidar.dto.EquipeDashboardDTO>>> listarDashboard(
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal Usuario usuario) {
@@ -143,7 +143,7 @@ public class EquipeController {
         return ResponseEntity.ok(ApiResponse.ok(dtos));
     }
     
-    @GetMapping("/{id}/membros") @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
+    @GetMapping("/{id}/membros") @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")
     public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<br.gov.cuidar.dto.MembroDTO>>> listarMembros(
             @PathVariable Long id, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal Usuario usuario) {

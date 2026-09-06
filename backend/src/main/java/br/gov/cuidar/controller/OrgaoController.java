@@ -12,6 +12,6 @@ import java.util.List;
 public class OrgaoController {
     private final OrgaoPublicoRepository oRepo;
     public OrgaoController(OrgaoPublicoRepository oRepo) { this.oRepo = oRepo; }
-    @GetMapping @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
+    @GetMapping @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")
     public ResponseEntity<ApiResponse<List<OrgaoPublico>>> listar() { return ResponseEntity.ok(ApiResponse.ok(oRepo.findAll())); }
 }

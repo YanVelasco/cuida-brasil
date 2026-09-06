@@ -26,7 +26,7 @@ public class GestorController {
 
     /** Listagem de todos os gestores ativos da plataforma (visão do ADMIN). */
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','ANALYTICS_ADMIN')")
     public ResponseEntity<ApiResponse<java.util.List<java.util.Map<String, Object>>>> listarGestores() {
         java.util.List<java.util.Map<String, Object>> gestores = gestorRepo.findAllGestoresAtivos().stream()
                 .map(g -> {

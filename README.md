@@ -160,6 +160,7 @@ As *Migrations* do Flyway já inserem dados reais para que você não encontre o
 | Perfil | Usuário | CPF | Senha | Equipe Associada (Gestores) |
 | :--- | :--- | :--- | :--- | :--- |
 | **Administrador** | Administrador Sistema | `000.000.000-00` | `Admin@123` | *Acesso total (Sem equipe)* |
+| **Analytics Admin** | Analista de Analytics | `999.999.999-99` | `Analytics@123` | *Leitura + relatórios + auditoria* |
 | **Gestor** | Carlos Alberto Silva | `111.111.111-11` | `Gestor@123` | Equipe Pavimentação 01 |
 | **Gestor** | Ana Paula Ferreira | `333.333.333-33` | `Gestor@123` | Equipe Iluminação 01 |
 | **Gestor** | Roberto Oliveira Santos | `444.444.444-44` | `Gestor@123` | Equipe Saneamento 02 |
