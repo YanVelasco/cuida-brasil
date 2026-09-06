@@ -17,7 +17,14 @@ export default function Protocolo() {
   const loadAnexos = () => {
     if (!id) return;
     anexoService.listar(id)
-      .then(r => setAnexos(r.data?.data || r.data || []))
+      .then(r => {
+        const lista = r.data?.data || r.data || [];
+        if (lista.length === 0 && oc?.fotos) {
+          setAnexos([{ id: `foto-${id}`, arquivo: 'foto-da-solicitacao.jpg', url: oc.fotos, ehImagem: true }]);
+          return;
+        }
+        setAnexos(lista);
+      })
       .catch(() => setAnexos([]));
   };
 
@@ -26,8 +33,14 @@ export default function Protocolo() {
       ocorrenciaService.buscarPorId(id).then(r => {
         const ocData = r.data?.data || r.data;
         setOc(ocData);
-      }).catch(()=>{});
-      loadAnexos();
+        if (ocData?.fotos) {
+          setAnexos([{ id: `foto-${id}`, arquivo: 'foto-da-solicitacao.jpg', url: ocData.fotos, ehImagem: true }]);
+        } else {
+          loadAnexos();
+        }
+      }).catch(() => {
+        setAnexos([]);
+      });
     }
   }, [id]);
 
@@ -48,6 +61,13 @@ export default function Protocolo() {
 
   const handleDownload = async (anexo) => {
     try {
+      if (anexo.url && String(anexo.id).startsWith('foto-')) {
+        const link = document.createElement('a');
+        link.href = anexo.url;
+        link.download = anexo.arquivo || 'foto-da-solicitacao.jpg';
+        link.click();
+        return;
+      }
       const response = await anexoService.download(anexo.id);
       const url = URL.createObjectURL(response.data);
       const link = document.createElement('a');
@@ -95,11 +115,16 @@ export default function Protocolo() {
         {anexos.length > 0 ? (
           anexos.map((a) => (
             <div key={a.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', marginTop: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8}}>
-              <div style={{minWidth: 0}}>
-                <p style={{fontSize: '0.85rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{a.arquivo}</p>
-                <p style={{fontSize: '0.72rem', color: 'var(--text-muted)'}}>
-                  {a.autor ? `por ${a.autor} — ` : ''}{a.data ? new Date(a.data).toLocaleString('pt-BR') : ''}
-                </p>
+              <div style={{minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, flex: 1}}>
+                {a.url && (
+                  <img src={a.url} alt={a.arquivo || 'Foto da solicitação'} style={{width: 52, height: 52, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)'}} />
+                )}
+                <div style={{minWidth: 0, flex: 1}}>
+                  <p style={{fontSize: '0.85rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{a.arquivo}</p>
+                  <p style={{fontSize: '0.72rem', color: 'var(--text-muted)'}}>
+                    {a.autor ? `por ${a.autor} — ` : ''}{a.data ? new Date(a.data).toLocaleString('pt-BR') : ''}
+                  </p>
+                </div>
               </div>
               <button onClick={() => handleDownload(a)} title="Baixar anexo"
                 style={{background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: 8, cursor: 'pointer', color: 'var(--primary, #1351B4)', flexShrink: 0, display: 'flex'}}>

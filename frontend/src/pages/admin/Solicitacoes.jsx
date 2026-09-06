@@ -85,19 +85,37 @@ export default function Solicitacoes() {
     setFotosLoading(true);
     setFotos([]);
     try {
-      const resp = await anexoService.listar(row.id);
-      const anexos = resp.data?.data || [];
-      const carregados = await Promise.all(anexos.map(async (anexo) => {
-        const ehImagem = EXTENSOES_IMAGEM.test(anexo.arquivo || '');
-        let url = null;
-        if (ehImagem) {
-          try {
-            const blobResp = await anexoService.download(anexo.id);
-            url = URL.createObjectURL(blobResp.data);
-          } catch { /* mantém sem preview */ }
+      let carregados = [];
+      try {
+        const resp = await anexoService.listar(row.id);
+        const anexos = resp.data?.data || [];
+        carregados = await Promise.all(anexos.map(async (anexo) => {
+          const ehImagem = EXTENSOES_IMAGEM.test(anexo.arquivo || '');
+          let url = null;
+          if (ehImagem) {
+            try {
+              const blobResp = await anexoService.download(anexo.id);
+              url = URL.createObjectURL(blobResp.data);
+            } catch { /* mantém sem preview */ }
+          }
+          return { ...anexo, ehImagem, url };
+        }));
+      } catch {
+        carregados = [];
+      }
+
+      if (carregados.length === 0 && row.fotos) {
+        const fotoBase64 = String(row.fotos).trim();
+        if (fotoBase64.startsWith('data:image') || fotoBase64.startsWith('http')) {
+          carregados = [{
+            id: `foto-${row.id}`,
+            arquivo: 'foto-da-solicitacao.jpg',
+            ehImagem: true,
+            url: fotoBase64,
+          }];
         }
-        return { ...anexo, ehImagem, url };
-      }));
+      }
+
       setFotos(carregados);
     } catch (err) {
       alert('Erro ao carregar anexos: ' + (err.response?.data?.message || err.message));
@@ -115,6 +133,13 @@ export default function Solicitacoes() {
 
   const handleBaixarAnexo = async (anexo) => {
     try {
+      if (anexo.url && String(anexo.id).startsWith('foto-')) {
+        const a = document.createElement('a');
+        a.href = anexo.url;
+        a.download = anexo.arquivo || 'foto-da-solicitacao.jpg';
+        a.click();
+        return;
+      }
       const blobResp = await anexoService.download(anexo.id);
       const url = URL.createObjectURL(blobResp.data);
       const a = document.createElement('a');

@@ -35,7 +35,7 @@ public class SolicitacaoDTO {
 
     public static class Response {
         private Long id; private String protocolo; private String descricao; private String gps; private String endereco;
-        private String status; private String prioridade; private LocalDateTime dataCriacao;
+        private String status; private String prioridade; private String fotos; private LocalDateTime dataCriacao;
         private LocalDate dataConclusao; private String nomeUsuario; private String nomeEquipe; private Long idEquipe;
         private String categoriaServico; private String subcategoriaServico; private List<HistoricoDTO> historicos;
         public Response() {}
@@ -46,6 +46,7 @@ public class SolicitacaoDTO {
         public String getEndereco() { return endereco; } public void setEndereco(String endereco) { this.endereco = endereco; }
         public String getStatus() { return status; } public void setStatus(String status) { this.status = status; }
         public String getPrioridade() { return prioridade; } public void setPrioridade(String prioridade) { this.prioridade = prioridade; }
+        public String getFotos() { return fotos; } public void setFotos(String fotos) { this.fotos = fotos; }
         public LocalDateTime getDataCriacao() { return dataCriacao; } public void setDataCriacao(LocalDateTime dataCriacao) { this.dataCriacao = dataCriacao; }
         public LocalDate getDataConclusao() { return dataConclusao; } public void setDataConclusao(LocalDate dataConclusao) { this.dataConclusao = dataConclusao; }
         public String getNomeUsuario() { return nomeUsuario; } public void setNomeUsuario(String nomeUsuario) { this.nomeUsuario = nomeUsuario; }
