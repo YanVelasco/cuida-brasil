@@ -1,34 +1,41 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
-import { dashboardService } from '../../services/api';
+import { dashboardService, relatorioService } from '../../services/api';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { Users, ShieldCheck, Map, Activity, ArrowUpRight, Cpu } from 'lucide-react';
+import { Users, ShieldCheck, Map, Activity, Cpu } from 'lucide-react';
 import styles from './Dashboard.module.css';
-
-const MOCK_GROWTH = [
-  { name: 'Jan', usuarios: 400, gestores: 24, equipes: 12 },
-  { name: 'Fev', usuarios: 800, gestores: 28, equipes: 15 },
-  { name: 'Mar', usuarios: 1200, gestores: 35, equipes: 18 },
-  { name: 'Abr', usuarios: 2780, gestores: 42, equipes: 22 },
-  { name: 'Mai', usuarios: 3890, gestores: 48, equipes: 25 },
-  { name: 'Jun', usuarios: 5390, gestores: 55, equipes: 30 },
-];
 
 export default function SystemDashboard() {
   const [stats, setStats] = useState({ totalGestores: 0, totalUsuarios: 0, totalEquipes: 0 });
+  const [growthData, setGrowthData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadStats() {
       try {
-        const response = await dashboardService.statsAdmin();
-        setStats(response.data.data);
+        const [statsResponse, trendResponse] = await Promise.all([
+          dashboardService.statsAdmin(),
+          relatorioService.tendenciaMensal(),
+        ]);
+
+        setStats(statsResponse.data.data || statsResponse.data || {});
+
+        const trendData = (trendResponse.data?.data || trendResponse.data || []).map((item) => ({
+          name: item.mes || item.label || 'Mês',
+          usuarios: item.total || 0,
+          equipes: item.total || 0,
+        }));
+
+        setGrowthData(trendData.length ? trendData : []);
       } catch (error) {
-        console.error("Erro ao carregar dashboard admin:", error);
+        console.error('Erro ao carregar dashboard admin:', error);
+        setStats({ totalGestores: 0, totalUsuarios: 0, totalEquipes: 0 });
+        setGrowthData([]);
       } finally {
         setLoading(false);
       }
     }
+
     loadStats();
   }, []);
 
@@ -53,7 +60,7 @@ export default function SystemDashboard() {
                 <div className={styles.modernCardIcon} style={{background: 'rgba(39, 174, 96, 0.1)', color: '#27AE60'}}>
                   <ShieldCheck size={24}/>
                 </div>
-                <span className={styles.trend}><ArrowUpRight size={16}/> +12%</span>
+                <span className={styles.trend}>Tempo real</span>
               </div>
               <div className={styles.statLabel}>GESTORES CADASTRADOS</div>
               <div className={styles.modernCardValue}>{stats.totalGestores.toLocaleString()}</div>
@@ -64,7 +71,7 @@ export default function SystemDashboard() {
                 <div className={styles.modernCardIcon} style={{background: 'rgba(47, 128, 237, 0.1)', color: '#2F80ED'}}>
                   <Users size={24}/>
                 </div>
-                <span className={styles.trend}><ArrowUpRight size={16}/> +24%</span>
+                <span className={styles.trend}>Tempo real</span>
               </div>
               <div className={styles.statLabel}>USUÁRIOS ATIVOS</div>
               <div className={styles.modernCardValue}>{stats.totalUsuarios.toLocaleString()}</div>
@@ -75,7 +82,7 @@ export default function SystemDashboard() {
                 <div className={styles.modernCardIcon} style={{background: 'rgba(242, 201, 76, 0.1)', color: '#F2C94C'}}>
                   <Map size={24}/>
                 </div>
-                <span className={styles.trend}><ArrowUpRight size={16}/> +8%</span>
+                <span className={styles.trend}>Tempo real</span>
               </div>
               <div className={styles.statLabel}>EQUIPES CADASTRADAS</div>
               <div className={styles.modernCardValue}>{stats.totalEquipes.toLocaleString()}</div>
@@ -98,7 +105,7 @@ export default function SystemDashboard() {
               <h3 className={styles.chartTitle}>Crescimento de Usuários</h3>
               <div style={{height: '300px', width: '100%', marginTop: '20px'}}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={MOCK_GROWTH} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <AreaChart data={growthData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorUsr" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#2F80ED" stopOpacity={0.3}/>
@@ -119,7 +126,7 @@ export default function SystemDashboard() {
               <h3 className={styles.chartTitle}>Crescimento de Equipes</h3>
               <div style={{height: '300px', width: '100%', marginTop: '20px'}}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={MOCK_GROWTH} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <BarChart data={growthData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                     <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />

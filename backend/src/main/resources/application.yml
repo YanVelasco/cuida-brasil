@@ -25,7 +25,8 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     baseline-version: 0
-    clean-on-validation-error: true
+    clean-disabled: false
+    clean-on-validation-error: false
 
   ai:
     vectorstore:
@@ -53,7 +54,7 @@ security:
     expiration-ms: ${JWT_EXPIRATION:86400000}
 
 cors:
-  allowed-origins: ${FRONTEND_URL:http://localhost:5173}
+  allowed-origins: ${FRONTEND_URL:http://localhost:5173,http://localhost:5174}
 
 logging:
   level:

@@ -125,6 +125,7 @@ As *Migrations* do Flyway já inserem dados reais para que você não encontre o
 | **Gestor** | Ana Paula Ferreira | `333.333.333-33` | `Gestor@123` | Equipe Iluminação 01 |
 | **Gestor** | Roberto Oliveira Santos | `444.444.444-44` | `Gestor@123` | Equipe Saneamento 02 |
 | **Gestor** | Fernanda Lima Costa | `555.555.555-55` | `Gestor@123` | Equipe Poda 02 |
+| **Gestor** | Gabriela Costa Mendes | `666.666.666-66` | `Gestor@123` | Equipe Limpeza 03 |
 | **Cidadão** | Maria das Graças Souza | `222.222.222-22` | `Cidadao@123` | *Não aplicável* |
 | **Cidadão** | João Pedro Alves | `601.501.401-01` | `Cidadao@123` | *Não aplicável* |
 | **Cidadão** | Luciana Rodrigues Melo | `602.502.402-02` | `Cidadao@123` | *Não aplicável* |

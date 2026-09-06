@@ -1,9 +1,11 @@
+import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { ocorrenciaService } from '../../services/api';
 import { LogOut, X } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
-const getNavSections = (perfil) => {
+const getNavSections = (perfil, solicitacoesCount) => {
   if (perfil === 'ADMIN') {
     return [
       {
@@ -11,6 +13,14 @@ const getNavSections = (perfil) => {
         items: [
           { to: '/admin', label: 'Dashboard', end: true },
           { to: '/admin/relatorios', label: 'Relatórios' },
+        ]
+      },
+      {
+        label: 'OPERAÇÃO GLOBAL',
+        items: [
+          { to: '/admin/mapa', label: 'Mapa de Ocorrências' },
+          { to: '/admin/solicitacoes', label: 'Solicitações', badge: solicitacoesCount },
+          { to: '/admin/equipes', label: 'Gestão de Equipes' },
         ]
       }
     ];
@@ -23,7 +33,7 @@ const getNavSections = (perfil) => {
       items: [
         { to: '/admin/dashboard', label: 'Dashboard Operacional', end: true },
         { to: '/admin/mapa', label: 'Mapa de Ocorrências' },
-        { to: '/admin/solicitacoes', label: 'Solicitações', badge: '24' },
+        { to: '/admin/solicitacoes', label: 'Solicitações', badge: solicitacoesCount },
         { to: '/admin/equipes', label: 'Gestão de Equipes' },
         { to: '/admin/suporte', label: 'Suporte (TI)' },
       ]
@@ -34,9 +44,25 @@ const getNavSections = (perfil) => {
 export default function Sidebar({ isOpen, onClose }) {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const [solicitacoesCount, setSolicitacoesCount] = useState(null);
+
+  useEffect(() => {
+    if (!['GESTOR', 'ADMIN'].includes(user?.perfil)) {
+      setSolicitacoesCount(null);
+      return;
+    }
+
+    ocorrenciaService.listar({ page: 0, size: 1 })
+      .then((response) => {
+        const page = response.data?.data || response.data;
+        setSolicitacoesCount(page?.totalElements ?? 0);
+      })
+      .catch(() => setSolicitacoesCount(0));
+  }, [user?.perfil]);
+
   const handleLogout = () => { logout(); navigate('/login'); };
 
-  const navSections = getNavSections(user?.perfil);
+  const navSections = getNavSections(user?.perfil, solicitacoesCount);
 
   return (
     <aside className={[styles.sidebar, isOpen ? styles.open : ''].join(' ')}>

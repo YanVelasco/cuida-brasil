@@ -1,4 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { MapContainer, TileLayer, CircleMarker, Circle, Popup, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { equipeService, orgaoService, ocorrenciaService } from '../../services/api';
 import { MapPin, CheckCircle, Shield } from 'lucide-react';
@@ -6,8 +10,155 @@ import styles from './Equipes.module.css';
 
 const PAGE_SIZE = 10;
 
+const REGION_COORDINATES = {
+  Centro: [-23.5505, -46.6333],
+  Norte: [-23.4705, -46.5600],
+  Sul: [-23.6505, -46.6500],
+  Leste: [-23.5505, -46.4800],
+  Oeste: [-23.5605, -46.7800],
+};
+
+const TEAM_STATUS_ITEMS = [
+  { label: 'Todos', value: '', color: '#94A3B8' },
+  { label: 'Em campo', value: 'Em campo', color: '#27AE60' },
+  { label: 'Disponível', value: 'Disponível', color: '#F2C94C' },
+  { label: 'Sobrecarr.', value: 'Sobrecarr.', color: '#EB5757' },
+];
+
+const INCIDENT_PRIORITY_ITEMS = [
+  { label: 'Urgente', color: '#EB5757' },
+  { label: 'Alta', color: '#F2994A' },
+  { label: 'Em andamento', color: '#2F80ED' },
+  { label: 'Em campo', color: '#27AE60' },
+];
+
+const TEAM_COLOR_PALETTE = ['#4CC9F0', '#7AE582', '#FFB703', '#F72585', '#00B4D8', '#FFD166', '#A78BFA', '#38B000', '#EF476F', '#06D6A0'];
+
+function getTeamColor(team, index) {
+  return team?.statusColor || TEAM_COLOR_PALETTE[index % TEAM_COLOR_PALETTE.length] || '#2F80ED';
+}
+
+function parseGps(gps) {
+  if (!gps) return null;
+
+  const raw = String(gps).trim();
+  if (!raw) return null;
+
+  const cleaned = raw
+    .replace(/\s+/g, ' ')
+    .replace(/\(|\)|\[|\]/g, '')
+    .replace(/lat\s*[:=]/gi, ' latitude=')
+    .replace(/lng\s*[:=]/gi, ' longitude=')
+    .replace(/lon\s*[:=]/gi, ' longitude=')
+    .replace(/;/g, ',')
+    .replace(/,/g, ' ');
+
+  const matches = Array.from(cleaned.matchAll(/[-+]?\d{1,3}(?:[.,]\d+)?/g), (match) => {
+    const value = Number(match[0].replace(',', '.'));
+    return Number.isFinite(value) ? value : null;
+  }).filter((value) => value !== null);
+
+  if (matches.length < 2) return null;
+
+  let latitude = null;
+  let longitude = null;
+
+  if (/lat|latitude/i.test(raw) || /lng|lon|longitude/i.test(raw)) {
+    const latitudeMatch = raw.match(/lat(?:itude)?\s*[:=]?\s*[-+]?\d{1,3}(?:[.,]\d+)?/i);
+    const longitudeMatch = raw.match(/(?:lng|lon|longitude)\s*[:=]?\s*[-+]?\d{1,3}(?:[.,]\d+)?/i);
+
+    if (latitudeMatch) latitude = Number(latitudeMatch[0].split(/[:=]/).pop().replace(',', '.').trim());
+    if (longitudeMatch) longitude = Number(longitudeMatch[0].split(/[:=]/).pop().replace(',', '.').trim());
+  }
+
+  if (latitude === null || longitude === null) {
+    latitude = matches[0];
+    longitude = matches[1];
+  }
+
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+
+  return { latitude, longitude };
+}
+
+function getTeamCoordinates(team, index) {
+  const [latitude, longitude] = REGION_COORDINATES[team.regiao] || REGION_COORDINATES.Centro;
+  const spreadLat = ((index % 3) - 1) * 0.014;
+  const spreadLng = (Math.floor(index / 3) % 2 === 0 ? 1 : -1) * (0.018 + (index % 2) * 0.008);
+  return [latitude + spreadLat, longitude + spreadLng];
+}
+
+function getIncidentColor(incidente) {
+  const prioridade = (incidente?.prioridade || 'NORMAL').toUpperCase();
+  const status = (incidente?.status || '').toUpperCase();
+
+  if (prioridade === 'URGENTE') return '#EB5757';
+  if (prioridade === 'ALTA') return '#F2994A';
+  if (status === 'EM_CAMPO') return '#27AE60';
+  if (status === 'EM_ANDAMENTO') return '#2F80ED';
+  if (status === 'TRIAGEM') return '#9B51E0';
+  if (status === 'PENDENTE') return '#F2994A';
+  return '#6B7280';
+}
+
+function getIncidentLegendLabel(incidente) {
+  const prioridade = (incidente?.prioridade || '').toUpperCase();
+  const status = (incidente?.status || '').toUpperCase();
+
+  if (prioridade === 'URGENTE') return 'Urgente';
+  if (prioridade === 'ALTA') return 'Alta';
+  if (status === 'EM_CAMPO') return 'Em campo';
+  if (status === 'EM_ANDAMENTO') return 'Em andamento';
+  return 'Em andamento';
+}
+
+function MapBoundsController({ teams, incidentesAtivos }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const points = [];
+
+    teams.forEach((team, index) => {
+      const ocorrenciasDaEquipe = incidentesAtivos.filter((incidente) => Number(incidente.idEquipe) === Number(team.id));
+      const pontosAtuacao = ocorrenciasDaEquipe
+        .map((incidente) => parseGps(incidente.gps))
+        .filter(Boolean);
+
+      if (pontosAtuacao.length > 0) {
+        pontosAtuacao.forEach((ponto) => points.push([ponto.latitude, ponto.longitude]));
+        return;
+      }
+
+      points.push(getTeamCoordinates(team, index));
+    });
+
+    if (points.length === 0) return;
+
+    if (points.length === 1) {
+      map.setView(points[0], 13);
+      return;
+    }
+
+    map.fitBounds(points, {
+      padding: [28, 28],
+      maxZoom: 13,
+      animate: false,
+    });
+  }, [map, teams, incidentesAtivos]);
+
+  return null;
+}
+
 export default function Equipes() {
+  const location = useLocation();
+  const { user } = useAuth();
+  const isAdmin = user?.perfil === 'ADMIN';
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [regiaoFilter, setRegiaoFilter] = useState('');
+  const [tipoFilter, setTipoFilter] = useState('');
+  const [selectedMapTeams, setSelectedMapTeams] = useState([]);
+  const [selectedIncidentPriorities, setSelectedIncidentPriorities] = useState([]);
   
   // Equipes Pagination
   const [page, setPage] = useState(0);
@@ -21,6 +172,7 @@ export default function Equipes() {
   const [membrosPage, setMembrosPage] = useState(0);
   const [membrosTotalPages, setMembrosTotalPages] = useState(1);
   const [viewingEquipeId, setViewingEquipeId] = useState(null);
+  const [incidentesAtivos, setIncidentesAtivos] = useState([]);
 
   // Map Hover
   const [hoverInfo, setHoverInfo] = useState(null);
@@ -30,6 +182,7 @@ export default function Equipes() {
   const [showNewMemberModal, setShowNewMemberModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedEquipeId, setSelectedEquipeId] = useState(null);
+  const [statusEquipe, setStatusEquipe] = useState('EM_CAMPO');
 
   // Forms state
   const [newEquipeData, setNewEquipeData] = useState({ nome: '', idOrgao: '' });
@@ -39,21 +192,25 @@ export default function Equipes() {
   // Unassigned incidents state
   const [unassignedIncidents, setUnassignedIncidents] = useState([]);
   const [selectedIncidentId, setSelectedIncidentId] = useState('');
+  const [selectedIncidentDetail, setSelectedIncidentDetail] = useState(null);
 
   const carregarDados = useCallback(async () => {
     try {
       const resp = await equipeService.dashboard({ page, size: PAGE_SIZE });
       const data = resp.data.data;
-      setEquipes(data.content);
-      setTotalPages(data.totalPages || 1);
+      const equipesVisiveis = user?.perfil === 'GESTOR'
+        ? data.content.filter((equipe) => equipe.supervisor === user.nome)
+        : data.content;
+      setEquipes(equipesVisiveis);
+      setTotalPages(user?.perfil === 'GESTOR' ? (equipesVisiveis.length ? 1 : 0) : (data.totalPages || 1));
 
       // KPI cards only reflect the current page due to pagination (unless we do a separate count, but let's use the page for now)
-      const emCampo = data.content.filter(e => e.status === 'Em campo').length;
-      const sobrecarr = data.content.filter(e => e.status === 'Sobrecarr.').length;
-      const disp = data.content.filter(e => e.status === 'Disponível').length;
+      const emCampo = equipesVisiveis.filter(e => e.status === 'Em campo').length;
+      const sobrecarr = equipesVisiveis.filter(e => e.status === 'Sobrecarr.').length;
+      const disp = equipesVisiveis.filter(e => e.status === 'Disponível').length;
 
       setKpis([
-        { label:'EQUIPES NA TELA', value:data.content.length, sub:`Página ${page+1}`, color:'blue' },
+        { label:'EQUIPES NA TELA', value:equipesVisiveis.length, sub:`Página ${page+1}`, color:'blue' },
         { label:'EM CAMPO', value:emCampo, sub:`Nesta página`, color:'green' },
         { label:'DISPONÍVEL', value:disp, sub:`Nesta página`, color:'gray' },
         { label:'SOBRECARREGADAS', value:sobrecarr, sub:`Nesta página`, color:'red' },
@@ -61,10 +218,31 @@ export default function Equipes() {
     } catch(err) {
       console.error("Erro ao carregar equipes:", err);
     }
-  }, [page]);
+  }, [page, user?.nome, user?.perfil]);
 
   useEffect(() => {
     carregarDados();
+
+    async function loadIncidentesAtivos() {
+      try {
+        const response = await ocorrenciaService.listar({ page: 0, size: 200 });
+        const items = response.data?.data?.content || response.data?.content || [];
+        const ativos = items.filter((incidente) =>
+          incidente &&
+          incidente.idEquipe !== null &&
+          incidente.idEquipe !== undefined &&
+          ['EM_ANDAMENTO', 'EM_CAMPO'].includes((incidente.status || '').toUpperCase()) &&
+          parseGps(incidente.gps)
+        );
+        setIncidentesAtivos(ativos);
+      } catch (err) {
+        console.error('Erro ao carregar ocorrências ativas:', err);
+        setIncidentesAtivos([]);
+      }
+    }
+
+    loadIncidentesAtivos();
+
     async function loadOrgaos() {
       try {
         const response = await orgaoService.listar();
@@ -102,37 +280,94 @@ export default function Equipes() {
   };
 
   const handleAddMember = async () => {
+    if (!selectedEquipeId || !newMemberData.nome || !newMemberData.cpf || !newMemberData.email || !newMemberData.senha) {
+      return alert('Preencha todos os dados do membro.');
+    }
+
     try {
-      await equipeService.adicionarMembro(selectedEquipeId, newMemberData);
+      const equipeId = Number(selectedEquipeId);
+      await equipeService.adicionarMembro(equipeId, newMemberData);
       alert('Membro adicionado com sucesso!');
       setShowNewMemberModal(false);
+      setNewMemberData({ nome: '', cpf: '', email: '', senha: '', perfil: 'TRABALHADOR' });
       carregarDados();
+      await carregarMembros(equipeId, 0);
     } catch (err) {
       alert('Erro ao adicionar membro. ' + (err.response?.data?.message || ''));
     }
   };
 
-  const handleOpenAssignModal = async (equipeId) => {
+  const handleOpenAssignModal = async (equipeId, selectedIncident = null) => {
     setSelectedEquipeId(equipeId);
+    const equipe = equipes.find((item) => String(item.id) === String(equipeId));
+    setStatusEquipe(equipe?.status === 'Disponível' ? 'DISPONIVEL' : equipe?.status === 'Sobrecarr.' ? 'SOBRECARREGADA' : 'EM_CAMPO');
     try {
-      const resp = await ocorrenciaService.listarNaoAtribuidas();
-      setUnassignedIncidents(resp.data.data);
+      const resp = await ocorrenciaService.listar({ page: 0, size: 200 });
+      const items = resp.data?.data?.content || resp.data?.content || [];
+      const activeIncidents = items.filter((inc) => !['CONCLUIDA', 'CANCELADA'].includes((inc.status || '').toUpperCase()));
+      const incidentList = selectedIncident
+        ? activeIncidents.filter((inc) => String(inc.id) === String(selectedIncident))
+        : activeIncidents;
+
+      setUnassignedIncidents(incidentList);
+      setSelectedIncidentDetail(incidentList[0] || null);
+      setSelectedIncidentId(selectedIncident ? String(selectedIncident) : '');
       setShowAssignModal(true);
     } catch (err) {
-      alert('Erro ao buscar incidentes não atribuídos.');
+      alert('Erro ao buscar incidentes para atribuição.');
     }
   };
 
+  useEffect(() => {
+    const selectedIncidentIdFromState = location.state?.selectedIncidentId;
+    if (!selectedIncidentIdFromState) return;
+
+    setSelectedIncidentId(String(selectedIncidentIdFromState));
+    setShowAssignModal(true);
+    setSelectedEquipeId(null);
+
+    ocorrenciaService.listar({ page: 0, size: 200 })
+      .then((resp) => {
+        const items = resp.data?.data?.content || resp.data?.content || [];
+        const activeIncidents = items.filter((inc) => !['CONCLUIDA', 'CANCELADA'].includes((inc.status || '').toUpperCase()));
+        const match = activeIncidents.find((inc) => String(inc.id) === String(selectedIncidentIdFromState));
+
+        setSelectedIncidentDetail(match || null);
+        setUnassignedIncidents(match ? [match] : []);
+      })
+      .catch(() => {
+        setSelectedIncidentDetail(null);
+        setUnassignedIncidents([]);
+      });
+  }, [location.state]);
+
+  useEffect(() => {
+    if (!selectedIncidentDetail?.nomeEquipe) {
+      return;
+    }
+
+    const matchingEquipe = equipes.find((equipe) => equipe.nome === selectedIncidentDetail.nomeEquipe);
+    if (matchingEquipe) {
+      setSelectedEquipeId(String(matchingEquipe.id));
+    }
+  }, [selectedIncidentDetail, equipes]);
+
   const handleAssignIncident = async () => {
     if (!selectedIncidentId) return alert('Selecione um incidente.');
+    if (!selectedEquipeId) return alert('Selecione uma equipe antes de atribuir.');
+
     try {
       await ocorrenciaService.atualizarStatus(selectedIncidentId, { 
         status: 'TRIAGEM', 
-        idEquipe: selectedEquipeId, 
+        idEquipe: Number(selectedEquipeId), 
+        statusEquipe,
         comentario: 'Atribuído à equipe pelo painel.' 
       });
       alert('Incidente atribuído com sucesso!');
       setShowAssignModal(false);
+      setSelectedIncidentId('');
+      setSelectedEquipeId(null);
+      setSelectedIncidentDetail(null);
       carregarDados(); 
     } catch (err) {
       alert('Erro ao atribuir incidente.');
@@ -152,21 +387,81 @@ export default function Equipes() {
 
   const handleMouseLeave = () => setHoverInfo(null);
 
-  const filteredEquipes = search ? equipes.filter(e => 
-    e.nome.toLowerCase().includes(search.toLowerCase()) || 
-    (e.supervisor && e.supervisor.toLowerCase().includes(search.toLowerCase()))
-  ) : equipes;
+  const filteredEquipes = equipes.filter((equipe) => {
+    const matchesSearch = !search || equipe.nome.toLowerCase().includes(search.toLowerCase()) ||
+      (equipe.supervisor && equipe.supervisor.toLowerCase().includes(search.toLowerCase()));
+    return matchesSearch &&
+      (!statusFilter || equipe.status === statusFilter) &&
+      (!regiaoFilter || equipe.regiao === regiaoFilter) &&
+      (!tipoFilter || equipe.tipoServico === tipoFilter);
+  });
+
+  const teamLegendEntries = filteredEquipes.map((team, index) => ({
+    ...team,
+    mapColor: getTeamColor(team, index),
+  }));
+
+  const visibleMapTeams = teamLegendEntries.filter((team) => {
+    if (!selectedMapTeams.length) return true;
+    return selectedMapTeams.includes(team.id);
+  });
+
+  const equipesEmCampo = filteredEquipes.filter((equipe) => equipe.status === 'Em campo');
+  const tiposServico = [...new Set(equipes.map((equipe) => equipe.tipoServico).filter(Boolean))].sort();
+
+  const toggleMapTeam = (teamId) => {
+    setSelectedMapTeams((current) => {
+      if (!current.length) return [teamId];
+      if (current.includes(teamId)) {
+        return current.filter((id) => id !== teamId);
+      }
+      return [...current, teamId];
+    });
+  };
+
+  const toggleIncidentPriority = (priorityLabel) => {
+    setSelectedIncidentPriorities((current) => {
+      if (!current.length) return [priorityLabel];
+      if (current.includes(priorityLabel)) {
+        return current.filter((label) => label !== priorityLabel);
+      }
+      return [...current, priorityLabel];
+    });
+  };
+
+  const visibleIncidentMarkers = incidentesAtivos.filter((incidente) => {
+    if (!selectedIncidentPriorities.length) return true;
+    return selectedIncidentPriorities.includes(getIncidentLegendLabel(incidente));
+  });
 
   return (
     <AdminLayout>
       <div className={styles.topBar}>
         <h1 className={styles.title}>Gestão de Equipes</h1>
-        <button className={styles.newBtn} onClick={() => setShowNewEquipeModal(true)}>+ Nova Equipe</button>
+        {isAdmin && <button className={styles.newBtn} onClick={() => setShowNewEquipeModal(true)}>+ Nova Equipe</button>}
       </div>
 
       <div className={styles.filterBar}>
         <input className={styles.searchInput} placeholder="Buscar equipe ou supervisor..." value={search} onChange={e=>setSearch(e.target.value)}/>
-        <button className={styles.clearBtn} onClick={() => setSearch('')}>🗑 Limpar busca</button>
+        <select className={styles.filterSelect} value={tipoFilter} onChange={(event) => setTipoFilter(event.target.value)}>
+          <option value="">Todos os tipos</option>
+          {tiposServico.map((tipo) => <option key={tipo} value={tipo}>{tipo}</option>)}
+        </select>
+        <select className={styles.filterSelect} value={regiaoFilter} onChange={(event) => setRegiaoFilter(event.target.value)}>
+          <option value="">Todas as regiões</option>
+          {['Centro', 'Norte', 'Sul', 'Leste', 'Oeste'].map((regiao) => <option key={regiao} value={regiao}>{regiao}</option>)}
+        </select>
+        <select className={styles.filterSelect} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <option value="">Todos os status</option>
+          <option value="Em campo">Em campo</option>
+          <option value="Disponível">Disponível</option>
+          <option value="Sobrecarr.">Sobrecarregada</option>
+        </select>
+        {(search || tipoFilter || regiaoFilter || statusFilter) && (
+          <button className={styles.clearBtn} onClick={() => { setSearch(''); setTipoFilter(''); setRegiaoFilter(''); setStatusFilter(''); }}>
+            Limpar filtros
+          </button>
+        )}
       </div>
 
       {/* KPI Cards */}
@@ -235,56 +530,162 @@ export default function Equipes() {
         <div className={styles.mapCard}>
           <div className={styles.mapCardHeader}>
             <h3>Mapa de Alocação (Visão Geral)</h3>
+            <div className={styles.mapSummary}>Em campo: {equipesEmCampo.length}</div>
           </div>
           <div className={styles.mapContainer}>
-            {hoverInfo && (
-              <div className={styles.mapTooltip}>
-                {hoverInfo.type === 'district' ? (
-                  <>
-                    <strong style={{fontSize:'0.78rem', display:'block', marginBottom:'2px', color:'var(--primary)'}}>{hoverInfo.title}</strong>
-                    <div>{hoverInfo.details}</div>
-                  </>
-                ) : (
-                  <>
-                    <strong style={{fontSize:'0.78rem', display:'block', color: hoverInfo.status === 'Sobrecarr.' ? '#EB5757' : 'var(--primary)'}}>{hoverInfo.title}</strong>
-                    <div style={{fontSize:'0.65rem', color:'var(--text-muted)', marginBottom:'4px'}}>{hoverInfo.tipo}</div>
-                    <div style={{marginTop:'4px'}}>• Supervisor: <strong>{hoverInfo.supervisor}</strong></div>
-                    <div>• Casos: <strong>{hoverInfo.casos}</strong></div>
-                    <div style={{marginTop:'4px', display:'flex', alignItems:'center', gap:'4px'}}>
-                      <span style={{
-                        width:'6px', height:'6px', borderRadius:'50%', 
-                        background: hoverInfo.status === 'Sobrecarr.' ? '#EB5757' : hoverInfo.status === 'Disponível' ? '#F2C94C' : '#27AE60'
-                      }}/>
-                      Status: <strong>{hoverInfo.status}</strong>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+            <MapContainer
+              key={`${statusFilter || 'all'}-${filteredEquipes.length}`}
+              center={REGION_COORDINATES.Centro}
+              zoom={11}
+              minZoom={10}
+              maxZoom={16}
+              scrollWheelZoom
+              className={styles.allocationMap}
+            >
+              <MapBoundsController teams={filteredEquipes} incidentesAtivos={incidentesAtivos} />
+              <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              {visibleMapTeams.map((team, index) => {
+                const teamColor = getTeamColor(team, index);
+                const ocorrenciasDaEquipe = visibleIncidentMarkers.filter((incidente) => Number(incidente.idEquipe) === Number(team.id));
+                const pontosAtuacao = ocorrenciasDaEquipe
+                  .map((incidente) => parseGps(incidente.gps))
+                  .filter(Boolean);
 
-            <svg viewBox="0 0 360 200" className={styles.mapSvg}>
-              <path d="M 20 20 L 340 20 L 290 80 L 90 80 Z" className={styles.districtPath} onMouseEnter={() => handleDistrictHover('Região Norte', 'Equipes operando na zona norte')} onMouseLeave={handleMouseLeave} />
-              <path d="M 90 80 L 290 80 L 250 140 L 130 140 Z" className={styles.districtPath} onMouseEnter={() => handleDistrictHover('Região Centro', 'Equipes operando no centro')} onMouseLeave={handleMouseLeave} />
-              <path d="M 130 140 L 250 140 L 210 190 L 170 190 Z" className={styles.districtPath} onMouseEnter={() => handleDistrictHover('Região Sul', 'Equipes operando na zona sul')} onMouseLeave={handleMouseLeave} />
-              <path d="M 20 20 L 90 80 L 130 140 L 170 190 L 20 190 Z" className={styles.districtPath} onMouseEnter={() => handleDistrictHover('Região Oeste', 'Equipes operando na zona oeste')} onMouseLeave={handleMouseLeave} />
-              <path d="M 340 20 L 290 80 L 250 140 L 210 190 L 340 190 Z" className={styles.districtPath} onMouseEnter={() => handleDistrictHover('Região Leste', 'Equipes operando na zona leste')} onMouseLeave={handleMouseLeave} />
-              
-              {equipes.map((eq, idx) => {
-                 let cx = 180, cy = 95;
-                 if (eq.regiao === 'Norte') { cx = 200 + (idx*10); cy = 55; }
-                 else if (eq.regiao === 'Sul') { cx = 190 + (idx*10); cy = 150; }
-                 else if (eq.regiao === 'Leste') { cx = 280 + (idx*5); cy = 105 + (idx*5); }
-                 else if (eq.regiao === 'Oeste') { cx = 95 + (idx*5); cy = 110 + (idx*5); }
-                 else { cx = 180 + (idx*15); cy = 95; }
-                 return (
-                   <g key={eq.id} className={styles.mapPinGroup} onMouseEnter={() => handlePinHover(eq)} onMouseLeave={handleMouseLeave}>
-                     <circle cx={cx} cy={cy} r="10" fill={eq.statusColor} opacity="0.35" className={styles.pulsingRing} />
-                     <circle cx={cx} cy={cy} r="4.5" fill={eq.statusColor} className={styles.mapPinCircle} />
-                   </g>
-                 );
+                const coordinates = pontosAtuacao.length
+                  ? [
+                      pontosAtuacao.reduce((sum, p) => sum + p.latitude, 0) / pontosAtuacao.length,
+                      pontosAtuacao.reduce((sum, p) => sum + p.longitude, 0) / pontosAtuacao.length,
+                    ]
+                  : getTeamCoordinates(team, index);
+
+                const areaRadius = pontosAtuacao.length
+                  ? Math.max(0.003, (pontosAtuacao.length * 0.0018) + 0.002)
+                  : 0.004;
+
+                return (
+                  <div key={`team-layer-${team.id}`}>
+                    {pontosAtuacao.length > 0 && (
+                      <Circle
+                        key={`area-${team.id}`}
+                        center={coordinates}
+                        radius={areaRadius * 1000}
+                        pathOptions={{
+                          color: teamColor,
+                          fillColor: teamColor,
+                          fillOpacity: 0.12,
+                          weight: 1.5,
+                          dashArray: '6 8',
+                        }}
+                      />
+                    )}
+
+                    <CircleMarker key={`team-${team.id}`} center={coordinates} radius={9} pathOptions={{ color: '#fff', weight: 2, fillColor: teamColor, fillOpacity: 0.9 }}>
+                      <Popup>
+                        <strong>{team.nome}</strong><br />
+                        Supervisor: {team.supervisor}<br />
+                        Região: {team.regiao}<br />
+                        Casos abertos: {team.casosAbertos}<br />
+                        Status: {team.status}<br />
+                        {pontosAtuacao.length > 0 ? `${pontosAtuacao.length} ocorrência(ões) em atuação` : 'Sem ocorrências em andamento'}
+                      </Popup>
+                    </CircleMarker>
+
+                    {ocorrenciasDaEquipe.map((incidente) => {
+                      const gps = parseGps(incidente.gps);
+                      if (!gps) return null;
+
+                      const incidentColor = getIncidentColor(incidente);
+
+                      return (
+                        <CircleMarker
+                          key={`incident-${incidente.id}`}
+                          center={[gps.latitude, gps.longitude]}
+                          radius={5}
+                          pathOptions={{
+                            color: '#ffffff',
+                            weight: 1.5,
+                            fillColor: incidentColor,
+                            fillOpacity: 0.7,
+                            opacity: 0.7,
+                          }}
+                        >
+                          <Popup>
+                            <strong>{incidente.descricao || 'Ocorrência em andamento'}</strong><br />
+                            Status: {incidente.status}<br />
+                            Prioridade: {incidente.prioridade || 'NORMAL'}<br />
+                            {incidente.endereco || incidente.gps || 'Localização disponível'}
+                          </Popup>
+                        </CircleMarker>
+                      );
+                    })}
+                  </div>
+                );
               })}
-            </svg>
+            </MapContainer>
           </div>
+
+          <div className={styles.mapLegend}>
+            <div className={styles.legendSection}>
+              <div className={styles.legendSectionTitle}>Equipes</div>
+              <div className={styles.legendItems}>
+                {teamLegendEntries.map((team) => {
+                  const isActive = selectedMapTeams.includes(team.id);
+                  return (
+                    <button
+                      key={`team-legend-${team.id}`}
+                      type="button"
+                      className={[styles.legendItem, isActive ? styles.legendItemActive : ''].join(' ')}
+                      onClick={() => toggleMapTeam(team.id)}
+                      aria-pressed={isActive}
+                      style={{
+                        borderColor: isActive ? team.mapColor : 'rgba(255,255,255,0.08)',
+                        background: isActive ? 'rgba(255,255,255,0.04)' : 'transparent',
+                      }}
+                    >
+                      <span className={styles.legendDot} style={{ background: team.mapColor }} />
+                      <span>{team.nome.replace('Equipe ', '')}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className={styles.legendSection}>
+              <div className={styles.legendSectionTitle}>Ocorrências</div>
+              <div className={styles.legendItems}>
+                {INCIDENT_PRIORITY_ITEMS.map((item) => {
+                  const isActive = selectedIncidentPriorities.includes(item.label);
+                  return (
+                    <button
+                      key={item.label}
+                      type="button"
+                      className={[styles.legendItem, isActive ? styles.legendItemActive : ''].join(' ')}
+                      onClick={() => toggleIncidentPriority(item.label)}
+                      aria-pressed={isActive}
+                      style={{
+                        borderColor: isActive ? item.color : 'rgba(255,255,255,0.08)',
+                        background: isActive ? 'rgba(255,255,255,0.04)' : 'transparent',
+                      }}
+                    >
+                      <span className={styles.legendDot} style={{ background: item.color }} />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {equipesEmCampo.length > 0 && (
+            <div className={styles.fieldDetailsList}>
+              {equipesEmCampo.map((equipe) => (
+                <div key={equipe.id} className={styles.fieldDetailItem}>
+                  <span className={styles.fieldDot} />
+                  <span>{equipe.nome}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -390,20 +791,64 @@ export default function Equipes() {
             <p style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '15px'}}>
               Selecione um incidente da lista para enviar a esta equipe.
             </p>
+            {selectedIncidentDetail && (
+              <div style={{
+                padding: '12px 14px',
+                borderRadius: '10px',
+                background: 'rgba(34, 109, 255, 0.08)',
+                border: '1px solid rgba(92, 154, 255, 0.3)',
+                marginBottom: '14px',
+                color: 'var(--text-primary)'
+              }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Ocorrência selecionada</div>
+                <div style={{ fontWeight: 700, marginBottom: '4px' }}>{selectedIncidentDetail.protocolo || 'Sem protocolo'}</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  {selectedIncidentDetail.categoriaServico || 'Solicitação'} · {selectedIncidentDetail.status || 'PENDENTE'}
+                </div>
+                <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                  {selectedIncidentDetail.nomeEquipe ? `Equipe atual: ${selectedIncidentDetail.nomeEquipe}` : 'Equipe atual: nenhuma'}
+                </div>
+              </div>
+            )}
+
             {unassignedIncidents.length > 0 ? (
               <select value={selectedIncidentId} onChange={e => setSelectedIncidentId(e.target.value)} className={styles.filterSelect} style={{width: '100%', margin: '10px 0', padding: '10px'}}>
                 <option value="">Selecione o protocolo...</option>
                 {unassignedIncidents.map(inc => (
-                  <option key={inc.id} value={inc.id}>{inc.protocolo} - {inc.categoriaServico}</option>
+                  <option key={inc.id} value={inc.id}>{inc.protocolo || 'SEM PROTOCOLO'} - {inc.categoriaServico || 'Solicitação'} - {inc.status || 'PENDENTE'}</option>
                 ))}
               </select>
             ) : (
-              <div style={{padding: '15px', background: 'rgba(235, 87, 87, 0.1)', color: '#EB5757', borderRadius: '8px', marginBottom: '15px'}}>Nenhum incidente não atribuído.</div>
+              <div style={{padding: '15px', background: 'rgba(235, 87, 87, 0.1)', color: '#EB5757', borderRadius: '8px', marginBottom: '15px'}}>Nenhuma ocorrência disponível para atribuição.</div>
             )}
+
+            <select
+              value={selectedEquipeId || ''}
+              onChange={(e) => setSelectedEquipeId(e.target.value || null)}
+              className={styles.filterSelect}
+              style={{ width: '100%', margin: '10px 0', padding: '10px' }}
+            >
+              <option value="">Selecione uma equipe...</option>
+              {equipes.map((equipe) => (
+                <option key={equipe.id} value={String(equipe.id)}>{equipe.nome}</option>
+              ))}
+            </select>
+
+            <label style={{ display: 'block', marginTop: '12px', fontSize: '0.82rem', fontWeight: 600 }}>Status operacional da equipe</label>
+            <select
+              value={statusEquipe}
+              onChange={(event) => setStatusEquipe(event.target.value)}
+              className={styles.filterSelect}
+              style={{ width: '100%', margin: '8px 0', padding: '10px' }}
+            >
+              <option value="DISPONIVEL">Disponível</option>
+              <option value="EM_CAMPO">Em campo</option>
+              <option value="SOBRECARREGADA">Sobrecarregada</option>
+            </select>
             
             <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
-              <button className={styles.newBtn} onClick={handleAssignIncident} disabled={!selectedIncidentId}>Atribuir</button>
-              <button className={styles.clearBtn} onClick={() => { setShowAssignModal(false); setSelectedIncidentId(''); }}>Cancelar</button>
+              <button className={styles.newBtn} onClick={handleAssignIncident} disabled={!selectedIncidentId || !selectedEquipeId}>Atribuir</button>
+              <button className={styles.clearBtn} onClick={() => { setShowAssignModal(false); setSelectedIncidentId(''); setSelectedEquipeId(null); setSelectedIncidentDetail(null); }}>Cancelar</button>
             </div>
           </div>
         </div>

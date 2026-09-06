@@ -4,7 +4,6 @@ import { dashboardService, ocorrenciaService } from '../../services/api';
 import { useRegion } from '../../contexts/RegionContext';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  ScatterChart, Scatter, Cell, ZAxis
 } from 'recharts';
 import styles from './Dashboard.module.css';
 
@@ -24,10 +23,62 @@ const PRIO_STYLE = {
   'URGENTE': { bg: '#EB5757', color: '#fff' },
 };
 
+function parseGps(gps) {
+  if (!gps) return null;
+  const raw = String(gps).trim();
+  if (!raw) return null;
+
+  const cleaned = raw
+    .replace(/\s+/g, ' ')
+    .replace(/\(|\)|\[|\]/g, '')
+    .replace(/lat\s*[:=]/gi, ' latitude=')
+    .replace(/lng\s*[:=]/gi, ' longitude=')
+    .replace(/lon\s*[:=]/gi, ' longitude=')
+    .replace(/;/g, ',')
+    .replace(/,/g, ' ');
+
+  const matches = Array.from(cleaned.matchAll(/[-+]?\d{1,3}(?:[.,]\d+)?/g), (match) => {
+    const value = Number(match[0].replace(',', '.'));
+    return Number.isFinite(value) ? value : null;
+  }).filter((value) => value !== null);
+
+  if (matches.length < 2) return null;
+
+  const latitudeMatch = raw.match(/lat(?:itude)?\s*[:=]?\s*[-+]?\d{1,3}(?:[.,]\d+)?/i);
+  const longitudeMatch = raw.match(/(?:lng|lon|longitude)\s*[:=]?\s*[-+]?\d{1,3}(?:[.,]\d+)?/i);
+
+  const latitude = latitudeMatch
+    ? Number(latitudeMatch[0].split(/[:=]/).pop().replace(',', '.').trim())
+    : Number(matches[0]);
+  const longitude = longitudeMatch
+    ? Number(longitudeMatch[0].split(/[:=]/).pop().replace(',', '.').trim())
+    : Number(matches[1]);
+
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+    return null;
+  }
+
+  return { latitude, longitude };
+}
+
+function resolveRegionFromGps(gps) {
+  const coords = parseGps(gps);
+  if (!coords) return 'Centro';
+
+  const { latitude, longitude } = coords;
+  if (latitude < -23.65 && longitude < -46.7) return 'Sul';
+  if (latitude > -23.45 && longitude < -46.5) return 'Norte';
+  if (longitude > -46.5) return 'Leste';
+  if (longitude < -46.8) return 'Oeste';
+  return 'Centro';
+}
+
 export default function Dashboard() {
-  const [chartTab, setChartTab] = useState('Semana');
+  const [chartTab, setChartTab] = useState('Ano');
   const [search, setSearch]     = useState('');
   const [selectedProtocol, setSelectedProtocol] = useState(null);
+  const [selectedChartFilter, setSelectedChartFilter] = useState(null);
+  const [periodScope, setPeriodScope] = useState(null);
   const { selectedRegion } = useRegion();
 
   // Estado para dados reais
@@ -48,7 +99,7 @@ export default function Dashboard() {
   // Carrega lista de solicitações para a tabela
   useEffect(() => {
     setLoadingTable(true);
-    ocorrenciaService.listar({ page: 0, size: 20 })
+    ocorrenciaService.listar({ page: 0, size: 200 })
       .then(r => {
         const content = r.data?.data?.content || r.data?.content || [];
         setTableData(content);
@@ -57,19 +108,13 @@ export default function Dashboard() {
       .finally(() => setLoadingTable(false));
   }, []);
 
-  const kpis = useMemo(() => {
-    if (!kpiData) return [];
-    return [
-      { label: 'TOTAL ABERTAS',    value: kpiData.totalAbertas    ?? 0, color: 'gray' },
-      { label: 'EM ANDAMENTO',     value: kpiData.emAndamento     ?? 0, color: 'blue' },
-      { label: 'CONCLUÍDAS',       value: kpiData.resolvidasHoje  ?? 0, color: 'green' },
-      { label: 'PENDENTES',        value: kpiData.pendentesSla    ?? 0, color: 'orange' },
-      { label: 'URGENTES',         value: kpiData.urgentes        ?? 0, color: 'red' },
-    ];
-  }, [kpiData]);
+  const regionFilteredTable = useMemo(() => {
+    if (!selectedRegion) return tableData;
+    return tableData.filter((row) => resolveRegionFromGps(row.gps) === selectedRegion);
+  }, [tableData, selectedRegion]);
 
   const filteredTable = useMemo(() => {
-    let data = tableData;
+    let data = regionFilteredTable;
     if (search) {
       data = data.filter(r =>
         r.protocolo?.toLowerCase().includes(search.toLowerCase()) ||
@@ -77,27 +122,151 @@ export default function Dashboard() {
       );
     }
     return data;
-  }, [tableData, search]);
+  }, [regionFilteredTable, search]);
 
-  // Dados derivados para o gráfico de barras (agrupado por dia da semana simulado)
-  const barData = useMemo(() => {
-    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    const grouped = { Dom: {a:0,r:0}, Seg:{a:0,r:0}, Ter:{a:0,r:0}, Qua:{a:0,r:0}, Qui:{a:0,r:0}, Sex:{a:0,r:0}, Sáb:{a:0,r:0} };
-    tableData.forEach(s => {
-      const d = s.dataCriacao ? new Date(s.dataCriacao) : null;
-      if (d) {
-        const day = days[d.getDay()];
-        grouped[day].a += 1;
-        if (s.status === 'CONCLUIDA') grouped[day].r += 1;
+  const kpisFromTable = useMemo(() => {
+    const counts = regionFilteredTable.reduce((acc, row) => {
+      const status = row.status || 'PENDENTE';
+      if (status === 'PENDENTE') acc.abertas += 1;
+      if (status === 'TRIAGEM') acc.abertas += 1;
+      if (status === 'EM_ANDAMENTO' || status === 'EM_CAMPO') acc.andamento += 1;
+      if (status === 'CONCLUIDA') acc.concluidas += 1;
+      if (status === 'PENDENTE') acc.pendentes += 1;
+      if (['ALTA', 'URGENTE'].includes((row.prioridade || '').toUpperCase())) acc.urgentes += 1;
+      return acc;
+    }, { abertas: 0, andamento: 0, concluidas: 0, pendentes: 0, urgentes: 0 });
+
+    return [
+      { label: 'TOTAL ABERTAS', value: counts.abertas, color: 'gray' },
+      { label: 'EM ANDAMENTO', value: counts.andamento, color: 'blue' },
+      { label: 'CONCLUÍDAS', value: counts.concluidas, color: 'green' },
+      { label: 'PENDENTES', value: counts.pendentes, color: 'orange' },
+      { label: 'URGENTES', value: counts.urgentes, color: 'red' },
+    ];
+  }, [regionFilteredTable]);
+
+  const kpis = useMemo(() => {
+    if (selectedRegion) return kpisFromTable;
+    if (!kpiData) return [];
+    return [
+      { label: 'TOTAL ABERTAS', value: kpiData.totalAbertas ?? 0, color: 'gray' },
+      { label: 'EM ANDAMENTO', value: kpiData.emAndamento ?? 0, color: 'blue' },
+      { label: 'CONCLUÍDAS', value: kpiData.resolvidasHoje ?? 0, color: 'green' },
+      { label: 'PENDENTES', value: kpiData.pendentesSla ?? 0, color: 'orange' },
+      { label: 'URGENTES', value: kpiData.urgentes ?? 0, color: 'red' },
+    ];
+  }, [kpiData, selectedRegion, kpisFromTable]);
+
+  const chartFilteredTable = useMemo(() => {
+    return regionFilteredTable.filter((row) => {
+      const date = row.dataCriacao ? new Date(row.dataCriacao) : null;
+      if (periodScope && (!date || date < periodScope.start || date > periodScope.end)) return false;
+      if (!selectedChartFilter) return true;
+      if (selectedChartFilter.type === 'period') {
+        return date && date >= selectedChartFilter.start && date <= selectedChartFilter.end;
       }
+      if (selectedChartFilter.type === 'category') return row.categoriaServico === selectedChartFilter.value;
+      return row.status === selectedChartFilter.value;
     });
-    return days.map(name => ({ name, abertas: grouped[name].a, resolvidas: grouped[name].r }));
-  }, [tableData]);
+  }, [regionFilteredTable, selectedChartFilter, periodScope]);
+
+  const toggleChartFilter = (filter) => {
+    setSelectedChartFilter((current) => (
+      current?.type === filter.type && current?.value === filter.value ? null : filter
+    ));
+  };
+
+  const selectPeriod = (period) => {
+    if (chartTab === 'Ano') {
+      setChartTab('Mês');
+      setPeriodScope(period);
+      setSelectedChartFilter(null);
+    } else if (chartTab === 'Mês') {
+      setChartTab('Semana');
+      setPeriodScope(period);
+      setSelectedChartFilter(null);
+    } else {
+      toggleChartFilter({ type: 'period', value: period.name, start: period.start, end: period.end });
+    }
+  };
+
+  const resetPeriodScope = () => {
+    setPeriodScope(null);
+    setSelectedChartFilter(null);
+  };
+
+  // Agrupa somente as solicitações do período escolhido no gráfico.
+  const barData = useMemo(() => {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    const periodInDays = chartTab === 'Semana' ? 7 : chartTab === 'Mês' ? 30 : 365;
+    const start = periodScope ? new Date(periodScope.start) : new Date(today);
+    if (!periodScope) start.setDate(start.getDate() - periodInDays + 1);
+    start.setHours(0, 0, 0, 0);
+    const rangeEnd = periodScope ? new Date(periodScope.end) : today;
+
+    const periodRows = chartFilteredTable.filter((row) => {
+      if (!row.dataCriacao) return false;
+      const date = new Date(row.dataCriacao);
+      return date >= start && date <= rangeEnd;
+    });
+
+    if (chartTab === 'Semana') {
+      return Array.from({ length: 7 }, (_, index) => {
+        const date = new Date(start);
+        date.setDate(start.getDate() + index);
+        const dayRows = periodRows.filter((row) => new Date(row.dataCriacao).toDateString() === date.toDateString());
+        return {
+          name: date.toLocaleDateString('pt-BR', { day: '2-digit', weekday: 'short' }).replace('.', ''),
+          start: new Date(date.setHours(0, 0, 0, 0)),
+          end: new Date(date.setHours(23, 59, 59, 999)),
+          abertas: dayRows.length,
+          resolvidas: dayRows.filter((row) => row.status === 'CONCLUIDA').length,
+        };
+      });
+    }
+
+    if (chartTab === 'Ano') {
+      return Array.from({ length: 12 }, (_, index) => {
+        const monthStart = new Date(today.getFullYear(), today.getMonth() - 11 + index, 1);
+        const monthRows = periodRows.filter((row) => {
+          const date = new Date(row.dataCriacao);
+          return date.getFullYear() === monthStart.getFullYear() && date.getMonth() === monthStart.getMonth();
+        });
+        return {
+          name: monthStart.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
+          start: monthStart,
+          end: new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0, 23, 59, 59, 999),
+          abertas: monthRows.length,
+          resolvidas: monthRows.filter((row) => row.status === 'CONCLUIDA').length,
+        };
+      });
+    }
+
+    return Array.from({ length: 5 }, (_, index) => {
+      const bucketStart = new Date(start);
+      bucketStart.setDate(start.getDate() + index * 7);
+      const bucketEnd = new Date(bucketStart);
+      bucketEnd.setDate(bucketStart.getDate() + (index === 4 ? 2 : 6));
+      bucketEnd.setHours(23, 59, 59, 999);
+      const bucketRows = periodRows.filter((row) => {
+        const date = new Date(row.dataCriacao);
+        return date >= bucketStart && date <= bucketEnd;
+      });
+      return {
+        name: `Sem. ${index + 1}`,
+        start: bucketStart,
+        end: bucketEnd,
+        abertas: bucketRows.length,
+        resolvidas: bucketRows.filter((row) => row.status === 'CONCLUIDA').length,
+      };
+    });
+  }, [chartTab, periodScope, chartFilteredTable]);
 
   // Dados para gráfico de categorias
   const catData = useMemo(() => {
     const map = {};
-    tableData.forEach(s => {
+    chartFilteredTable.forEach(s => {
       const cat = s.categoriaServico || 'Outros';
       map[cat] = (map[cat] || 0) + 1;
     });
@@ -111,7 +280,26 @@ export default function Dashboard() {
         pct: Math.round(count / total * 100),
         color: colors[i % colors.length]
       }));
-  }, [tableData]);
+  }, [chartFilteredTable]);
+
+  const statusData = useMemo(() => {
+    const counts = chartFilteredTable.reduce((acc, row) => {
+      const status = row.status || 'PENDENTE';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {});
+
+    const total = chartFilteredTable.length || 1;
+    return Object.entries(STATUS_STYLE)
+      .map(([key, style]) => ({
+        key,
+        label: style.label,
+        count: counts[key] || 0,
+        pct: Math.round((counts[key] || 0) / total * 100),
+        color: style.bg,
+      }))
+      .filter((status) => status.count > 0);
+  }, [chartFilteredTable]);
 
   return (
     <AdminLayout>
@@ -138,10 +326,20 @@ export default function Dashboard() {
         {/* Bar Chart — abertas x resolvidas por dia */}
         <div className={styles.chartCard}>
           <div className={styles.chartHeader}>
-            <span className={styles.chartTitle}>Ocorrências por dia</span>
+            <span className={styles.chartTitle}>Ocorrências</span>
+            {selectedChartFilter && (
+              <button className={styles.clearChartFilter} onClick={() => setSelectedChartFilter(null)}>
+                Limpar filtro
+              </button>
+            )}
+            {periodScope && (
+              <button className={styles.clearChartFilter} onClick={resetPeriodScope}>
+                Voltar
+              </button>
+            )}
             <div className={styles.chartTabBtns}>
-              {['Semana', 'Mês'].map(t => (
-                <button key={t} className={[styles.chartTabBtn, chartTab===t ? styles.active : ''].join(' ')} onClick={() => setChartTab(t)}>{t}</button>
+              {['Ano', 'Mês', 'Semana'].map(t => (
+                <button key={t} className={[styles.chartTabBtn, chartTab===t ? styles.active : ''].join(' ')} onClick={() => { setChartTab(t); resetPeriodScope(); }}>{t}</button>
               ))}
             </div>
           </div>
@@ -150,8 +348,8 @@ export default function Dashboard() {
               <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false}/>
               <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false}/>
               <Tooltip/>
-              <Bar dataKey="abertas" fill="#2F80ED" radius={[2,2,0,0]}/>
-              <Bar dataKey="resolvidas" fill="#27AE60" radius={[2,2,0,0]}/>
+              <Bar dataKey="abertas" fill="#2F80ED" radius={[2,2,0,0]} onClick={(_, index) => selectPeriod(barData[index])}/>
+              <Bar dataKey="resolvidas" fill="#27AE60" radius={[2,2,0,0]} onClick={(_, index) => selectPeriod(barData[index])}/>
             </BarChart>
           </ResponsiveContainer>
           <div className={styles.legend}>
@@ -168,7 +366,7 @@ export default function Dashboard() {
           {catData.length === 0
             ? <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Carregando...</p>
             : catData.map((c, i) => (
-              <div key={i} className={styles.catRow}>
+              <div key={i} className={[styles.catRow, selectedChartFilter?.type === 'category' && selectedChartFilter.value === c.name ? styles.chartSelected : ''].join(' ')} onClick={() => toggleChartFilter({ type: 'category', value: c.name })} role="button" tabIndex={0}>
                 <span className={styles.catName}>{c.name}</span>
                 <div className={styles.catBar}><div className={styles.catFill} style={{width: c.pct + '%', background: c.color}}/></div>
                 <span className={styles.catPct}>{c.pct}%</span>
@@ -177,33 +375,25 @@ export default function Dashboard() {
           }
         </div>
 
-        {/* Scatter — distribuição por status */}
+        {/* Distribuição por status */}
         <div className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <span className={styles.chartTitle}>Distribuição de Status</span>
           </div>
-          <ResponsiveContainer width="100%" height={155}>
-            <ScatterChart margin={{ top: 0, right: 0, left: -30, bottom: 0 }}>
-              <XAxis type="number" dataKey="x" tick={{ fontSize: 10 }} axisLine={false} tickLine={false}/>
-              <YAxis type="number" dataKey="y" tick={{ fontSize: 10 }} axisLine={false} tickLine={false}/>
-              <ZAxis range={[60, 60]}/>
-              <Tooltip/>
-              <Scatter data={tableData.map((s, i) => ({
-                x: (i * 13) % 100,
-                y: (i * 17 + 20) % 100,
-                color: STATUS_STYLE[s.status]?.bg || '#999'
-              }))}>
-                {tableData.map((s, i) => (
-                  <Cell key={i} fill={STATUS_STYLE[s.status]?.bg || '#999'}/>
-                ))}
-              </Scatter>
-            </ScatterChart>
-          </ResponsiveContainer>
-          <div className={styles.legend}>
-            {Object.entries(STATUS_STYLE).slice(0, 4).map(([k, v]) => (
-              <span key={k} className={styles.legendItem}>
-                <span className={styles.legendDot} style={{background: v.bg}}/> {v.label}
-              </span>
+          <div className={styles.statusChart}>
+            {statusData.length === 0 ? (
+              <p className={styles.emptyChart}>Nenhuma solicitação encontrada</p>
+            ) : statusData.map((status) => (
+              <div key={status.key} className={[styles.statusRow, selectedChartFilter?.type === 'status' && selectedChartFilter.value === status.key ? styles.chartSelected : ''].join(' ')} onClick={() => toggleChartFilter({ type: 'status', value: status.key })} role="button" tabIndex={0}>
+                <span className={styles.statusName}>{status.label}</span>
+                <div className={styles.statusBar}>
+                  <div
+                    className={styles.statusFill}
+                    style={{ width: `${Math.max(status.pct, 4)}%`, background: status.color }}
+                  />
+                </div>
+                <span className={styles.statusCount}>{status.count}</span>
+              </div>
             ))}
           </div>
         </div>

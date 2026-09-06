@@ -23,18 +23,20 @@ public class SolicitacaoDTO {
         @NotBlank private String status;
         private String prioridade;
         private Long idEquipe;
+        private String statusEquipe;
         private String comentario;
         public UpdateStatusRequest() {}
         public String getStatus() { return status; } public void setStatus(String status) { this.status = status; }
         public String getPrioridade() { return prioridade; } public void setPrioridade(String prioridade) { this.prioridade = prioridade; }
         public Long getIdEquipe() { return idEquipe; } public void setIdEquipe(Long idEquipe) { this.idEquipe = idEquipe; }
+        public String getStatusEquipe() { return statusEquipe; } public void setStatusEquipe(String statusEquipe) { this.statusEquipe = statusEquipe; }
         public String getComentario() { return comentario; } public void setComentario(String comentario) { this.comentario = comentario; }
     }
 
     public static class Response {
         private Long id; private String protocolo; private String descricao; private String gps; private String endereco;
         private String status; private String prioridade; private LocalDateTime dataCriacao;
-        private LocalDate dataConclusao; private String nomeUsuario; private String nomeEquipe;
+        private LocalDate dataConclusao; private String nomeUsuario; private String nomeEquipe; private Long idEquipe;
         private String categoriaServico; private String subcategoriaServico; private List<HistoricoDTO> historicos;
         public Response() {}
         public Long getId() { return id; } public void setId(Long id) { this.id = id; }
@@ -48,6 +50,7 @@ public class SolicitacaoDTO {
         public LocalDate getDataConclusao() { return dataConclusao; } public void setDataConclusao(LocalDate dataConclusao) { this.dataConclusao = dataConclusao; }
         public String getNomeUsuario() { return nomeUsuario; } public void setNomeUsuario(String nomeUsuario) { this.nomeUsuario = nomeUsuario; }
         public String getNomeEquipe() { return nomeEquipe; } public void setNomeEquipe(String nomeEquipe) { this.nomeEquipe = nomeEquipe; }
+        public Long getIdEquipe() { return idEquipe; } public void setIdEquipe(Long idEquipe) { this.idEquipe = idEquipe; }
         public String getCategoriaServico() { return categoriaServico; } public void setCategoriaServico(String categoriaServico) { this.categoriaServico = categoriaServico; }
         public String getSubcategoriaServico() { return subcategoriaServico; } public void setSubcategoriaServico(String subcategoriaServico) { this.subcategoriaServico = subcategoriaServico; }
         public List<HistoricoDTO> getHistoricos() { return historicos; } public void setHistoricos(List<HistoricoDTO> historicos) { this.historicos = historicos; }

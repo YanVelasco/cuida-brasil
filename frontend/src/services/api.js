@@ -70,12 +70,10 @@ export const dashboardService = {
 
 // ============ RELATORIOS ============
 export const relatorioService = {
-  porCategoria: () =>
-    api.get('/api/relatorios/por-categoria'),
-  porStatus: () =>
-    api.get('/api/relatorios/por-status'),
-  tendenciaMensal: () =>
-    api.get('/api/relatorios/tendencia-mensal'),
+  resumo: (params) => api.get('/api/relatorios/resumo', { params }),
+  porCategoria: (params) => api.get('/api/relatorios/por-categoria', { params }),
+  porStatus: (params) => api.get('/api/relatorios/por-status', { params }),
+  tendenciaMensal: (params) => api.get('/api/relatorios/tendencia-mensal', { params }),
 };
 
 export const chatService = {

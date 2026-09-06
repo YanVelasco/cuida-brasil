@@ -6,20 +6,10 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import { ChevronLeft, CheckCircle2, Circle, Clock } from 'lucide-react';
 import styles from './Protocolo.module.css';
 
-const MOCK_HIST = [
-  { titulo: 'Ocorrência registrada', data: '10/05/2024 09:00', done: true },
-  { titulo: 'Em análise pela prefeitura', data: '10/05/2024 14:00', done: true },
-  { titulo: 'Equipe designada', data: '11/05/2024 08:00', done: true },
-  { titulo: 'Em atendimento', data: '12/05/2024 10:00', done: false },
-  { titulo: 'Concluída', data: '', done: false },
-];
-
-const MOCK_OC = { id: 1, titulo: 'Buraco na Rua ABC', categoria: 'Infraestrutura', status: 'em_andamento', protocolo: 'PRO-2024-001', data: '10/05/2024', local: 'Rua ABC, 123 - Centro', descricao: 'Grande buraco na via, oferece risco aos veículos e pedestres.' };
-
 export default function Protocolo() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [oc, setOc] = useState(MOCK_OC);
+  const [oc, setOc] = useState({});
 
   useEffect(() => {
     if (id) {
@@ -63,23 +53,27 @@ export default function Protocolo() {
       <div className={styles.histSection}>
         <h3>Histórico</h3>
         <div className={styles.timeline}>
-          {(oc.historicos && oc.historicos.length > 0 ? oc.historicos : MOCK_HIST).map((h, i) => {
-            const isDone = h.observacao ? true : h.done; // Simplificação visual
-            const title = h.observacao || `Status: ${h.statusAtual}` || h.titulo;
-            const dateStr = h.dataRegistro ? new Date(h.dataRegistro).toLocaleString() : h.data;
+          {oc.historicos && oc.historicos.length > 0 ? (
+            oc.historicos.map((h, i) => {
+              const isDone = true;
+              const title = h.acao || h.observacao || 'Atualização do status';
+              const dateStr = h.data ? new Date(h.data).toLocaleString() : '';
 
-            return (
-              <div key={i} className={styles.timelineItem}>
-                <div className={[styles.dot, isDone ? styles.dotDone : ''].join(' ')}>
-                  {isDone ? <CheckCircle2 size={18}/> : <Circle size={18}/>}
+              return (
+                <div key={i} className={styles.timelineItem}>
+                  <div className={[styles.dot, isDone ? styles.dotDone : ''].join(' ')}>
+                    {isDone ? <CheckCircle2 size={18}/> : <Circle size={18}/>}
+                  </div>
+                  <div className={styles.timelineContent}>
+                    <p className={[styles.tlTitle, isDone ? styles.tlDone : ''].join(' ')}>{title}</p>
+                    {dateStr && <p className={styles.tlDate}>{dateStr}</p>}
+                  </div>
                 </div>
-                <div className={styles.timelineContent}>
-                  <p className={[styles.tlTitle, isDone ? styles.tlDone : ''].join(' ')}>{title}</p>
-                  {dateStr && <p className={styles.tlDate}>{dateStr}</p>}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          ) : (
+            <p style={{ color: 'var(--text-muted)', marginTop: '12px' }}>Ainda não há histórico desta solicitação.</p>
+          )}
         </div>
       </div>
     </MobileLayout>

@@ -11,8 +11,13 @@ import br.gov.cuidar.entity.Gestor;
 import br.gov.cuidar.dto.NovaEquipeDTO;
 import br.gov.cuidar.dto.NovoGestorDTO;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -38,12 +43,32 @@ public class EquipeController {
         this.passwordEncoder = passwordEncoder;
     }
     @GetMapping @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
-    public ResponseEntity<ApiResponse<List<EquipePublica>>> listar() { return ResponseEntity.ok(ApiResponse.ok(eqRepo.findByAtivoTrue())); }
+    public ResponseEntity<ApiResponse<List<EquipePublica>>> listar(@AuthenticationPrincipal Usuario usuario) {
+        if (isGestor(usuario)) {
+            return ResponseEntity.ok(ApiResponse.ok(gestorRepo.findEquipeIdByUsuarioId(usuario.getId())
+                    .flatMap(eqRepo::findById)
+                    .filter(equipe -> Boolean.TRUE.equals(equipe.getAtivo()))
+                    .map(List::of)
+                    .orElseGet(List::of)));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(eqRepo.findByAtivoTrue()));
+    }
 
     @GetMapping("/dashboard") @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
-    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<br.gov.cuidar.dto.EquipeDashboardDTO>>> listarDashboard(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
-        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
-        org.springframework.data.domain.Page<EquipePublica> equipes = eqRepo.findByAtivoTrue(pageable);
+    public ResponseEntity<ApiResponse<Page<br.gov.cuidar.dto.EquipeDashboardDTO>>> listarDashboard(
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal Usuario usuario) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<EquipePublica> equipes;
+        if (isGestor(usuario)) {
+            equipes = gestorRepo.findEquipeIdByUsuarioId(usuario.getId())
+                    .flatMap(eqRepo::findById)
+                    .filter(equipe -> Boolean.TRUE.equals(equipe.getAtivo()))
+                    .<Page<EquipePublica>>map(equipe -> new PageImpl<>(List.of(equipe), pageable, 1))
+                    .orElseGet(() -> Page.empty(pageable));
+        } else {
+            equipes = eqRepo.findByAtivoTrue(pageable);
+        }
         org.springframework.data.domain.Page<br.gov.cuidar.dto.EquipeDashboardDTO> dtos = equipes.map(eq -> {
             br.gov.cuidar.dto.EquipeDashboardDTO dto = new br.gov.cuidar.dto.EquipeDashboardDTO();
             dto.setId(eq.getId());
@@ -75,7 +100,11 @@ public class EquipeController {
             
             // SLA e Status simulado/baseado nos casos
             dto.setSlaMedio((90 - (casos * 2)) + "%");
-            if (casos == 0) {
+            if (eq.getStatusOperacional() != null && !eq.getStatusOperacional().isBlank()) {
+                String status = eq.getStatusOperacional();
+                dto.setStatus("DISPONIVEL".equals(status) ? "Disponível" : "SOBRECARREGADA".equals(status) ? "Sobrecarr." : "Em campo");
+                dto.setStatusColor("DISPONIVEL".equals(status) ? "#F2C94C" : "SOBRECARREGADA".equals(status) ? "#EB5757" : "#27AE60");
+            } else if (casos == 0) {
                 dto.setStatus("Disponível");
                 dto.setStatusColor("#F2C94C");
             } else if (casos > 15) {
@@ -94,7 +123,9 @@ public class EquipeController {
     
     @GetMapping("/{id}/membros") @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
     public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<br.gov.cuidar.dto.MembroDTO>>> listarMembros(
-            @PathVariable Long id, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+            @PathVariable Long id, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal Usuario usuario) {
+        validarEquipeDoGestor(id, usuario);
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
         org.springframework.data.domain.Page<Gestor> membros = gestorRepo.findByEquipeId(id, pageable);
         org.springframework.data.domain.Page<br.gov.cuidar.dto.MembroDTO> dtos = membros.map(m -> new br.gov.cuidar.dto.MembroDTO(
@@ -103,7 +134,7 @@ public class EquipeController {
         return ResponseEntity.ok(ApiResponse.ok(dtos));
     }
 
-    @PostMapping @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
+    @PostMapping @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<EquipePublica>> criarEquipe(@RequestBody NovaEquipeDTO dto) {
         Long orgaoId = java.util.Objects.requireNonNull(dto.getIdOrgao(), "ID do órgão não pode ser nulo");
         OrgaoPublico orgao = orgaoRepo.findById(orgaoId).orElseThrow(() -> new RuntimeException("Órgão não encontrado"));
@@ -115,7 +146,9 @@ public class EquipeController {
     }
 
     @PostMapping("/{id}/membros") @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
-    public ResponseEntity<ApiResponse<Gestor>> adicionarMembro(@PathVariable Long id, @RequestBody NovoGestorDTO dto) {
+    public ResponseEntity<ApiResponse<Gestor>> adicionarMembro(@PathVariable Long id, @RequestBody NovoGestorDTO dto,
+                                                                @AuthenticationPrincipal Usuario usuario) {
+        validarEquipeDoGestor(id, usuario);
         Long equipeId = java.util.Objects.requireNonNull(id, "ID da equipe não pode ser nulo");
         EquipePublica equipe = eqRepo.findById(equipeId).orElseThrow(() -> new RuntimeException("Equipe não encontrada"));
         
@@ -134,5 +167,15 @@ public class EquipeController {
         gestor = gestorRepo.save(gestor);
 
         return ResponseEntity.ok(ApiResponse.ok(gestor));
+    }
+
+    private boolean isGestor(Usuario usuario) {
+        return usuario != null && "GESTOR".equals(usuario.getPerfil());
+    }
+
+    private void validarEquipeDoGestor(Long equipeId, Usuario usuario) {
+        if (isGestor(usuario) && !gestorRepo.findEquipeIdByUsuarioId(usuario.getId()).map(equipeId::equals).orElse(false)) {
+            throw new IllegalStateException("Gestor só pode operar na própria equipe");
+        }
     }
 }

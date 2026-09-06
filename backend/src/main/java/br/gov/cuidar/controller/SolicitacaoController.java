@@ -1,15 +1,26 @@
 package br.gov.cuidar.controller;
 
-import br.gov.cuidar.dto.*;
-import br.gov.cuidar.dto.SolicitacaoDTO.*;
+import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import br.gov.cuidar.dto.ApiResponse;
+import br.gov.cuidar.dto.SolicitacaoDTO.CreateRequest;
+import br.gov.cuidar.dto.SolicitacaoDTO.Response;
+import br.gov.cuidar.dto.SolicitacaoDTO.UpdateStatusRequest;
 import br.gov.cuidar.entity.Usuario;
 import br.gov.cuidar.service.SolicitacaoService;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
-import org.springframework.http.*;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/solicitacoes")
@@ -22,8 +33,12 @@ public class SolicitacaoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Solicitacao criada", sService.criar(req, usuario.getId())));
     }
     @GetMapping @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
-    public ResponseEntity<ApiResponse<Page<Response>>> listar(@RequestParam(required = false) String status, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(ApiResponse.ok(sService.listarTodas(status, page, size)));
+    public ResponseEntity<ApiResponse<Page<Response>>> listar(@AuthenticationPrincipal Usuario usuario,
+                                                            @RequestParam(required = false) String status,
+                                                            @RequestParam(required = false) String gestor,
+                                                            @RequestParam(defaultValue = "0") int page,
+                                                            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(sService.listarTodas(status, gestor, page, size, usuario)));
     }
     
     @GetMapping("/nao-atribuidas") @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")

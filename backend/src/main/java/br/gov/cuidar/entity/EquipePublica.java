@@ -13,10 +13,13 @@ public class EquipePublica {
     private OrgaoPublico orgao;
     @Column(nullable = false)
     private Boolean ativo = true;
+    @Column(name = "status_operacional", length = 30)
+    private String statusOperacional;
 
     public EquipePublica() {}
     public Long getId() { return id; } public void setId(Long id) { this.id = id; }
     public String getNome() { return nome; } public void setNome(String nome) { this.nome = nome; }
     public OrgaoPublico getOrgao() { return orgao; } public void setOrgao(OrgaoPublico orgao) { this.orgao = orgao; }
     public Boolean getAtivo() { return ativo; } public void setAtivo(Boolean ativo) { this.ativo = ativo; }
+    public String getStatusOperacional() { return statusOperacional; } public void setStatusOperacional(String statusOperacional) { this.statusOperacional = statusOperacional; }
 }
