@@ -144,6 +144,7 @@ O Flyway executará as migrations automaticamente. A API ficará disponível em 
 ```bash
 cd frontend
 npm install
+npm install jspdf-autotable
 npm run dev
 ```
 
