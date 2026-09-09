@@ -33,7 +33,7 @@ O repositório está dividido nas seguintes partes:
 - 🖥️ **Exibição de Relatório em tela** antes da exportação
 - 📄 **Exportação de Relatórios em PDF** (jsPDF + autotable) e **Excel** (SheetJS)
 - 🕵️ **Auditoria Corporativa** — trilha de auditoria de ações sensíveis e **Login Auditado** (sucessos e falhas), com exportação PDF/Excel
-- 📈 **Indicadores Nacionais Reais** — tempo médio de resolução, volumes por status/categoria e tendência mensal produzidos pelo sistema
+- 📈 **Indicadores Operacionais** — tempo médio de resolução, volumes por status/categoria e tendência mensal produzidos a partir dos dados da plataforma
 - 🗺️ **Inteligência Territorial** — agregação de ocorrências por região/bairro (endereço ou GPS)
 - 🤖 **Tabela Serviço × Prioridade × Equipe** — base de conhecimento para IA
 
@@ -58,7 +58,7 @@ O repositório está dividido nas seguintes partes:
 | Acompanhar as próprias solicitações | ✅ | — | — |
 | Criar equipes / adicionar membros (trabalhadores) | — | ✅ | — |
 | Atribuir ou realocar incidentes a uma equipe | — | ✅ (própria equipe) | ✅ (qualquer equipe) |
-| Atualizar status/prioridade de ocorrências | — | ✅ (própria equipe) | ❌ |
+| Atualizar status/prioridade de ocorrências | — | ✅ (própria equipe) | ✅ (qualquer equipe) |
 | Adicionar / remover gestores | — | — | ✅ |
 | Excluir solicitações (auditado) | — | — | ✅ |
 | Auditoria e Login Auditado | — | — | ✅ |
@@ -192,7 +192,7 @@ docker-compose logs -f
 Todo o front-end e o assistente Luna consomem dados reais do backend. O acesso aos dados é restrito com base no perfil autenticado no token JWT:
 - **Cidadão (`CITIZEN`)**: Tem acesso exclusivo e limitado a suas próprias solicitações abertas (na IA e nas telas de acompanhamento).
 - **Gestor (`GESTOR`)**: Visualiza e interage unicamente com os indicadores de dashboard, chamados e respostas da IA referentes à sua **Equipe Pública** designada. Não acessa os dados gerais de outras equipes da prefeitura.
-- **Administrador (`ADMIN`)**: Acesso de leitura a todos os dados, dashboards integrados, auditoria e relatórios amplos. Gerencia gestores e exclui solicitações, mas **não** atribui incidentes nem atualiza ocorrências (ações operacionais exclusivas dos gestores).
+- **Administrador (`ADMIN`)**: Possui visão global dos dados, dashboards, auditoria e relatórios. Gerencia gestores, exclui solicitações e pode atribuir ou realocar solicitações entre equipes, bem como atualizar status e prioridade quando necessário.
 
 ---
 
