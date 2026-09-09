@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ocorrenciaService, equipeService, anexoService, usuarioService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -33,6 +33,7 @@ export default function Solicitacoes() {
   const { selectedRegion } = useRegion();
   const isAdmin = user?.perfil === 'ADMIN';
   const isGestor = user?.perfil === 'GESTOR';
+    const canAssignEquipe = isAdmin || isGestor;
   const [items, setItems]         = useState([]);
   const [search, setSearch]       = useState('');
   const [page, setPage]           = useState(0);
@@ -57,6 +58,7 @@ export default function Solicitacoes() {
   const [cidadaosLoading, setCidadaosLoading] = useState(true);
   const [usuariosComuns, setUsuariosComuns] = useState([]);
   const [usuariosLoading, setUsuariosLoading] = useState(true);
+  const openedIncidentIdRef = useRef(null);
   const enderecos = useEnderecos(items);
 
   useEffect(() => {
@@ -212,13 +214,30 @@ export default function Solicitacoes() {
 
   useEffect(() => {
     const targetId = location.state?.selectedIncidentId;
-    if (!targetId || !items.length) return;
+    if (!targetId || !canAssignEquipe || openedIncidentIdRef.current === String(targetId)) return;
 
     const match = items.find((item) => String(item.id) === String(targetId));
     if (match) {
+      openedIncidentIdRef.current = String(targetId);
       handleOpenUpdate(match);
+      return;
     }
-  }, [items, location.state]);
+
+    let active = true;
+    ocorrenciaService.buscarPorId(targetId)
+      .then((response) => {
+        const occurrence = response.data?.data || response.data;
+        if (active && occurrence?.id) {
+          openedIncidentIdRef.current = String(targetId);
+          handleOpenUpdate(occurrence);
+        }
+      })
+      .catch(() => {
+        if (active) alert('Não foi possível carregar a solicitação selecionada.');
+      });
+
+    return () => { active = false; };
+  }, [items, location.state?.selectedIncidentId, canAssignEquipe]);
 
   const handleDelete = async (row) => {
     if (!window.confirm(`Excluir a solicitação ${row.protocolo}? Esta ação não pode ser desfeita e ficará registrada na auditoria.`)) return;
@@ -453,7 +472,7 @@ export default function Solicitacoes() {
                           >
                             <Camera size={14}/> Fotos
                           </button>
-                          {isGestor && (
+                            {canAssignEquipe && (
                             <button 
                               className={styles.newBtn} 
                               style={{ padding: '4px 8px', fontSize: '0.75rem', borderRadius: '4px' }}
@@ -668,22 +687,22 @@ export default function Solicitacoes() {
             )}
             <select
               value={selectedEquipeId}
-              disabled={!isGestor}
+              disabled={!canAssignEquipe}
               onChange={(e) => {
                 const nextValue = e.target.value;
                 setSelectedEquipeId(nextValue);
                 setUpdateData((current) => ({ ...current, idEquipe: nextValue ? Number(nextValue) : null }));
               }}
-              style={{ width: '100%', padding: '8px', marginBottom: isGestor ? '24px' : '6px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-primary)', opacity: isGestor ? 1 : 0.6 }}
+              style={{ width: '100%', padding: '8px', marginBottom: canAssignEquipe ? '24px' : '6px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-primary)', opacity: canAssignEquipe ? 1 : 0.6 }}
             >
               <option value="">Sem equipe</option>
               {equipes.map((equipe) => (
                 <option key={equipe.id} value={String(equipe.id)}>{equipe.nome}</option>
               ))}
             </select>
-            {!isGestor && (
+            {!canAssignEquipe && (
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '24px' }}>
-                Apenas gestores podem atribuir incidentes a uma equipe.
+                Apenas gestores e administradores podem atribuir incidentes a uma equipe.
               </div>
             )}
 

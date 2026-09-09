@@ -65,7 +65,7 @@ public class SolicitacaoController {
     public ResponseEntity<ApiResponse<Response>> buscarPorProtocolo(@PathVariable String protocolo) {
         return ResponseEntity.ok(ApiResponse.ok(sService.buscarPorProtocolo(protocolo)));
     }
-    @PutMapping("/{id}/status") @PreAuthorize("hasRole('GESTOR')")
+        @PutMapping("/{id}/status") @PreAuthorize("hasAnyRole('GESTOR','ADMIN')")
     public ResponseEntity<ApiResponse<Response>> atualizarStatus(@PathVariable Long id, @Valid @RequestBody UpdateStatusRequest req, @AuthenticationPrincipal Usuario usuario) {
         return ResponseEntity.ok(ApiResponse.ok(sService.atualizarStatus(id, req, usuario.getId())));
     }

@@ -57,7 +57,7 @@ O repositório está dividido nas seguintes partes:
 | Abrir solicitação (com fotos e GPS) | ✅ | — | — |
 | Acompanhar as próprias solicitações | ✅ | — | — |
 | Criar equipes / adicionar membros (trabalhadores) | — | ✅ | — |
-| Atribuir incidentes a uma equipe | — | ✅ (própria equipe) | ❌ |
+| Atribuir ou realocar incidentes a uma equipe | — | ✅ (própria equipe) | ✅ (qualquer equipe) |
 | Atualizar status/prioridade de ocorrências | — | ✅ (própria equipe) | ❌ |
 | Adicionar / remover gestores | — | — | ✅ |
 | Excluir solicitações (auditado) | — | — | ✅ |

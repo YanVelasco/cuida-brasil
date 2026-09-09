@@ -382,7 +382,7 @@ export default function Equipes() {
 
   useEffect(() => {
     const selectedIncidentIdFromState = location.state?.selectedIncidentId;
-    if (!selectedIncidentIdFromState || !isGestor) return;
+      if (!selectedIncidentIdFromState || (!isGestor && !isAdmin)) return;
 
     setSelectedIncidentId(String(selectedIncidentIdFromState));
     setShowAssignModal(true);

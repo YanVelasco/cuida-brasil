@@ -207,10 +207,6 @@ public class SolicitacaoService {
                     || (req.getIdEquipe() != null && !equipeDoGestor.equals(req.getIdEquipe()))) {
                 throw new IllegalStateException("Gestor só pode operar na própria equipe");
             }
-        } else if (req.getIdEquipe() != null
-                && (sol.getEquipe() == null || !req.getIdEquipe().equals(sol.getEquipe().getId()))) {
-            // Atribuição de incidente a equipe é exclusiva de gestores
-            throw new IllegalStateException("Apenas gestores podem atribuir incidentes a uma equipe");
         }
 
         sol.setStatus(req.getStatus());
