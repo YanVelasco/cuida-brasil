@@ -14,6 +14,8 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
     Optional<Solicitacao> findByProtocolo(String protocolo);
     Page<Solicitacao> findByUsuarioId(Long usuarioId, Pageable pageable);
     Page<Solicitacao> findByStatus(String status, Pageable pageable);
+    Page<Solicitacao> findByProtocoloContainingIgnoreCase(String protocolo, Pageable pageable);
+    Page<Solicitacao> findByProtocoloContainingIgnoreCaseAndStatus(String protocolo, String status, Pageable pageable);
     Page<Solicitacao> findByEquipeId(Long equipeId, Pageable pageable);
     Page<Solicitacao> findByStatusAndEquipeId(String status, Long equipeId, Pageable pageable);
     List<Solicitacao> findByEquipeId(Long equipeId);
@@ -23,6 +25,12 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
 
     @Query("SELECT s FROM Solicitacao s WHERE s.status = :status AND (s.equipe.id = :equipeId OR s.equipe IS NULL)")
     Page<Solicitacao> findByStatusAndEquipeIdOrNullAndUnassigned(@Param("status") String status, @Param("equipeId") Long equipeId, Pageable pageable);
+
+    @Query("SELECT s FROM Solicitacao s WHERE s.protocolo LIKE CONCAT('%', :protocolo, '%') AND (s.equipe.id = :equipeId OR s.equipe IS NULL)")
+    Page<Solicitacao> findByProtocoloAndEquipeIdOrNullAndUnassigned(@Param("protocolo") String protocolo, @Param("equipeId") Long equipeId, Pageable pageable);
+
+    @Query("SELECT s FROM Solicitacao s WHERE s.protocolo LIKE CONCAT('%', :protocolo, '%') AND s.status = :status AND (s.equipe.id = :equipeId OR s.equipe IS NULL)")
+    Page<Solicitacao> findByProtocoloAndStatusAndEquipeIdOrNullAndUnassigned(@Param("protocolo") String protocolo, @Param("status") String status, @Param("equipeId") Long equipeId, Pageable pageable);
 
     @Query("SELECT s FROM Solicitacao s WHERE s.equipe.id = :equipeId")
     Page<Solicitacao> findByEquipeIdOrNull(@Param("equipeId") Long equipeId, Pageable pageable);
@@ -35,6 +43,12 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
 
     @Query("SELECT s FROM Solicitacao s WHERE s.status = :status AND s.equipe.id IN (SELECT g.equipe.id FROM Gestor g WHERE LOWER(g.usuario.nome) = LOWER(:gestor))")
     Page<Solicitacao> findByStatusAndGestorNome(@Param("status") String status, @Param("gestor") String gestor, Pageable pageable);
+
+    @Query("SELECT s FROM Solicitacao s WHERE s.protocolo LIKE CONCAT('%', :protocolo, '%') AND s.equipe.id IN (SELECT g.equipe.id FROM Gestor g WHERE LOWER(g.usuario.nome) = LOWER(:gestor))")
+    Page<Solicitacao> findByProtocoloAndGestorNome(@Param("protocolo") String protocolo, @Param("gestor") String gestor, Pageable pageable);
+
+    @Query("SELECT s FROM Solicitacao s WHERE s.protocolo LIKE CONCAT('%', :protocolo, '%') AND s.status = :status AND s.equipe.id IN (SELECT g.equipe.id FROM Gestor g WHERE LOWER(g.usuario.nome) = LOWER(:gestor))")
+    Page<Solicitacao> findByProtocoloAndStatusAndGestorNome(@Param("protocolo") String protocolo, @Param("status") String status, @Param("gestor") String gestor, Pageable pageable);
     
     @Query("SELECT s FROM Solicitacao s WHERE s.equipe IS NOT NULL ORDER BY s.dataCriacao DESC")
     List<Solicitacao> findComEquipe();

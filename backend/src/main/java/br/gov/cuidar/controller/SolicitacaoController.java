@@ -39,9 +39,10 @@ public class SolicitacaoController {
     public ResponseEntity<ApiResponse<Page<Response>>> listar(@AuthenticationPrincipal Usuario usuario,
                                                             @RequestParam(required = false) String status,
                                                             @RequestParam(required = false) String gestor,
+                                                            @RequestParam(required = false) String protocolo,
                                                             @RequestParam(defaultValue = "0") int page,
                                                             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(ApiResponse.ok(sService.listarTodas(status, gestor, page, size, usuario)));
+        return ResponseEntity.ok(ApiResponse.ok(sService.listarTodas(status, gestor, protocolo, page, size, usuario)));
     }
     
     @GetMapping("/nao-atribuidas") @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")

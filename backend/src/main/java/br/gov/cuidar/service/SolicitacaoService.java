@@ -112,26 +112,39 @@ public class SolicitacaoService {
         return toResponse(sol);
     }
 
-    public Page<Response> listarTodas(String status, String gestor, int page, int size, Usuario usuario) {        Pageable pageable = PageRequest.of(page, size, Sort.by("dataCriacao").descending());
+    public Page<Response> listarTodas(String status, String gestor, String protocolo, int page, int size, Usuario usuario) {        Pageable pageable = PageRequest.of(page, size, Sort.by("dataCriacao").descending());
         Page<Solicitacao> result;
+        boolean hasProtocolo = protocolo != null && !protocolo.isBlank();
 
         if (usuario != null && "GESTOR".equals(usuario.getPerfil())) {
             Long equipeId = gestorRepository.findEquipeIdByUsuarioId(usuario.getId()).orElse(null);
             if (equipeId == null) {
                 return Page.empty(pageable);
             }
-            result = status != null
-                ? solicitacaoRepository.findByStatusAndEquipeIdOrNullAndUnassigned(status, equipeId, pageable)
-                : solicitacaoRepository.findByEquipeIdOrNullAndUnassigned(equipeId, pageable);
+            result = hasProtocolo
+                ? (status != null
+                    ? solicitacaoRepository.findByProtocoloAndStatusAndEquipeIdOrNullAndUnassigned(protocolo, status, equipeId, pageable)
+                    : solicitacaoRepository.findByProtocoloAndEquipeIdOrNullAndUnassigned(protocolo, equipeId, pageable))
+                : (status != null
+                    ? solicitacaoRepository.findByStatusAndEquipeIdOrNullAndUnassigned(status, equipeId, pageable)
+                    : solicitacaoRepository.findByEquipeIdOrNullAndUnassigned(equipeId, pageable));
         } else if (gestor != null && !gestor.isBlank() && usuario != null
                 && ("ADMIN".equals(usuario.getPerfil()) || "ANALYTICS_ADMIN".equals(usuario.getPerfil()))) {
-            result = status != null
-                ? solicitacaoRepository.findByStatusAndGestorNome(status, gestor, pageable)
-                : solicitacaoRepository.findByGestorNome(gestor, pageable);
+            result = hasProtocolo
+                ? (status != null
+                    ? solicitacaoRepository.findByProtocoloAndStatusAndGestorNome(protocolo, status, gestor, pageable)
+                    : solicitacaoRepository.findByProtocoloAndGestorNome(protocolo, gestor, pageable))
+                : (status != null
+                    ? solicitacaoRepository.findByStatusAndGestorNome(status, gestor, pageable)
+                    : solicitacaoRepository.findByGestorNome(gestor, pageable));
         } else {
-            result = status != null
-                ? solicitacaoRepository.findByStatus(status, pageable)
-                : solicitacaoRepository.findAll(pageable);
+            result = hasProtocolo
+                ? (status != null
+                    ? solicitacaoRepository.findByProtocoloContainingIgnoreCaseAndStatus(protocolo, status, pageable)
+                    : solicitacaoRepository.findByProtocoloContainingIgnoreCase(protocolo, pageable))
+                : (status != null
+                    ? solicitacaoRepository.findByStatus(status, pageable)
+                    : solicitacaoRepository.findAll(pageable));
         }
 
         return result.map(this::toResponse);

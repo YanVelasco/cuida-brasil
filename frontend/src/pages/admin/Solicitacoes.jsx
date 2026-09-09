@@ -156,9 +156,28 @@ export default function Solicitacoes() {
 
   const fetchData = useCallback(() => {
     setLoading(true);
+    const protocolo = search.trim();
+    const protocoloCompleto = /^PRO-\d{4}-\d+$/i.test(protocolo);
+
+    if (protocoloCompleto && !statusFilter && !gestorFilter) {
+      ocorrenciaService.buscarPorProtocolo(protocolo)
+        .then(r => {
+          const item = r.data?.data || r.data;
+          setItems(item ? [item] : []);
+          setTotal(item ? 1 : 0);
+        })
+        .catch(() => {
+          setItems([]);
+          setTotal(0);
+        })
+        .finally(() => setLoading(false));
+      return;
+    }
+
     const params = { page, size: PAGE_SIZE };
     if (statusFilter) params.status = statusFilter;
     if (gestorFilter) params.gestor = gestorFilter;
+    if (/^PRO-/i.test(protocolo)) params.protocolo = protocolo;
 
     ocorrenciaService.listar(params)
       .then(r => {
@@ -168,7 +187,7 @@ export default function Solicitacoes() {
       })
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
-  }, [page, statusFilter, gestorFilter]);
+  }, [page, statusFilter, gestorFilter, search]);
 
   const loadEquipes = useCallback(async () => {
     try {
@@ -343,7 +362,7 @@ export default function Solicitacoes() {
             className={styles.searchInput}
             placeholder="Buscar protocolo ou categoria..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => { setSearch(e.target.value); setPage(0); }}
           />
         </div>
 
