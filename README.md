@@ -132,7 +132,13 @@ docker-compose up -d
 
 ```bash
 cd backend
+docker-compose up -d
+##antes de executar o comando a seguir, importante garantir a definição da $env:GOOGLE_GENAI_API_KEY =  "sua-chave-aqui" previsto acima
 mvn spring-boot:run
+##ou 
+.\mvnw.cmd spring-boot:run
+
+
 ```
 
 O Flyway executará as migrations automaticamente. A API ficará disponível em `http://localhost:8080`.
