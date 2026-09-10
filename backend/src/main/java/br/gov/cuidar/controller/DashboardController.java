@@ -13,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
 @RequestMapping("/api/admin")
 public class DashboardController {
     private final SolicitacaoRepository solRepo;
@@ -69,3 +70,4 @@ public class DashboardController {
         return ResponseEntity.ok(ApiResponse.ok(new DashboardAdminDTO(totalGestores, totalUsuarios, totalEquipes)));
     }
 }
+

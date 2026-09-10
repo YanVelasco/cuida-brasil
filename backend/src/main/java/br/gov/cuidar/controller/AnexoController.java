@@ -31,6 +31,7 @@ import br.gov.cuidar.service.AnexoService;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
+@org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
 @RequestMapping("/api")
 public class AnexoController {
 
@@ -85,3 +86,4 @@ public class AnexoController {
         return map;
     }
 }
+

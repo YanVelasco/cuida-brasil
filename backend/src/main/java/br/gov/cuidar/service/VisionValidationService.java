@@ -76,6 +76,7 @@ public class VisionValidationService {
             throw e;
         } catch (Exception e) {
             System.err.println("Erro ao validar imagem com a IA: " + e.getMessage());
+            throw new IllegalArgumentException("Erro ao processar validação da imagem: não foi possível confirmar se a foto é válida. " + e.getMessage());
         }
     }
 
@@ -119,7 +120,7 @@ public class VisionValidationService {
             return "MEDIA";
         } catch (Exception e) {
             System.err.println("Erro ao priorizar demanda pela IA: " + e.getMessage());
-            return "MEDIA";
+            throw new IllegalArgumentException("Erro de comunicação com a IA durante a análise de prioridade. " + e.getMessage());
         }
     }
 

@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
+@org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
 @RequestMapping("/api/chat")
 public class AIChatbotController {
 
@@ -50,4 +51,5 @@ public class AIChatbotController {
         return ResponseEntity.ok(Map.of("reply", reply));
     }
 }
+
 

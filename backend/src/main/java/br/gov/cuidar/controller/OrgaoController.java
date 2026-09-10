@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
 @RequestMapping("/api/orgaos")
 public class OrgaoController {
     private final OrgaoPublicoRepository oRepo;
@@ -15,3 +16,4 @@ public class OrgaoController {
     @GetMapping @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")
     public ResponseEntity<ApiResponse<List<OrgaoPublico>>> listar() { return ResponseEntity.ok(ApiResponse.ok(oRepo.findAll())); }
 }
+

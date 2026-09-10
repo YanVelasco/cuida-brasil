@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 
 @RestController
+@org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
 @RequestMapping("/api/gestores")
 public class GestorController {
     
@@ -61,3 +62,4 @@ public class GestorController {
         return ResponseEntity.ok(ApiResponse.ok("Localização atualizada com sucesso"));
     }
 }
+

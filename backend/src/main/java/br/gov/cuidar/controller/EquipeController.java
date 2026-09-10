@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
 @RequestMapping("/api/equipes")
 public class EquipeController {
     private final EquipePublicaRepository eqRepo;
@@ -176,7 +177,7 @@ public class EquipeController {
      * operacionais (TRABALHADOR) da própria equipe.
      */
     @PostMapping("/{id}/membros") @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
-    public ResponseEntity<ApiResponse<Gestor>> adicionarMembro(@PathVariable Long id, @RequestBody NovoGestorDTO dto,
+    public ResponseEntity<ApiResponse<br.gov.cuidar.dto.MembroDTO>> adicionarMembro(@PathVariable Long id, @RequestBody NovoGestorDTO dto,
                                                                 @AuthenticationPrincipal Usuario usuario) {
         validarEquipeDoGestor(id, usuario);
         String perfil = dto.getPerfil() != null ? dto.getPerfil().toUpperCase() : "TRABALHADOR";
@@ -207,7 +208,8 @@ public class EquipeController {
             "Usuario " + user.getNome() + " (" + perfil + ") adicionado na equipe " + equipe.getNome() + " por " + usuario.getNome(),
             usuario.getCpf(), usuario, true, null);
 
-        return ResponseEntity.ok(ApiResponse.ok(gestor));
+        br.gov.cuidar.dto.MembroDTO membroDTO = new br.gov.cuidar.dto.MembroDTO(gestor.getId(), user.getNome(), user.getEmail(), user.getPerfil());
+        return ResponseEntity.ok(ApiResponse.ok(membroDTO));
     }
 
     /** ADMIN remove um gestor da equipe (desativa o usuário vinculado). */
@@ -238,3 +240,4 @@ public class EquipeController {
         }
     }
 }
+

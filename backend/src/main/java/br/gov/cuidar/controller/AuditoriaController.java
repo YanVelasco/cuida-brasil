@@ -19,6 +19,7 @@ import br.gov.cuidar.entity.Auditoria;
 import br.gov.cuidar.repository.AuditoriaRepository;
 
 @RestController
+@org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
 @RequestMapping("/api/auditoria")
 @PreAuthorize("hasAnyRole('ADMIN', 'ANALYTICS_ADMIN')")
 public class AuditoriaController {
@@ -65,3 +66,4 @@ public class AuditoriaController {
         return map;
     }
 }
+

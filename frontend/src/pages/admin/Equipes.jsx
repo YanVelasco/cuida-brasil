@@ -887,10 +887,25 @@ export default function Equipes() {
               </select>
             )}
 
-            <input placeholder="Nome Completo" autoComplete="off" value={newMemberData.nome} onChange={e => setNewMemberData({...newMemberData, nome: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
-            <input placeholder="CPF (Ex: 999.999.999-99)" autoComplete="off" value={newMemberData.cpf} onChange={e => setNewMemberData({...newMemberData, cpf: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
-            <input placeholder="E-mail" type="email" autoComplete="off" value={newMemberData.email} onChange={e => setNewMemberData({...newMemberData, email: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
-            <input placeholder="Senha" type="password" autoComplete="new-password" value={newMemberData.senha} onChange={e => setNewMemberData({...newMemberData, senha: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
+            <div style={{marginBottom: '10px'}}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Nome Completo</label>
+              <input placeholder="Ex: João da Silva" autoComplete="off" value={newMemberData.nome} onChange={e => setNewMemberData({...newMemberData, nome: e.target.value})} className={styles.searchInput} style={{width: '100%', marginTop: '4px'}}/>
+            </div>
+            
+            <div style={{marginBottom: '10px'}}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>CPF</label>
+              <input placeholder="Ex: 999.999.999-99" autoComplete="off" value={newMemberData.cpf} onChange={e => setNewMemberData({...newMemberData, cpf: e.target.value})} className={styles.searchInput} style={{width: '100%', marginTop: '4px'}}/>
+            </div>
+            
+            <div style={{marginBottom: '10px'}}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>E-mail</label>
+              <input placeholder="Ex: joao@email.com" type="email" autoComplete="off" value={newMemberData.email} onChange={e => setNewMemberData({...newMemberData, email: e.target.value})} className={styles.searchInput} style={{width: '100%', marginTop: '4px'}}/>
+            </div>
+            
+            <div style={{marginBottom: '10px'}}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Senha</label>
+              <input placeholder="Crie uma senha" type="password" autoComplete="new-password" value={newMemberData.senha} onChange={e => setNewMemberData({...newMemberData, senha: e.target.value})} className={styles.searchInput} style={{width: '100%', marginTop: '4px'}}/>
+            </div>
             
             <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
               <button className={styles.newBtn} onClick={handleAddMember}>{isAdmin ? 'Salvar Gestor' : 'Salvar Membro'}</button>

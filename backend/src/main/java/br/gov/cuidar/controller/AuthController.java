@@ -10,6 +10,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
 @RequestMapping("/api/auth")
 public class AuthController {
     private final AuthService authService;
@@ -29,3 +30,4 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok(new AuthResponse(null, null, usuario.getId(), usuario.getNome(), usuario.getCpf(), usuario.getEmail(), usuario.getPerfil())));
     }
 }
+

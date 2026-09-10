@@ -26,6 +26,7 @@ import br.gov.cuidar.service.AuditoriaService;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
+@org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
 @RequestMapping("/api/relatorios")
 @PreAuthorize("hasAnyRole('ADMIN', 'GESTOR', 'ANALYTICS_ADMIN')")
 public class RelatorioController {
@@ -317,3 +318,4 @@ public class RelatorioController {
                 .orElse(null);
     }
 }
+

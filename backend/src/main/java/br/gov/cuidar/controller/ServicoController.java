@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
 @RequestMapping("/api/servicos")
 public class ServicoController {
     private final ServicoRepository sRepo;
@@ -14,3 +15,4 @@ public class ServicoController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<Servico>>> listar() { return ResponseEntity.ok(ApiResponse.ok(sRepo.findAll())); }
 }
+

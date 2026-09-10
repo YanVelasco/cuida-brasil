@@ -19,6 +19,7 @@ import br.gov.cuidar.repository.UsuarioRepository;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 @RestController
+@org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
 @RequestMapping("/api/usuarios")
 public class UsuarioController {
 
@@ -70,3 +71,4 @@ public class UsuarioController {
         return ResponseEntity.ok(ApiResponse.ok(cidadaos));
     }
 }
+

@@ -26,6 +26,7 @@ import br.gov.cuidar.service.SolicitacaoService;
 import jakarta.validation.Valid;
 
 @RestController
+@org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
 @RequestMapping("/api/solicitacoes")
 public class SolicitacaoController {
     private final SolicitacaoService sService;
@@ -84,3 +85,4 @@ public class SolicitacaoController {
         return ResponseEntity.ok(ApiResponse.ok("Solicitacao excluida com sucesso", null));
     }
 }
+
