@@ -203,9 +203,12 @@ export default function MapaOcorrencias() {
   const [gestorFilter, setGestorFilter] = useState('');
   const [gestores, setGestores] = useState([]);
   const [loading, setLoading] = useState(true);
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
   const { selectedRegion } = useRegion();
   const { user } = useAuth();
+    const isAdmin = user?.perfil === 'ADMIN';
   const isGestor = user?.perfil === 'GESTOR';
+    const canManageEquipe = isAdmin || isGestor;
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -364,7 +367,7 @@ export default function MapaOcorrencias() {
     : null;
 
   const selectedStatus = activeSelected?.statusMeta || { label: 'Sem seleção', color: '#6B7280' };
-  const canAssignEquipe = !!activeSelected;
+  const hasSelectedOccurrence = !!activeSelected;
   const assignButtonLabel = activeSelected?.nomeEquipe ? 'Atribuir/alterar equipe' : 'Atribuir equipe';
 
   const handleMarkerClick = (oc) => {
@@ -391,7 +394,7 @@ export default function MapaOcorrencias() {
       return;
     }
 
-    navigate('/admin/solicitacoes', { state: { selectedIncidentId: activeSelected.id } });
+    setShowDetailsModal(true);
   };
 
   return (
@@ -588,15 +591,49 @@ export default function MapaOcorrencias() {
                 <div className={styles.miniMapEmpty}>Selecione uma ocorrência para visualizar a localização</div>
               </div>
             )}
-            {isGestor && (
-              <button className={styles.blueBtn} onClick={handleAssignEquipe} type="button" disabled={!canAssignEquipe}>
+            {canManageEquipe && (
+              <button className={styles.blueBtn} onClick={handleAssignEquipe} type="button" disabled={!hasSelectedOccurrence}>
                 {assignButtonLabel}
               </button>
             )}
-            <button className={styles.outlineBtn} onClick={handleVerDetalhes} type="button" disabled={!canAssignEquipe}>Ver detalhes</button>
+            <button className={styles.outlineBtn} onClick={handleVerDetalhes} type="button" disabled={!hasSelectedOccurrence}>Ver detalhes</button>
           </div>
         </div>
       </div>
+      {showDetailsModal && activeSelected && (
+        <div
+          role="presentation"
+          onClick={() => setShowDetailsModal(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'grid', placeItems: 'center', padding: '20px', background: 'rgba(0, 0, 0, 0.5)' }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="occurrence-details-title"
+            onClick={(event) => event.stopPropagation()}
+            style={{ width: 'min(560px, 100%)', maxHeight: '85vh', overflowY: 'auto', padding: '24px', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', gap: '16px', marginBottom: '16px' }}>
+              <div>
+                <h2 id="occurrence-details-title" style={{ margin: 0, fontSize: '1.1rem' }}>Detalhes da ocorrência</h2>
+                <div style={{ marginTop: '4px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{activeSelected.protocolo || 'Sem protocolo'}</div>
+              </div>
+              <span className={styles.urgentBadge} style={{ background: selectedStatus.color }}>{selectedStatus.label}</span>
+            </div>
+            <p style={{ margin: '0 0 16px', lineHeight: 1.5 }}>{activeSelected.descricao || 'Ocorrência sem descrição'}</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '12px', fontSize: '0.85rem' }}>
+              <div><strong>Tipo de serviço</strong><br />{activeSelected.categoriaServico || 'Não informado'}</div>
+              <div><strong>Prioridade</strong><br />{activeSelected.priorityMeta?.label || 'Normal'}</div>
+              <div><strong>Equipe</strong><br />{activeSelected.nomeEquipe || 'Ainda não atribuída'}</div>
+              <div><strong>Localização</strong><br />{activeSelected.endereco || enderecos[activeSelected.gps] || activeSelected.gps || 'Não informada'}</div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '24px' }}>
+              <button className={styles.outlineBtn} type="button" onClick={() => setShowDetailsModal(false)}>Fechar</button>
+              <button className={styles.blueBtn} type="button" onClick={() => navigate('/admin/solicitacoes', { state: { selectedIncidentId: activeSelected.id } })}>Abrir solicitação</button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

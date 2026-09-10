@@ -176,6 +176,7 @@ export default function Equipes() {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [equipes, setEquipes] = useState([]);
+  const [equipesMapa, setEquipesMapa] = useState([]);
   const [kpis, setKpis] = useState([]);
   
   // Membros Modal & Pagination
@@ -222,12 +223,20 @@ export default function Equipes() {
 
   const carregarDados = useCallback(async () => {
     try {
-      const resp = await equipeService.dashboard({ page, size: PAGE_SIZE });
+      const [resp, mapaResp] = await Promise.all([
+        equipeService.dashboard({ page, size: PAGE_SIZE }),
+        equipeService.dashboard({ page: 0, size: 200 }),
+      ]);
       const data = resp.data.data;
+      const mapaData = mapaResp.data.data;
       const equipesVisiveis = user?.perfil === 'GESTOR'
         ? data.content.filter((equipe) => equipe.supervisor === user.nome)
         : data.content;
+      const equipesMapaVisiveis = user?.perfil === 'GESTOR'
+        ? mapaData.content.filter((equipe) => equipe.supervisor === user.nome)
+        : mapaData.content;
       setEquipes(equipesVisiveis);
+      setEquipesMapa(equipesMapaVisiveis);
       setTotalPages(user?.perfil === 'GESTOR' ? (equipesVisiveis.length ? 1 : 0) : (data.totalPages || 1));
 
       // KPI cards only reflect the current page due to pagination (unless we do a separate count, but let's use the page for now)
@@ -373,7 +382,7 @@ export default function Equipes() {
 
   useEffect(() => {
     const selectedIncidentIdFromState = location.state?.selectedIncidentId;
-    if (!selectedIncidentIdFromState || !isGestor) return;
+      if (!selectedIncidentIdFromState || (!isGestor && !isAdmin)) return;
 
     setSelectedIncidentId(String(selectedIncidentIdFromState));
     setShowAssignModal(true);
@@ -440,7 +449,7 @@ export default function Equipes() {
 
   const handleMouseLeave = () => setHoverInfo(null);
 
-  const filteredEquipes = equipes.filter((equipe) => {
+  const matchesTeamFilters = (equipe) => {
     const matchesSearch = !search || equipe.nome.toLowerCase().includes(search.toLowerCase()) ||
       (equipe.supervisor && equipe.supervisor.toLowerCase().includes(search.toLowerCase()));
     return matchesSearch &&
@@ -448,9 +457,12 @@ export default function Equipes() {
       (!regiaoFilter || equipe.regiao === regiaoFilter) &&
       (!selectedRegion || equipe.regiao === selectedRegion) &&
       (!tipoFilter || equipe.tipoServico === tipoFilter);
-  });
+  };
 
-  const teamLegendEntries = filteredEquipes.map((team, index) => ({
+  const filteredEquipes = equipes.filter(matchesTeamFilters);
+  const filteredMapEquipes = equipesMapa.filter(matchesTeamFilters);
+
+  const teamLegendEntries = filteredMapEquipes.map((team, index) => ({
     ...team,
     mapColor: getTeamColor(team, index),
   }));
@@ -460,7 +472,7 @@ export default function Equipes() {
     return selectedMapTeams.includes(team.id);
   });
 
-  const equipesEmCampo = filteredEquipes.filter((equipe) => equipe.status === 'Em campo');
+  const equipesEmCampo = filteredMapEquipes.filter((equipe) => equipe.status === 'Em campo');
   const tiposServico = [...new Set(equipes.map((equipe) => equipe.tipoServico).filter(Boolean))].sort();
 
   const toggleMapTeam = (teamId) => {
@@ -650,7 +662,7 @@ export default function Equipes() {
               </p>
             </div>
             <div className={styles.mapStats}>
-              {isGestor && (
+              {(isGestor || isAdmin) && (
                 <>
                   <span className={styles.mapStat}>
                     <span className={styles.mapStatDot} style={{ background: '#2F80ED' }} />
@@ -678,7 +690,7 @@ export default function Equipes() {
               scrollWheelZoom
               className={styles.allocationMap}
             >
-              <MapBoundsController teams={isGestor ? filteredEquipes : []} incidentesAtivos={incidentesAtivos} />
+              <MapBoundsController teams={visibleMapTeams} incidentesAtivos={incidentesAtivos} />
               <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               {isAdmin && visibleIncidentMarkers.map((incidente) => {
                 const gps = parseGps(incidente.gps);
@@ -711,7 +723,7 @@ export default function Equipes() {
                   </CircleMarker>
                 );
               })}
-              {isGestor && visibleMapTeams.map((team, index) => {
+              {(isGestor || isAdmin) && visibleMapTeams.map((team, index) => {
                 const teamColor = getTeamColor(team, index);
                 const ocorrenciasDaEquipe = visibleIncidentMarkers.filter((incidente) => Number(incidente.idEquipe) === Number(team.id));
                 const pontosAtuacao = ocorrenciasDaEquipe
@@ -802,7 +814,7 @@ export default function Equipes() {
           </div>
 
           <div className={styles.mapLegend}>
-            {isGestor && (
+            {(isGestor || isAdmin) && (
             <div className={styles.legendSection}>
               <div className={styles.legendSectionTitle}>Equipes</div>
               <div className={styles.legendItems}>
