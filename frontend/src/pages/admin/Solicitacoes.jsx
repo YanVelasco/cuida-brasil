@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { ocorrenciaService, equipeService, anexoService, usuarioService } from '../../services/api';
+import { ocorrenciaService, equipeService, gestorService, anexoService, usuarioService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRegion } from '../../contexts/RegionContext';
 import { resolveRegionFromGps } from '../../utils/geo';
@@ -191,9 +191,10 @@ export default function Solicitacoes() {
 
   const loadEquipes = useCallback(async () => {
     try {
-      const [listarResponse, dashboardResponse] = await Promise.allSettled([
+      const [listarResponse, dashboardResponse, gestoresResponse] = await Promise.allSettled([
         equipeService.listar(),
-        equipeService.dashboard({ page: 0, size: 200 })
+        equipeService.dashboard({ page: 0, size: 200 }),
+        gestorService.listar()
       ]);
 
       const rawItems = [];
@@ -208,7 +209,14 @@ export default function Solicitacoes() {
         const dashboardData = dashboardResponse.value.data?.data || dashboardResponse.value.data || {};
         const dashboardArray = Array.isArray(dashboardData) ? dashboardData : (dashboardData.content || []);
         rawItems.push(...dashboardArray);
-        setGestores([...new Set(dashboardArray.map((item) => item.supervisor).filter((nome) => nome && nome !== 'Sem supervisor'))].sort());
+      }
+
+      if (gestoresResponse.status === 'fulfilled') {
+        const gestoresData = gestoresResponse.value.data?.data || gestoresResponse.value.data || [];
+        const gestoresArray = Array.isArray(gestoresData) ? gestoresData : (gestoresData.content || []);
+        setGestores(gestoresArray.map((gestor) => gestor.nome).filter(Boolean).sort());
+      } else {
+        setGestores([]);
       }
 
       const nextEquipes = rawItems.filter((item, index, arr) => {

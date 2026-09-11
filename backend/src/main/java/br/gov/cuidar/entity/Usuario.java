@@ -1,8 +1,21 @@
 package br.gov.cuidar.entity;
-import jakarta.persistence.*;
-import jakarta.validation.constraints.*;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 
 @Entity
 @Table(name = "TB_USUARIO")
@@ -21,6 +34,9 @@ public class Usuario {
     private String perfil = "CITIZEN";
     @Column(nullable = false)
     private Boolean ativo = true;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_orgao")
+    private OrgaoPublico orgao;
     @Column(nullable = false)
     private LocalDateTime dataCriacao = LocalDateTime.now();
     @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL)
@@ -34,6 +50,7 @@ public class Usuario {
     public String getSenha() { return senha; } public void setSenha(String senha) { this.senha = senha; }
     public String getPerfil() { return perfil; } public void setPerfil(String perfil) { this.perfil = perfil; }
     public Boolean getAtivo() { return ativo; } public void setAtivo(Boolean ativo) { this.ativo = ativo; }
+    public OrgaoPublico getOrgao() { return orgao; } public void setOrgao(OrgaoPublico orgao) { this.orgao = orgao; }
     public LocalDateTime getDataCriacao() { return dataCriacao; } public void setDataCriacao(LocalDateTime dataCriacao) { this.dataCriacao = dataCriacao; }
     public List<Solicitacao> getSolicitacoes() { return solicitacoes; } public void setSolicitacoes(List<Solicitacao> solicitacoes) { this.solicitacoes = solicitacoes; }
 }

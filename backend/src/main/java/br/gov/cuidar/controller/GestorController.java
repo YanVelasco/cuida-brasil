@@ -9,6 +9,7 @@ import br.gov.cuidar.service.AuditoriaService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 
@@ -28,8 +29,10 @@ public class GestorController {
     /** Listagem de todos os gestores ativos da plataforma (visão do ADMIN). */
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','ANALYTICS_ADMIN')")
-    public ResponseEntity<ApiResponse<java.util.List<java.util.Map<String, Object>>>> listarGestores() {
-        java.util.List<java.util.Map<String, Object>> gestores = gestorRepo.findAllGestoresAtivos().stream()
+    public ResponseEntity<ApiResponse<java.util.List<java.util.Map<String, Object>>>> listarGestores(@AuthenticationPrincipal Usuario usuario) {
+        java.util.List<Gestor> fonte = "ADMIN".equals(usuario.getPerfil()) && usuario.getOrgao() != null
+            ? gestorRepo.findAllGestoresAtivosByOrgaoId(usuario.getOrgao().getId()) : gestorRepo.findAllGestoresAtivos();
+        java.util.List<java.util.Map<String, Object>> gestores = fonte.stream()
                 .map(g -> {
                     java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
                     m.put("id", g.getId());

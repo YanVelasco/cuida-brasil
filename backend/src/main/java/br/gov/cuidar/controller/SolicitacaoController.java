@@ -47,8 +47,8 @@ public class SolicitacaoController {
     }
     
     @GetMapping("/nao-atribuidas") @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")
-    public ResponseEntity<ApiResponse<java.util.List<Response>>> listarNaoAtribuidas() {
-        return ResponseEntity.ok(ApiResponse.ok(sService.listarNaoAtribuidas()));
+    public ResponseEntity<ApiResponse<java.util.List<Response>>> listarNaoAtribuidas(@AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(ApiResponse.ok(sService.listarNaoAtribuidas(usuario)));
     }
     /** Cidadãos que atrelaram um problema a um gestor: ADMIN e ANALYTICS_ADMIN vêem tudo, GESTOR só os da própria equipe. */
     @GetMapping("/cidadaos") @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")

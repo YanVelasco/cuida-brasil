@@ -23,7 +23,7 @@ O repositório está dividido nas seguintes partes:
 ### Núcleo
 - 🔐 **Autenticação JWT Stateless** com perfis de acesso (Cidadão, Gestor, Administrador)
 - 📋 **Gestão de Solicitações (CRUD completo)** — abertura, acompanhamento, atualização de status e exclusão auditada (DELETE exclusivo do ADMIN)
-- 👥 **Gestão de Equipes** — criação de equipes e adição de membros (exclusivos do Gestor) e atribuição de incidentes à equipe
+- 👥 **Gestão de Equipes** — criação de equipes pelo Administrador; adição de membros pelo Gestor responsável e atribuição de incidentes à equipe
 - 🧑‍💼 **Gestão de Gestores** — o ADMIN lista, adiciona e remove gestores da plataforma
 - 🧑‍🤝‍🧑 **Listagem de Usuários** — ADMIN vê todos os cidadãos cadastrados; Gestor vê apenas os usuários atrelados à sua equipe
 - 📎 **Upload de Anexos** — o cidadão envia fotos do problema (validadas por IA de visão); admin e gestor visualizam e baixam as imagens
@@ -56,9 +56,10 @@ O repositório está dividido nas seguintes partes:
 | :--- | :---: | :---: | :---: |
 | Abrir solicitação (com fotos e GPS) | ✅ | — | — |
 | Acompanhar as próprias solicitações | ✅ | — | — |
-| Criar equipes / adicionar membros (trabalhadores) | — | ✅ | — |
-| Atribuir ou realocar incidentes a uma equipe | — | ✅ (própria equipe) | ✅ (qualquer equipe) |
-| Atualizar status/prioridade de ocorrências | — | ✅ (própria equipe) | ✅ (qualquer equipe) |
+| Criar equipes | — | — | ✅ |
+| Adicionar membros (trabalhadores) à própria equipe | — | ✅ | — |
+| Atribuir ou realocar incidentes a uma equipe | — | ✅ (própria equipe) | ✅ (do próprio órgão) |
+| Atualizar status/prioridade de ocorrências | — | ✅ (própria equipe) | ✅ (do próprio órgão) |
 | Adicionar / remover gestores | — | — | ✅ |
 | Excluir solicitações (auditado) | — | — | ✅ |
 | Auditoria e Login Auditado | — | — | ✅ |
@@ -166,13 +167,17 @@ As *Migrations* do Flyway já inserem dados reais para que você não encontre o
 
 | Perfil | Usuário | CPF | Senha | Equipe Associada (Gestores) |
 | :--- | :--- | :--- | :--- | :--- |
-| **Administrador** | Administrador Sistema | `000.000.000-00` | `Admin@123` | *Acesso total (Sem equipe)* |
+| **Administrador do órgão** | Administrador Sistema | `000.000.000-00` | `Admin@123` | *Acesso restrito ao órgão* | PMSP |
+| **Administrador do órgão** | Administrador Sistema | `123.456.789-09` | `Admin@123` | *Acesso restrito ao órgão* | SABESP |
+| **Administrador Global** | Administrador Global | `888.888.888-88` | `Admin@123` | *Órgãos, dashboards e relatórios* |
 | **Analytics Admin** | Analista de Analytics | `999.999.999-99` | `Analytics@123` | *Leitura + relatórios + auditoria* |
 | **Gestor** | Carlos Alberto Silva | `111.111.111-11` | `Gestor@123` | Equipe Pavimentação 01 |
 | **Gestor** | Ana Paula Ferreira | `333.333.333-33` | `Gestor@123` | Equipe Iluminação 01 |
 | **Gestor** | Roberto Oliveira Santos | `444.444.444-44` | `Gestor@123` | Equipe Saneamento 02 |
 | **Gestor** | Fernanda Lima Costa | `555.555.555-55` | `Gestor@123` | Equipe Poda 02 |
 | **Gestor** | Gabriela Costa Mendes | `666.666.666-66` | `Gestor@123` | Equipe Limpeza 03 |
+| **Gestor** | Pedro Henrique Costa | `111.222.333-96` | `Gestor@123` | Equipe Saneamento 02 |
+| **Gestor** | Lucas Martins Santos| `777.888.999-35` | `Gestor@123` | Equipe Iluminacao 02 |
 | **Cidadão** | Maria das Graças Souza | `222.222.222-22` | `Cidadao@123` | *Não aplicável* |
 | **Cidadão** | João Pedro Alves | `601.501.401-01` | `Cidadao@123` | *Não aplicável* |
 | **Cidadão** | Luciana Rodrigues Melo | `602.502.402-02` | `Cidadao@123` | *Não aplicável* |
@@ -198,7 +203,8 @@ docker-compose logs -f
 Todo o front-end e o assistente Luna consomem dados reais do backend. O acesso aos dados é restrito com base no perfil autenticado no token JWT:
 - **Cidadão (`CITIZEN`)**: Tem acesso exclusivo e limitado a suas próprias solicitações abertas (na IA e nas telas de acompanhamento).
 - **Gestor (`GESTOR`)**: Visualiza e interage unicamente com os indicadores de dashboard, chamados e respostas da IA referentes à sua **Equipe Pública** designada. Não acessa os dados gerais de outras equipes da prefeitura.
-- **Administrador (`ADMIN`)**: Possui visão global dos dados, dashboards, auditoria e relatórios. Gerencia gestores, exclui solicitações e pode atribuir ou realocar solicitações entre equipes, bem como atualizar status e prioridade quando necessário.
+- **Administrador do órgão (`ADMIN`)**: Possui visão dos dados, dashboards, auditoria e relatórios do próprio órgão. Gerencia gestores, exclui solicitações e pode atribuir ou realocar solicitações entre equipes do órgão, bem como atualizar status e prioridade quando necessário.
+- **Administrador Global (`GLOBAL_ADMIN`)**: Administra os órgãos públicos, além de acessar dashboards, relatórios e auditoria em visão global.
 
 ---
 

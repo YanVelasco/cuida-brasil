@@ -26,7 +26,7 @@ public class AuthDTO {
 
     public static class AuthResponse {
         private String token; private String tipo; private Long id; private String nome;
-        private String cpf; private String email; private String perfil;
+        private String cpf; private String email; private String perfil; private String orgaoNome;
         public AuthResponse() {}
         public AuthResponse(String token, String tipo, Long id, String nome, String cpf, String email, String perfil) {
             this.token = token; this.tipo = tipo; this.id = id; this.nome = nome; this.cpf = cpf; this.email = email; this.perfil = perfil;
@@ -38,5 +38,6 @@ public class AuthDTO {
         public String getCpf() { return cpf; } public void setCpf(String cpf) { this.cpf = cpf; }
         public String getEmail() { return email; } public void setEmail(String email) { this.email = email; }
         public String getPerfil() { return perfil; } public void setPerfil(String perfil) { this.perfil = perfil; }
+        public String getOrgaoNome() { return orgaoNome; } public void setOrgaoNome(String orgaoNome) { this.orgaoNome = orgaoNome; }
     }
 }

@@ -128,6 +128,11 @@ public class SolicitacaoService {
                 : (status != null
                     ? solicitacaoRepository.findByStatusAndEquipeIdOrNullAndUnassigned(status, equipeId, pageable)
                     : solicitacaoRepository.findByEquipeIdOrNullAndUnassigned(equipeId, pageable));
+        } else if ("ADMIN".equals(usuario != null ? usuario.getPerfil() : null) && usuario.getOrgao() != null) {
+            Long orgaoId = usuario.getOrgao().getId();
+            result = hasProtocolo
+                ? (status != null ? solicitacaoRepository.findByOrgaoIdAndProtocoloAndStatus(orgaoId, protocolo, status, pageable) : solicitacaoRepository.findByOrgaoIdAndProtocolo(orgaoId, protocolo, pageable))
+                : (status != null ? solicitacaoRepository.findByOrgaoIdAndStatus(orgaoId, status, pageable) : solicitacaoRepository.findByOrgaoId(orgaoId, pageable));
         } else if (gestor != null && !gestor.isBlank() && usuario != null
                 && ("ADMIN".equals(usuario.getPerfil()) || "ANALYTICS_ADMIN".equals(usuario.getPerfil()))) {
             result = hasProtocolo
@@ -150,8 +155,11 @@ public class SolicitacaoService {
         return result.map(this::toResponse);
     }
 
-    public List<Response> listarNaoAtribuidas() {
-        return solicitacaoRepository.findNaoAtribuidas().stream()
+    public List<Response> listarNaoAtribuidas(Usuario usuario) {
+        List<Solicitacao> solicitacoes = "ADMIN".equals(usuario.getPerfil()) && usuario.getOrgao() != null
+            ? solicitacaoRepository.findByOrgaoId(usuario.getOrgao().getId(), PageRequest.of(0, 1000)).getContent().stream().filter(s -> s.getEquipe() == null).toList()
+            : solicitacaoRepository.findNaoAtribuidas();
+        return solicitacoes.stream()
             .map(this::toResponse)
             .collect(Collectors.toList());
     }
@@ -166,6 +174,8 @@ public class SolicitacaoService {
             Long equipeId = gestorRepository.findEquipeIdByUsuarioId(usuario.getId()).orElse(null);
             if (equipeId == null) return List.of();
             sols = solicitacaoRepository.findComEquipeByEquipeId(equipeId);
+        } else if ("ADMIN".equals(usuario.getPerfil()) && usuario.getOrgao() != null) {
+            sols = solicitacaoRepository.findComEquipeByOrgaoId(usuario.getOrgao().getId());
         } else {
             sols = solicitacaoRepository.findComEquipe();
         }
@@ -213,6 +223,11 @@ public class SolicitacaoService {
         Solicitacao sol = solicitacaoRepository.findById(id).orElseThrow(() -> new RuntimeException("Nao encontrada"));
         Usuario usuario = usuarioRepository.findById(usuarioId).orElseThrow(() -> new RuntimeException("Usuario nao encontrado"));
 
+        if ("ADMIN".equals(usuario.getPerfil()) && usuario.getOrgao() != null
+                && (sol.getEquipe() == null || !usuario.getOrgao().getId().equals(sol.getEquipe().getOrgao().getId()))) {
+            throw new IllegalStateException("Administrador só pode operar solicitações do próprio órgão");
+        }
+
         if ("GESTOR".equals(usuario.getPerfil())) {
             Long equipeDoGestor = gestorRepository.findEquipeIdByUsuarioId(usuario.getId())
                     .orElseThrow(() -> new IllegalStateException("Gestor sem equipe vinculada"));
@@ -256,7 +271,9 @@ public class SolicitacaoService {
         Solicitacao sol = solicitacaoRepository.findById(solicitacaoId)
             .orElseThrow(() -> new RuntimeException("Solicitacao nao encontrada"));
 
-        if (!sol.getUsuario().getId().equals(usuario.getId()) && !"ADMIN".equals(usuario.getPerfil())) {
+        if (!sol.getUsuario().getId().equals(usuario.getId()) && !("ADMIN".equals(usuario.getPerfil())
+            && usuario.getOrgao() != null && sol.getEquipe() != null
+            && usuario.getOrgao().getId().equals(sol.getEquipe().getOrgao().getId()))) {
             throw new IllegalStateException("Você só pode avaliar sua própria solicitação");
         }
 
@@ -280,6 +297,10 @@ public class SolicitacaoService {
     public void excluir(Long id, Usuario usuario, jakarta.servlet.http.HttpServletRequest request) {
         Solicitacao sol = solicitacaoRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Nao encontrada"));
+        if (usuario.getOrgao() != null && (sol.getEquipe() == null
+                || !usuario.getOrgao().getId().equals(sol.getEquipe().getOrgao().getId()))) {
+            throw new IllegalStateException("Administrador só pode excluir solicitações do próprio órgão");
+        }
         String protocolo = sol.getProtocolo();
         solicitacaoRepository.delete(sol);
         auditoriaService.registrar("EXCLUSAO_SOLICITACAO",

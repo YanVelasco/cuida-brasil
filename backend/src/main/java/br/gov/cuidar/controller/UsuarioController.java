@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -16,7 +17,6 @@ import br.gov.cuidar.entity.Usuario;
 import br.gov.cuidar.repository.GestorRepository;
 import br.gov.cuidar.repository.SolicitacaoRepository;
 import br.gov.cuidar.repository.UsuarioRepository;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 @RestController
 @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
@@ -35,8 +35,9 @@ public class UsuarioController {
 
     /**
      * Listagem dos usuários comuns (cidadãos).
-     * ADMIN vê todos os cidadãos da plataforma; GESTOR vê apenas os usuários
-     * atrelados a ele (com solicitações atribuídas à sua equipe).
+    * ADMIN global vê todos os cidadãos da plataforma; ADMIN local vê apenas
+    * cidadãos com solicitações vinculadas ao seu órgão; GESTOR vê apenas os
+    * usuários atrelados à sua equipe.
      */
     @GetMapping("/cidadaos")
     @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")
@@ -49,6 +50,11 @@ public class UsuarioController {
             if (equipeId == null) return ResponseEntity.ok(ApiResponse.ok(List.of()));
             usuarios = solicitacaoRepo.findUsuariosByEquipeId(equipeId);
             solicitacoesPorUsuario = solicitacaoRepo.countPorUsuarioAndEquipe(equipeId).stream()
+                    .collect(Collectors.toMap(r -> ((Number) r[0]).longValue(), r -> ((Number) r[1]).longValue()));
+        } else if ("ADMIN".equals(usuario.getPerfil()) && usuario.getOrgao() != null) {
+            Long orgaoId = usuario.getOrgao().getId();
+            usuarios = solicitacaoRepo.findUsuariosByOrgaoId(orgaoId);
+            solicitacoesPorUsuario = solicitacaoRepo.countPorUsuarioAndOrgao(orgaoId).stream()
                     .collect(Collectors.toMap(r -> ((Number) r[0]).longValue(), r -> ((Number) r[1]).longValue()));
         } else {
             usuarios = usuarioRepo.findByPerfilOrderByNome("CITIZEN");

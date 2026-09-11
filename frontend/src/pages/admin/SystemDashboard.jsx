@@ -1,20 +1,42 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
-import { dashboardService, relatorioService, auditoriaService } from '../../services/api';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { Users, ShieldCheck, Map, Activity, Cpu, KeyRound, Target, Clock, Building2, FileDown, FileSpreadsheet } from 'lucide-react';
+import { dashboardService, auditoriaService } from '../../services/api';
+import { orgaoService } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { Users, ShieldCheck, Map, Activity, Cpu, KeyRound, FileDown, FileSpreadsheet } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import styles from './Dashboard.module.css';
 
-const AUDIT_COLUMNS = ['Data/Hora', 'Ação', 'Usuário', 'CPF', 'IP', 'Resultado', 'Detalhes'];
+const AUDIT_COLUMNS = ['Data/Hora', 'Ação', 'Usuário', 'Órgão', 'CPF', 'IP', 'Resultado', 'Detalhes'];
+
+function formatCpf(value) {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  return digits
+    .replace(/^(\d{3})(\d)/, '$1.$2')
+    .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
+}
+
+function formatIp(value) {
+  const raw = value.replace(/[^0-9a-fA-F]/g, '').slice(0, 32);
+  if (/[a-fA-F]/.test(raw) || raw.length > 12) {
+    return raw.match(/.{1,4}/g)?.join(':') || '';
+  }
+  return raw.match(/\d{1,3}/g)?.join('.') || '';
+}
+
+function normalizeIp(value) {
+  return value.replace(/[^0-9a-fA-F]/g, '').toLowerCase();
+}
 
 function auditRowToArray(l) {
   return [
     l.data ? new Date(l.data).toLocaleString('pt-BR') : '—',
     l.acao || '—',
     l.usuario || '—',
+    l.orgao || '—',
     l.cpf || '—',
     l.ip || '—',
     l.sucesso ? 'SUCESSO' : 'FALHA',
@@ -29,13 +51,26 @@ async function fetchAuditoriaCompleta() {
 }
 
 export default function SystemDashboard() {
+  const { user } = useAuth();
+  const isGlobalAdmin = user?.perfil === 'GLOBAL_ADMIN';
   const [stats, setStats] = useState({ totalGestores: 0, totalUsuarios: 0, totalEquipes: 0 });
-  const [growthData, setGrowthData] = useState([]);
-  const [indicadores, setIndicadores] = useState(null);
+  const [orgaos, setOrgaos] = useState([]);
   const [logins, setLogins] = useState([]);
+  const [loginPage, setLoginPage] = useState(0);
+  const [loginTotalPages, setLoginTotalPages] = useState(1);
+  const [loginStatus, setLoginStatus] = useState('');
+  const [loginCpf, setLoginCpf] = useState('');
+  const [loginUsuario, setLoginUsuario] = useState('');
+  const [loginDetalhes, setLoginDetalhes] = useState('');
+  const [loginIp, setLoginIp] = useState('');
+  const [loginDataInicio, setLoginDataInicio] = useState('');
+  const [loginDataFim, setLoginDataFim] = useState('');
+  const [loginOrgao, setLoginOrgao] = useState('');
+  const [loginError, setLoginError] = useState('');
   const [resumoLogins, setResumoLogins] = useState(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const hasLoginFilters = Boolean(loginStatus || loginCpf || loginUsuario || loginDetalhes || loginIp || loginDataInicio || loginDataFim || (isGlobalAdmin && loginOrgao));
 
   const exportAuditoriaExcel = async () => {
     setExporting(true);
@@ -120,55 +155,76 @@ export default function SystemDashboard() {
   useEffect(() => {
     async function loadStats() {
       try {
-        const [statsResponse, trendResponse, indResponse, loginsResponse, resumoResponse] = await Promise.allSettled([
+        const [statsResponse, loginsResponse, resumoResponse, orgaosResponse] = await Promise.allSettled([
           dashboardService.statsAdmin(),
-          relatorioService.tendenciaMensal(),
-          relatorioService.indicadores(),
-          auditoriaService.listar({ acao: 'LOGIN', page: 0, size: 8 }),
+          auditoriaService.listar({
+            acao: 'LOGIN',
+            page: hasLoginFilters ? 0 : loginPage,
+            size: hasLoginFilters ? 1000 : 8,
+          }),
           auditoriaService.resumoLogins(),
+          orgaoService.listar(),
         ]);
 
         if (statsResponse.status === 'fulfilled') {
           setStats(statsResponse.value.data.data || statsResponse.value.data || {});
         }
 
-        if (trendResponse.status === 'fulfilled') {
-          const trendData = (trendResponse.value.data?.data || trendResponse.value.data || []).map((item) => ({
-            name: item.mes || item.label || 'Mês',
-            usuarios: item.total || 0,
-            equipes: item.total || 0,
-          }));
-          setGrowthData(trendData.length ? trendData : []);
-        }
-
-        if (indResponse.status === 'fulfilled') {
-          setIndicadores(indResponse.value.data?.data || indResponse.value.data);
-        }
         if (loginsResponse.status === 'fulfilled') {
+          setLoginError('');
           const pageData = loginsResponse.value.data?.data || loginsResponse.value.data || {};
-          setLogins(pageData.content || []);
+          const allLogins = pageData.content || [];
+          if (hasLoginFilters) {
+            const selectedOrgao = orgaos.find((orgao) => String(orgao.id) === loginOrgao);
+            const filtered = allLogins.filter((login) => {
+              const date = login.data ? new Date(login.data).toISOString().slice(0, 10) : '';
+              return (!loginStatus || String(Boolean(login.sucesso)) === loginStatus)
+                && (!loginCpf || String(login.cpf || '').toLowerCase().includes(loginCpf.toLowerCase()))
+                && (!loginUsuario || String(login.usuario || '').toLowerCase().includes(loginUsuario.toLowerCase()))
+                && (!loginDetalhes || String(login.detalhes || '').toLowerCase().includes(loginDetalhes.toLowerCase()))
+                && (!loginIp || normalizeIp(login.ip || '').includes(normalizeIp(loginIp)))
+                && (!loginOrgao || String(login.orgaoId || '') === loginOrgao || login.orgao === selectedOrgao?.nome)
+                && (!loginDataInicio || date >= loginDataInicio)
+                && (!loginDataFim || date <= loginDataFim);
+            });
+            const first = loginPage * 8;
+            setLogins(filtered.slice(first, first + 8));
+            setLoginTotalPages(Math.max(1, Math.ceil(filtered.length / 8)));
+          } else {
+            setLogins(allLogins);
+            setLoginTotalPages(pageData.totalPages || 1);
+          }
+        } else {
+          setLogins([]);
+          setLoginError('Não foi possível carregar os acessos auditados.');
         }
         if (resumoResponse.status === 'fulfilled') {
           setResumoLogins(resumoResponse.value.data?.data || resumoResponse.value.data);
         }
+        if (orgaosResponse?.status === 'fulfilled') {
+          const orgaosAtivos = (orgaosResponse.value.data?.data || []).filter((orgao) => orgao.ativo !== false);
+          setOrgaos(orgaosAtivos);
+          if (!isGlobalAdmin && orgaosAtivos.length === 1) {
+            setLoginOrgao(String(orgaosAtivos[0].id));
+          }
+        }
       } catch (error) {
         console.error('Erro ao carregar dashboard admin:', error);
         setStats({ totalGestores: 0, totalUsuarios: 0, totalEquipes: 0 });
-        setGrowthData([]);
       } finally {
         setLoading(false);
       }
     }
 
     loadStats();
-  }, []);
+  }, [isGlobalAdmin, loginPage, loginStatus, loginCpf, loginUsuario, loginDetalhes, loginIp, loginDataInicio, loginDataFim, loginOrgao, hasLoginFilters]);
 
   return (
     <AdminLayout>
       <div className={styles.topBar}>
         <div>
-          <h1 className={styles.pageTitle}>Dashboard Executivo</h1>
-          <p style={{color: 'var(--text-muted)'}}>Visão executiva do sistema — indicadores nacionais e auditoria</p>
+          <h1 className={styles.pageTitle}>{isGlobalAdmin ? 'Dashboard Global' : 'Dashboard Executivo'}</h1>
+          <p style={{color: 'var(--text-muted)'}}>{isGlobalAdmin ? 'Órgãos cadastrados e acessos globais auditados' : 'Visão executiva do sistema — indicadores nacionais e auditoria'}</p>
         </div>
       </div>
 
@@ -178,6 +234,38 @@ export default function SystemDashboard() {
         </div>
       ) : (
         <>
+          {isGlobalAdmin ? (
+            <>
+              <div className={styles.stats} style={{ gridTemplateColumns: 'minmax(220px, 1fr)' }}>
+                <div className={styles.modernCard}>
+                  <div className={styles.modernCardHeader}>
+                    <div className={styles.modernCardIcon} style={{background: 'rgba(47, 128, 237, 0.1)', color: '#2F80ED'}}>
+                      <Map size={24}/>
+                    </div>
+                    <span className={styles.trend}>Cadastro global</span>
+                  </div>
+                  <div className={styles.statLabel}>ÓRGÃOS CADASTRADOS</div>
+                  <div className={styles.modernCardValue}>{orgaos.length.toLocaleString()}</div>
+                </div>
+              </div>
+              <div className={styles.chartCard} style={{ marginTop: '20px' }}>
+                <h3 className={styles.chartTitle}>Órgãos Públicos Cadastrados</h3>
+                <div style={{ overflowX: 'auto', marginTop: '12px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                    <thead><tr style={{ textAlign: 'left', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
+                      <th style={{ padding: '8px' }}>NOME</th><th style={{ padding: '8px' }}>SIGLA</th><th style={{ padding: '8px' }}>TIPO</th><th style={{ padding: '8px' }}>ÁREA DE ATENDIMENTO</th>
+                    </tr></thead>
+                    <tbody>
+                      {orgaos.map((orgao) => <tr key={orgao.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '8px', fontWeight: 600 }}>{orgao.nome}</td><td style={{ padding: '8px' }}>{orgao.sigla}</td><td style={{ padding: '8px' }}>{orgao.tipo}</td><td style={{ padding: '8px' }}>{orgao.areaAtendimento}</td>
+                      </tr>)}
+                      {!orgaos.length && <tr><td colSpan="4" style={{ padding: '12px', color: 'var(--text-muted)' }}>Nenhum órgão cadastrado.</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : (
           <div className={styles.stats}>
             <div className={styles.modernCard}>
               <div className={styles.modernCardHeader}>
@@ -223,90 +311,7 @@ export default function SystemDashboard() {
               <div style={{fontSize: '0.75rem', marginTop: '10px', color: 'rgba(255,255,255,0.6)'}}>Uptime nos últimos 30 dias</div>
             </div>
           </div>
-
-          {/* Indicadores Nacionais reais */}
-          {indicadores && (
-            <div className={styles.stats} style={{marginTop: '20px'}}>
-              <div className={styles.modernCard}>
-                <div className={styles.modernCardHeader}>
-                  <div className={styles.modernCardIcon} style={{background: 'rgba(39, 174, 96, 0.1)', color: '#27AE60'}}>
-                    <Target size={24}/>
-                  </div>
-                  <span className={styles.trend}>Indicador nacional</span>
-                </div>
-                <div className={styles.statLabel}>TAXA DE CONCLUSÃO</div>
-                <div className={styles.modernCardValue}>{indicadores.taxaConclusao ?? 0}%</div>
-              </div>
-              <div className={styles.modernCard}>
-                <div className={styles.modernCardHeader}>
-                  <div className={styles.modernCardIcon} style={{background: 'rgba(47, 128, 237, 0.1)', color: '#2F80ED'}}>
-                    <Clock size={24}/>
-                  </div>
-                  <span className={styles.trend}>Indicador nacional</span>
-                </div>
-                <div className={styles.statLabel}>TEMPO MÉDIO DE RESOLUÇÃO</div>
-                <div className={styles.modernCardValue}>{indicadores.tempoMedioResolucaoDias != null ? `${indicadores.tempoMedioResolucaoDias}d` : 'N/D'}</div>
-              </div>
-              <div className={styles.modernCard}>
-                <div className={styles.modernCardHeader}>
-                  <div className={styles.modernCardIcon} style={{background: 'rgba(155, 81, 224, 0.1)', color: '#9B51E0'}}>
-                    <Building2 size={24}/>
-                  </div>
-                  <span className={styles.trend}>Indicador nacional</span>
-                </div>
-                <div className={styles.statLabel}>ÓRGÃOS INTEGRADOS</div>
-                <div className={styles.modernCardValue}>{indicadores.orgaosIntegrados ?? 0}</div>
-              </div>
-              <div className={styles.modernCard}>
-                <div className={styles.modernCardHeader}>
-                  <div className={styles.modernCardIcon} style={{background: 'rgba(242, 153, 74, 0.1)', color: '#F2994A'}}>
-                    <Map size={24}/>
-                  </div>
-                  <span className={styles.trend}>Inteligência territorial</span>
-                </div>
-                <div className={styles.statLabel}>REGIÕES ATENDIDAS</div>
-                <div className={styles.modernCardValue}>{indicadores.regioesAtendidas ?? 0}</div>
-              </div>
-            </div>
           )}
-
-          <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginTop: '20px'}}>
-            <div className={styles.chartCard}>
-              <h3 className={styles.chartTitle}>Crescimento de Usuários</h3>
-              <div style={{height: '300px', width: '100%', marginTop: '20px'}}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={growthData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorUsr" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#2F80ED" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#2F80ED" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                    <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-                    <Tooltip contentStyle={{background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px'}} />
-                    <Area type="monotone" dataKey="usuarios" stroke="#2F80ED" strokeWidth={3} fillOpacity={1} fill="url(#colorUsr)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className={styles.chartCard}>
-              <h3 className={styles.chartTitle}>Crescimento de Equipes</h3>
-              <div style={{height: '300px', width: '100%', marginTop: '20px'}}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={growthData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                    <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-                    <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px'}} />
-                    <Bar dataKey="equipes" fill="#27AE60" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
 
           {/* Login auditado — trilha de auditoria corporativa */}
           <div className={styles.chartCard} style={{marginTop: '20px'}}>
@@ -349,9 +354,42 @@ export default function SystemDashboard() {
                 </button>
               </div>
             </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              <select value={loginStatus} onChange={(event) => { setLoginPage(0); setLoginStatus(event.target.value); }} className={styles.filterSelect}>
+                <option value="">Todos os resultados</option>
+                <option value="true">Sucessos</option>
+                <option value="false">Falhas</option>
+              </select>
+              <input
+                value={loginCpf}
+                onChange={(event) => { setLoginPage(0); setLoginCpf(formatCpf(event.target.value)); }}
+                className={styles.searchInput}
+                placeholder="Filtrar por CPF..."
+                style={{ maxWidth: 220 }}
+              />
+              <input type="date" value={loginDataInicio} onChange={(event) => { setLoginPage(0); setLoginDataInicio(event.target.value); }} className={styles.searchInput} title="Data inicial" />
+              <input type="date" value={loginDataFim} onChange={(event) => { setLoginPage(0); setLoginDataFim(event.target.value); }} className={styles.searchInput} title="Data final" />
+              <input value={loginUsuario} onChange={(event) => { setLoginPage(0); setLoginUsuario(event.target.value); }} className={styles.searchInput} placeholder="Usuário..." style={{ maxWidth: 180 }} />
+              <input value={loginDetalhes} onChange={(event) => { setLoginPage(0); setLoginDetalhes(event.target.value); }} className={styles.searchInput} placeholder="Detalhes..." style={{ maxWidth: 180 }} />
+              <input value={loginIp} onChange={(event) => { setLoginPage(0); setLoginIp(formatIp(event.target.value)); }} className={styles.searchInput} placeholder="IP..." style={{ maxWidth: 180 }} />
+              {isGlobalAdmin ? (
+                <select value={loginOrgao} onChange={(event) => { setLoginPage(0); setLoginOrgao(event.target.value); }} className={styles.filterSelect}>
+                  <option value="">Todos os órgãos</option>
+                  {orgaos.map((orgao) => <option key={orgao.id} value={orgao.id}>{orgao.sigla} - {orgao.nome}</option>)}
+                </select>
+              ) : (
+                <input
+                  value={orgaos[0] ? `${orgaos[0].sigla} - ${orgaos[0].nome}` : 'Órgão do administrador'}
+                  className={styles.searchInput}
+                  readOnly
+                  aria-label="Órgão do administrador"
+                  style={{ maxWidth: 260 }}
+                />
+              )}
+            </div>
             {logins.length === 0 ? (
               <p style={{color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '12px'}}>
-                Nenhum registro de acesso ainda. Os próximos logins serão auditados automaticamente.
+                {loginError || 'Nenhum registro de acesso encontrado para os filtros selecionados.'}
               </p>
             ) : (
               <div style={{overflowX: 'auto', marginTop: '12px'}}>
@@ -360,6 +398,7 @@ export default function SystemDashboard() {
                     <tr style={{textAlign: 'left', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)'}}>
                       <th style={{padding: '8px'}}>DATA/HORA</th>
                       <th style={{padding: '8px'}}>USUÁRIO</th>
+                      <th style={{padding: '8px'}}>ÓRGÃO</th>
                       <th style={{padding: '8px'}}>CPF</th>
                       <th style={{padding: '8px'}}>IP</th>
                       <th style={{padding: '8px'}}>RESULTADO</th>
@@ -371,6 +410,7 @@ export default function SystemDashboard() {
                       <tr key={l.id} style={{borderBottom: '1px solid var(--border)'}}>
                         <td style={{padding: '8px'}}>{l.data ? new Date(l.data).toLocaleString('pt-BR') : '—'}</td>
                         <td style={{padding: '8px', fontWeight: 600}}>{l.usuario || '—'}</td>
+                        <td style={{padding: '8px'}}>{l.orgao || '—'}</td>
                         <td style={{padding: '8px'}}>{l.cpf || '—'}</td>
                         <td style={{padding: '8px'}}>{l.ip || '—'}</td>
                         <td style={{padding: '8px'}}>
@@ -387,6 +427,11 @@ export default function SystemDashboard() {
                 </table>
               </div>
             )}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
+              <button className={styles.pageBtn} disabled={loginPage === 0} onClick={() => setLoginPage((page) => page - 1)}>‹</button>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Página {loginPage + 1} de {loginTotalPages}</span>
+              <button className={styles.pageBtn} disabled={loginPage >= loginTotalPages - 1} onClick={() => setLoginPage((page) => page + 1)}>›</button>
+            </div>
           </div>
         </>
       )}

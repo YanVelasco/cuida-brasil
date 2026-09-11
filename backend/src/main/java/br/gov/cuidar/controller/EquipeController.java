@@ -1,26 +1,35 @@
 package br.gov.cuidar.controller;
-import br.gov.cuidar.dto.ApiResponse;
-import br.gov.cuidar.entity.EquipePublica;
-import br.gov.cuidar.repository.EquipePublicaRepository;
-import br.gov.cuidar.repository.OrgaoPublicoRepository;
-import br.gov.cuidar.repository.UsuarioRepository;
-import br.gov.cuidar.repository.GestorRepository;
-import br.gov.cuidar.entity.OrgaoPublico;
-import br.gov.cuidar.entity.Usuario;
-import br.gov.cuidar.entity.Gestor;
-import br.gov.cuidar.dto.NovaEquipeDTO;
-import br.gov.cuidar.dto.NovoGestorDTO;
-import br.gov.cuidar.service.AuditoriaService;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.web.bind.annotation.*;
-import java.util.List;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import br.gov.cuidar.dto.ApiResponse;
+import br.gov.cuidar.dto.NovaEquipeDTO;
+import br.gov.cuidar.dto.NovoGestorDTO;
+import br.gov.cuidar.entity.EquipePublica;
+import br.gov.cuidar.entity.Gestor;
+import br.gov.cuidar.entity.OrgaoPublico;
+import br.gov.cuidar.entity.Usuario;
+import br.gov.cuidar.repository.EquipePublicaRepository;
+import br.gov.cuidar.repository.GestorRepository;
+import br.gov.cuidar.repository.OrgaoPublicoRepository;
+import br.gov.cuidar.repository.UsuarioRepository;
+import br.gov.cuidar.service.AuditoriaService;
 
 @RestController
 @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
@@ -46,7 +55,7 @@ public class EquipeController {
         this.passwordEncoder = passwordEncoder;
         this.auditoriaService = auditoriaService;
     }
-    @GetMapping @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")
+    @GetMapping @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN','GLOBAL_ADMIN')")
     public ResponseEntity<ApiResponse<List<java.util.Map<String, Object>>>> listar(@AuthenticationPrincipal Usuario usuario) {
         List<EquipePublica> equipes;
         if (isGestor(usuario)) {
@@ -55,6 +64,8 @@ public class EquipeController {
                     .filter(equipe -> Boolean.TRUE.equals(equipe.getAtivo()))
                     .map(List::of)
                     .orElseGet(List::of);
+        } else if (isAdminDoOrgao(usuario)) {
+            equipes = eqRepo.findByAtivoTrueAndOrgaoId(usuario.getOrgao().getId());
         } else {
             equipes = eqRepo.findByAtivoTrue();
         }
@@ -77,7 +88,7 @@ public class EquipeController {
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
-    @GetMapping("/dashboard") @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")
+    @GetMapping("/dashboard") @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN','GLOBAL_ADMIN')")
     public ResponseEntity<ApiResponse<Page<br.gov.cuidar.dto.EquipeDashboardDTO>>> listarDashboard(
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal Usuario usuario) {
@@ -89,6 +100,8 @@ public class EquipeController {
                     .filter(equipe -> Boolean.TRUE.equals(equipe.getAtivo()))
                     .<Page<EquipePublica>>map(equipe -> new PageImpl<>(List.of(equipe), pageable, 1))
                     .orElseGet(() -> Page.empty(pageable));
+        } else if (isAdminDoOrgao(usuario)) {
+            equipes = eqRepo.findByAtivoTrueAndOrgaoId(usuario.getOrgao().getId(), pageable);
         } else {
             equipes = eqRepo.findByAtivoTrue(pageable);
         }
@@ -144,7 +157,7 @@ public class EquipeController {
         return ResponseEntity.ok(ApiResponse.ok(dtos));
     }
     
-    @GetMapping("/{id}/membros") @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")
+    @GetMapping("/{id}/membros") @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN','GLOBAL_ADMIN')")
     public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<br.gov.cuidar.dto.MembroDTO>>> listarMembros(
             @PathVariable Long id, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal Usuario usuario) {
@@ -157,19 +170,31 @@ public class EquipeController {
         return ResponseEntity.ok(ApiResponse.ok(dtos));
     }
 
-    @PostMapping @PreAuthorize("hasRole('GESTOR')")
-    public ResponseEntity<ApiResponse<EquipePublica>> criarEquipe(@RequestBody NovaEquipeDTO dto, @AuthenticationPrincipal Usuario usuario) {
-        Long orgaoId = java.util.Objects.requireNonNull(dto.getIdOrgao(), "ID do órgão não pode ser nulo");
-        OrgaoPublico orgao = orgaoRepo.findById(orgaoId).orElseThrow(() -> new RuntimeException("Órgão não encontrado"));
+    @PostMapping @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> criarEquipe(@RequestBody NovaEquipeDTO dto, @AuthenticationPrincipal Usuario usuario) {
+        Long orgaoId = java.util.Objects.requireNonNull(usuario.getOrgao(),
+            "Administrador não está vinculado a um órgão").getId();
+        OrgaoPublico orgao = orgaoRepo.findById(orgaoId).orElseThrow(() ->
+            new IllegalStateException("Órgão do administrador não foi encontrado"));
         EquipePublica equipe = new EquipePublica();
         equipe.setNome(dto.getNome());
         equipe.setOrgao(orgao);
         equipe.setAtivo(true);
         equipe = eqRepo.save(equipe);
         auditoriaService.registrar("CRIACAO_EQUIPE",
-            "Equipe " + equipe.getNome() + " criada pelo gestor " + usuario.getNome() + " para o orgao " + orgao.getNome(),
+            "Equipe " + equipe.getNome() + " criada pelo administrador " + usuario.getNome() + " para o orgao " + orgao.getNome(),
             usuario.getCpf(), usuario, true, null);
-        return ResponseEntity.ok(ApiResponse.ok(equipe));
+        java.util.Map<String, Object> response = new java.util.LinkedHashMap<>();
+        response.put("id", equipe.getId());
+        response.put("nome", equipe.getNome());
+        response.put("ativo", equipe.getAtivo());
+        response.put("orgao", java.util.Map.of(
+            "id", orgao.getId(),
+            "nome", orgao.getNome(),
+            "sigla", orgao.getSigla(),
+            "areaAtendimento", orgao.getAreaAtendimento()
+        ));
+        return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
     /**
@@ -197,6 +222,7 @@ public class EquipeController {
         user.setSenha(passwordEncoder.encode(dto.getSenha()));
         user.setPerfil(perfil);
         user.setAtivo(true);
+        user.setOrgao(equipe.getOrgao());
         user = userRepo.save(user);
 
         Gestor gestor = new Gestor();
@@ -234,9 +260,19 @@ public class EquipeController {
         return usuario != null && "GESTOR".equals(usuario.getPerfil());
     }
 
+    private boolean isAdminDoOrgao(Usuario usuario) {
+        return usuario != null && "ADMIN".equals(usuario.getPerfil()) && usuario.getOrgao() != null;
+    }
+
     private void validarEquipeDoGestor(Long equipeId, Usuario usuario) {
         if (isGestor(usuario) && !gestorRepo.findEquipeIdByUsuarioId(usuario.getId()).map(equipeId::equals).orElse(false)) {
             throw new IllegalStateException("Gestor só pode operar na própria equipe");
+        }
+        if (isAdminDoOrgao(usuario) && !eqRepo.findById(equipeId)
+                .map(EquipePublica::getOrgao)
+                .map(orgao -> orgao.getId().equals(usuario.getOrgao().getId()))
+                .orElse(false)) {
+            throw new IllegalStateException("Administrador só pode operar em equipes do próprio órgão");
         }
     }
 }

@@ -5,7 +5,7 @@ import { useRegion } from '../../contexts/RegionContext';
 import { MapContainer, TileLayer, CircleMarker, Circle, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import AdminLayout from '../../components/layout/AdminLayout';
-import { equipeService, orgaoService, ocorrenciaService, gestorService } from '../../services/api';
+import { equipeService, ocorrenciaService, gestorService } from '../../services/api';
 import useEnderecos from '../../hooks/useEnderecos';
 import { MapPin, CheckCircle, Shield } from 'lucide-react';
 import styles from './Equipes.module.css';
@@ -199,9 +199,8 @@ export default function Equipes() {
   const [statusEquipe, setStatusEquipe] = useState('EM_CAMPO');
 
   // Forms state
-  const [newEquipeData, setNewEquipeData] = useState({ nome: '', idOrgao: '' });
+  const [newEquipeData, setNewEquipeData] = useState({ nome: '' });
   const [newMemberData, setNewMemberData] = useState({ nome: '', cpf: '', email: '', senha: '', perfil: 'TRABALHADOR' });
-  const [orgaos, setOrgaos] = useState([]);
   
   // Unassigned incidents state
   const [unassignedIncidents, setUnassignedIncidents] = useState([]);
@@ -279,15 +278,6 @@ export default function Equipes() {
 
     loadIncidentesAtivos();
 
-    async function loadOrgaos() {
-      try {
-        const response = await orgaoService.listar();
-        setOrgaos(response.data.data);
-      } catch (err) {
-        console.error("Erro ao carregar orgãos:", err);
-      }
-    }
-    loadOrgaos();
     carregarGestores();
   }, [carregarDados]);
 
@@ -305,9 +295,9 @@ export default function Equipes() {
   };
 
   const handleCreateEquipe = async () => {
-    if (!newEquipeData.idOrgao || !newEquipeData.nome) return alert('Preencha os campos.');
+    if (!newEquipeData.nome) return alert('Informe o nome da equipe.');
     try {
-      await equipeService.criar({ ...newEquipeData, idOrgao: Number(newEquipeData.idOrgao) });
+      await equipeService.criar({ nome: newEquipeData.nome });
       alert('Equipe criada com sucesso!');
       setShowNewEquipeModal(false);
       carregarDados();
@@ -504,7 +494,7 @@ export default function Equipes() {
     <AdminLayout>
       <div className={styles.topBar}>
         <h1 className={styles.title}>Gestão de Equipes</h1>
-        {isGestor && <button className={styles.newBtn} onClick={() => setShowNewEquipeModal(true)}>+ Nova Equipe</button>}
+        {isAdmin && <button className={styles.newBtn} onClick={() => setShowNewEquipeModal(true)}>+ Nova Equipe</button>}
       </div>
 
       <div className={styles.filterBar}>
@@ -933,12 +923,6 @@ export default function Equipes() {
           <div className={styles.modalContent}>
             <h3>Criar Nova Equipe</h3>
             <input placeholder="Nome da Equipe (Ex: Equipe Limpeza Sul 01)" value={newEquipeData.nome} onChange={e => setNewEquipeData({...newEquipeData, nome: e.target.value})} className={styles.searchInput} style={{width: '100%', margin: '10px 0'}}/>
-            <select value={newEquipeData.idOrgao} onChange={e => setNewEquipeData({...newEquipeData, idOrgao: e.target.value})} className={styles.filterSelect} style={{width: '100%', margin: '10px 0'}}>
-              <option value="">Selecione o Órgão Público...</option>
-              {orgaos.map(o => (
-                <option key={o.id} value={o.id}>{o.nome} ({o.sigla})</option>
-              ))}
-            </select>
             <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
               <button className={styles.newBtn} onClick={handleCreateEquipe}>Salvar Equipe</button>
               <button className={styles.clearBtn} onClick={() => setShowNewEquipeModal(false)}>Cancelar</button>

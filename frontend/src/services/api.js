@@ -179,6 +179,20 @@ export const equipeService = {
 export const orgaoService = {
   listar: () =>
     api.get('/api/orgaos'),
+  criar: (dados) =>
+    api.post('/api/orgaos', dados),
+  criarAdministrador: (id, dados) =>
+    api.post(`/api/orgaos/${id}/administrador`, dados),
+  listarAdministradores: (id) =>
+    api.get(`/api/orgaos/${id}/administradores`),
+  atualizarAdministrador: (orgaoId, adminId, dados) =>
+    api.put(`/api/orgaos/${orgaoId}/administradores/${adminId}`, dados),
+  excluirAdministrador: (orgaoId, adminId) =>
+    api.delete(`/api/orgaos/${orgaoId}/administradores/${adminId}`),
+  atualizar: (id, dados) =>
+    api.put(`/api/orgaos/${id}`, dados),
+  excluir: (id) =>
+    api.delete(`/api/orgaos/${id}`),
 };
 
 // ============ SERVICOS ============
