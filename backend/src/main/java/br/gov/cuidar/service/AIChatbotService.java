@@ -4,16 +4,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
-
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.stereotype.Service;
+
+import br.gov.cuidar.entity.Solicitacao;
 import br.gov.cuidar.repository.SolicitacaoRepository;
 
 @Service
@@ -29,7 +28,7 @@ public class AIChatbotService {
         this.solicitacaoRepository = solicitacaoRepository;
     }
 
-    public String processQuery(String userMessage, String perfil, String usuarioId, String equipeId) {
+    public String processQuery(String userMessage, String perfil, String usuarioId, String equipeId, String orgaoId) {
         try {
             String filterExpression;
             if ("CITIZEN".equals(perfil)) {
@@ -55,6 +54,11 @@ public class AIChatbotService {
                     .map(this::formatSolicitacao)
                     .reduce((a, b) -> a + "\n" + b)
                     .orElse("Nenhuma solicitação encontrada para este cidadão.");
+                } else if ("ADMIN".equals(perfil) && orgaoId != null) {
+                    context = solicitacaoRepository.findByOrgaoIdOrderByDataCriacaoDesc(Long.valueOf(orgaoId)).stream()
+                            .map(this::formatSolicitacao)
+                            .reduce((a, b) -> a + "\n" + b)
+                            .orElse("Nenhuma solicitação encontrada para este órgão.");
                 } else {
                 List<Document> similarDocuments = vectorStore.similaritySearch(searchRequest);
                 context = similarDocuments.stream()
