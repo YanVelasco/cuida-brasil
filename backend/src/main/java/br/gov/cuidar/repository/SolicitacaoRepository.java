@@ -14,6 +14,7 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
     Optional<Solicitacao> findByProtocolo(String protocolo);
     Page<Solicitacao> findByUsuarioId(Long usuarioId, Pageable pageable);
     List<Solicitacao> findByUsuarioIdOrderByDataCriacaoDesc(Long usuarioId);
+    List<Solicitacao> findByEquipeIdOrderByDataCriacaoDesc(Long equipeId);
     @Query("SELECT s FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId ORDER BY s.dataCriacao DESC")
     List<Solicitacao> findByOrgaoIdOrderByDataCriacaoDesc(@Param("orgaoId") Long orgaoId);
     Page<Solicitacao> findByStatus(String status, Pageable pageable);

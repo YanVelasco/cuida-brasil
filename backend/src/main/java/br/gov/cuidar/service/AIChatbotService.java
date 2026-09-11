@@ -12,7 +12,9 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Service;
 
+import br.gov.cuidar.entity.EquipePublica;
 import br.gov.cuidar.entity.Solicitacao;
+import br.gov.cuidar.repository.EquipePublicaRepository;
 import br.gov.cuidar.repository.SolicitacaoRepository;
 
 @Service
@@ -21,11 +23,14 @@ public class AIChatbotService {
     private final VectorStore vectorStore;
     private final ChatModel chatModel;
     private final SolicitacaoRepository solicitacaoRepository;
+    private final EquipePublicaRepository equipeRepository;
 
-    public AIChatbotService(VectorStore vectorStore, ChatModel chatModel, SolicitacaoRepository solicitacaoRepository) {
+    public AIChatbotService(VectorStore vectorStore, ChatModel chatModel,
+            SolicitacaoRepository solicitacaoRepository, EquipePublicaRepository equipeRepository) {
         this.vectorStore = vectorStore;
         this.chatModel = chatModel;
         this.solicitacaoRepository = solicitacaoRepository;
+        this.equipeRepository = equipeRepository;
     }
 
     public String processQuery(String userMessage, String perfil, String usuarioId, String equipeId, String orgaoId) {
@@ -59,6 +64,16 @@ public class AIChatbotService {
                             .map(this::formatSolicitacao)
                             .reduce((a, b) -> a + "\n" + b)
                             .orElse("Nenhuma solicitação encontrada para este órgão.");
+                } else if ("GESTOR".equals(perfil) && equipeId != null && !equipeId.equals("UNASSIGNED")) {
+                    Long idEquipe = Long.valueOf(equipeId);
+                    String equipeContext = equipeRepository.findById(idEquipe)
+                        .map(this::formatEquipe)
+                        .orElse("Equipe não encontrada.");
+                    String solicitacoesContext = solicitacaoRepository.findByEquipeIdOrderByDataCriacaoDesc(idEquipe).stream()
+                        .map(this::formatSolicitacao)
+                        .reduce((a, b) -> a + "\n" + b)
+                        .orElse("Nenhuma solicitação encontrada para esta equipe.");
+                    context = equipeContext + "\n" + solicitacoesContext;
                 } else {
                 List<Document> similarDocuments = vectorStore.similaritySearch(searchRequest);
                 context = similarDocuments.stream()
@@ -127,5 +142,12 @@ public class AIChatbotService {
                 solicitacao.getPrioridade() != null ? solicitacao.getPrioridade() : "Não informada",
                 categoria, solicitacao.getDescricao(),
                 solicitacao.getEndereco() != null ? solicitacao.getEndereco() : solicitacao.getGps());
+    }
+
+    private String formatEquipe(EquipePublica equipe) {
+        String orgao = equipe.getOrgao() != null ? equipe.getOrgao().getNome() : "Não informado";
+        return String.format("Equipe: %s%nÓrgão responsável: %s%nStatus operacional: %s",
+                equipe.getNome(), orgao,
+                equipe.getStatusOperacional() != null ? equipe.getStatusOperacional() : "Não informado");
     }
 }
