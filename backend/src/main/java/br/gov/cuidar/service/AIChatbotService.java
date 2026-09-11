@@ -84,6 +84,8 @@ public class AIChatbotService {
                             .map(this::formatOrgao)
                             .reduce((a, b) -> a + "\n" + b)
                             .orElse("Nenhum órgão ativo encontrado.");
+                } else if ("ANALYTICS_ADMIN".equals(perfil)) {
+                    context = formatResumoAnalitico(orgaoId != null ? Long.valueOf(orgaoId) : null);
                 } else {
                 List<Document> similarDocuments = vectorStore.similaritySearch(searchRequest);
                 context = similarDocuments.stream()
@@ -164,6 +166,31 @@ public class AIChatbotService {
     private String formatOrgao(OrgaoPublico orgao) {
         return String.format("Órgão: %s%nSigla: %s%nTipo: %s%nÁrea de atendimento: %s",
                 orgao.getNome(), orgao.getSigla(), orgao.getTipo(), orgao.getAreaAtendimento());
+    }
+
+    private String formatResumoAnalitico(Long orgaoId) {
+        long total = orgaoId == null ? solicitacaoRepository.count() : solicitacaoRepository.countByOrgaoId(orgaoId);
+        StringBuilder resumo = new StringBuilder("Resumo analítico das solicitações:\n");
+        resumo.append("Total: ").append(total).append("\n");
+
+        List<Object[]> status = orgaoId == null
+                ? solicitacaoRepository.countByStatusGrouped()
+                : solicitacaoRepository.countByStatusGroupedAndOrgaoId(orgaoId);
+        resumo.append("Por status:\n");
+        for (Object[] row : status) {
+            resumo.append("- ").append(row[0]).append(": ").append(row[1]).append("\n");
+        }
+
+        List<Object[]> categorias = orgaoId == null
+                ? solicitacaoRepository.countByCategoria()
+                : solicitacaoRepository.countByCategoriaAndOrgaoId(orgaoId);
+        resumo.append("Por categoria:\n");
+        for (Object[] row : categorias) {
+            resumo.append("- ").append(row[0]).append(": ").append(row[1]).append("\n");
+        }
+        resumo.append("Urgentes em aberto: ")
+                .append(orgaoId == null ? solicitacaoRepository.countUrgentes() : solicitacaoRepository.countUrgentesByOrgaoId(orgaoId));
+        return resumo.toString();
     }
 
 }
