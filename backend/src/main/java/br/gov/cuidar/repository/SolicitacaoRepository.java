@@ -13,6 +13,7 @@ import br.gov.cuidar.entity.Solicitacao;
 public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> {
     Optional<Solicitacao> findByProtocolo(String protocolo);
     Page<Solicitacao> findByUsuarioId(Long usuarioId, Pageable pageable);
+    List<Solicitacao> findByUsuarioIdOrderByDataCriacaoDesc(Long usuarioId);
     Page<Solicitacao> findByStatus(String status, Pageable pageable);
     @Query("SELECT s FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId")
     Page<Solicitacao> findByOrgaoId(@Param("orgaoId") Long orgaoId, Pageable pageable);

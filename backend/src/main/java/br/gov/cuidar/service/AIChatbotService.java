@@ -1,26 +1,32 @@
 package br.gov.cuidar.service;
 
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.chat.prompt.PromptTemplate;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.stereotype.Service;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.chat.prompt.PromptTemplate;
+
+import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.SearchRequest;
+import br.gov.cuidar.repository.SolicitacaoRepository;
 
 @Service
 public class AIChatbotService {
 
     private final VectorStore vectorStore;
     private final ChatModel chatModel;
+    private final SolicitacaoRepository solicitacaoRepository;
 
-    public AIChatbotService(VectorStore vectorStore, ChatModel chatModel) {
+    public AIChatbotService(VectorStore vectorStore, ChatModel chatModel, SolicitacaoRepository solicitacaoRepository) {
         this.vectorStore = vectorStore;
         this.chatModel = chatModel;
+        this.solicitacaoRepository = solicitacaoRepository;
     }
 
     public String processQuery(String userMessage, String perfil, String usuarioId, String equipeId) {
@@ -43,12 +49,19 @@ public class AIChatbotService {
                     .withSimilarityThreshold(0.1)
                     .withFilterExpression(filterExpression);
 
-            List<Document> similarDocuments = vectorStore.similaritySearch(searchRequest);
-
-            String context = similarDocuments.stream()
+                String context;
+                if ("CITIZEN".equals(perfil)) {
+                context = solicitacaoRepository.findByUsuarioIdOrderByDataCriacaoDesc(Long.valueOf(usuarioId)).stream()
+                    .map(this::formatSolicitacao)
+                    .reduce((a, b) -> a + "\n" + b)
+                    .orElse("Nenhuma solicitação encontrada para este cidadão.");
+                } else {
+                List<Document> similarDocuments = vectorStore.similaritySearch(searchRequest);
+                context = similarDocuments.stream()
                     .map(Document::getContent)
                     .reduce((a, b) -> a + "\n" + b)
                     .orElse("Nenhum dado encontrado no banco de dados.");
+                }
 
             String perfilLabel = switch (perfil) {
                 case "CITIZEN" -> "Cidadão";
@@ -99,5 +112,16 @@ public class AIChatbotService {
             }
             return "Desculpe, estou enfrentando uma instabilidade técnica no momento. Tente novamente em instantes.";
         }
+    }
+
+    private String formatSolicitacao(Solicitacao solicitacao) {
+        String categoria = solicitacao.getServico() != null
+                ? solicitacao.getServico().getCategoria() + " - " + solicitacao.getServico().getSubcategoria()
+                : "Não informada";
+        return String.format("Protocolo: %s%nStatus: %s%nPrioridade: %s%nCategoria: %s%nDescrição: %s%nLocal: %s",
+                solicitacao.getProtocolo(), solicitacao.getStatus(),
+                solicitacao.getPrioridade() != null ? solicitacao.getPrioridade() : "Não informada",
+                categoria, solicitacao.getDescricao(),
+                solicitacao.getEndereco() != null ? solicitacao.getEndereco() : solicitacao.getGps());
     }
 }
