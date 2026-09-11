@@ -13,8 +13,10 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Service;
 
 import br.gov.cuidar.entity.EquipePublica;
+import br.gov.cuidar.entity.OrgaoPublico;
 import br.gov.cuidar.entity.Solicitacao;
 import br.gov.cuidar.repository.EquipePublicaRepository;
+import br.gov.cuidar.repository.OrgaoPublicoRepository;
 import br.gov.cuidar.repository.SolicitacaoRepository;
 
 @Service
@@ -24,13 +26,16 @@ public class AIChatbotService {
     private final ChatModel chatModel;
     private final SolicitacaoRepository solicitacaoRepository;
     private final EquipePublicaRepository equipeRepository;
+    private final OrgaoPublicoRepository orgaoRepository;
 
     public AIChatbotService(VectorStore vectorStore, ChatModel chatModel,
-            SolicitacaoRepository solicitacaoRepository, EquipePublicaRepository equipeRepository) {
+            SolicitacaoRepository solicitacaoRepository, EquipePublicaRepository equipeRepository,
+            OrgaoPublicoRepository orgaoRepository) {
         this.vectorStore = vectorStore;
         this.chatModel = chatModel;
         this.solicitacaoRepository = solicitacaoRepository;
         this.equipeRepository = equipeRepository;
+        this.orgaoRepository = orgaoRepository;
     }
 
     public String processQuery(String userMessage, String perfil, String usuarioId, String equipeId, String orgaoId) {
@@ -74,6 +79,11 @@ public class AIChatbotService {
                         .reduce((a, b) -> a + "\n" + b)
                         .orElse("Nenhuma solicitação encontrada para esta equipe.");
                     context = equipeContext + "\n" + solicitacoesContext;
+                } else if ("GLOBAL_ADMIN".equals(perfil)) {
+                    context = orgaoRepository.findByAtivoTrue().stream()
+                            .map(this::formatOrgao)
+                            .reduce((a, b) -> a + "\n" + b)
+                            .orElse("Nenhum órgão ativo encontrado.");
                 } else {
                 List<Document> similarDocuments = vectorStore.similaritySearch(searchRequest);
                 context = similarDocuments.stream()
@@ -150,4 +160,10 @@ public class AIChatbotService {
                 equipe.getNome(), orgao,
                 equipe.getStatusOperacional() != null ? equipe.getStatusOperacional() : "Não informado");
     }
+
+    private String formatOrgao(OrgaoPublico orgao) {
+        return String.format("Órgão: %s%nSigla: %s%nTipo: %s%nÁrea de atendimento: %s",
+                orgao.getNome(), orgao.getSigla(), orgao.getTipo(), orgao.getAreaAtendimento());
+    }
+
 }
