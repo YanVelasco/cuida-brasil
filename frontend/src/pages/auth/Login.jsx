@@ -16,7 +16,7 @@ export default function Login() {
 
   useEffect(() => {
     if (user) {
-      if (user.perfil === 'ADMIN' || user.perfil === 'ANALYTICS_ADMIN') navigate('/admin');
+      if (['ADMIN', 'ANALYTICS_ADMIN', 'GLOBAL_ADMIN'].includes(user.perfil)) navigate('/admin');
       else if (user.perfil === 'GESTOR') navigate('/admin/dashboard');
       else navigate('/app');
     }
@@ -33,7 +33,7 @@ export default function Login() {
     setError(''); setLoading(true);
     try {
       const user = await login(cpf, senha);
-      if (user?.perfil === 'ADMIN' || user?.perfil === 'ANALYTICS_ADMIN') navigate('/admin');
+      if (['ADMIN', 'ANALYTICS_ADMIN', 'GLOBAL_ADMIN'].includes(user?.perfil)) navigate('/admin');
       else if (user?.perfil === 'GESTOR') navigate('/admin/dashboard');
       else navigate('/app');
     } catch {

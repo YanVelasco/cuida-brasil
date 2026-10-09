@@ -15,6 +15,8 @@ public interface GestorRepository extends JpaRepository<Gestor, Long> {
 
     @Query("SELECT g FROM Gestor g JOIN FETCH g.usuario u JOIN FETCH g.equipe e WHERE u.perfil = 'GESTOR' AND u.ativo = true ORDER BY u.nome")
     java.util.List<Gestor> findAllGestoresAtivos();
+    @Query("SELECT g FROM Gestor g JOIN FETCH g.usuario u JOIN FETCH g.equipe e WHERE u.perfil = 'GESTOR' AND u.ativo = true AND e.orgao.id = :orgaoId ORDER BY u.nome")
+    java.util.List<Gestor> findAllGestoresAtivosByOrgaoId(@Param("orgaoId") Long orgaoId);
     
     org.springframework.data.domain.Page<Gestor> findByEquipeId(Long equipeId, org.springframework.data.domain.Pageable pageable);
 }

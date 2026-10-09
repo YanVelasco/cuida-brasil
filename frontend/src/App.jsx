@@ -23,6 +23,7 @@ import Solicitacoes from './pages/admin/Solicitacoes';
 import Equipes from './pages/admin/Equipes';
 import Relatorios from './pages/admin/Relatorios';
 import Suporte from './pages/admin/Suporte';
+import Orgaos from './pages/admin/Orgaos';
 
 function PrivateRoute({ children, role, roles }) {
   const { user } = useAuth();
@@ -34,7 +35,7 @@ function PrivateRoute({ children, role, roles }) {
 
 function AdminHome() {
   const { user } = useAuth();
-  if (user?.perfil === 'ADMIN' || user?.perfil === 'ANALYTICS_ADMIN') return <SystemDashboard />;
+  if (user?.perfil === 'ADMIN' || user?.perfil === 'ANALYTICS_ADMIN' || user?.perfil === 'GLOBAL_ADMIN') return <SystemDashboard />;
   if (user?.perfil === 'GESTOR') return <Navigate to="/admin/dashboard" replace />;
   return <Navigate to="/login" replace />;
 }
@@ -62,6 +63,7 @@ function AppRoutes() {
       <Route path="/admin/solicitacoes" element={<PrivateRoute roles={['ADMIN', 'GESTOR']}><Solicitacoes /></PrivateRoute>} />
       <Route path="/admin/equipes" element={<PrivateRoute roles={['ADMIN', 'GESTOR']}><Equipes /></PrivateRoute>} />
       <Route path="/admin/relatorios" element={<PrivateRoute roles={['ADMIN', 'GESTOR', 'ANALYTICS_ADMIN']}><Relatorios /></PrivateRoute>} />
+      <Route path="/admin/orgaos" element={<PrivateRoute role="GLOBAL_ADMIN"><Orgaos /></PrivateRoute>} />
       <Route path="/admin/suporte" element={<PrivateRoute role="GESTOR"><Suporte /></PrivateRoute>} />
 
       {/* Fallback */}

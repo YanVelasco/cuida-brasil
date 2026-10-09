@@ -38,6 +38,18 @@ const getNavSections = (perfil, solicitacoesCount) => {
     ];
   }
 
+  if (perfil === 'GLOBAL_ADMIN') {
+    return [
+      {
+        label: 'ADMINISTRAÇÃO GLOBAL',
+        items: [
+          { to: '/admin', label: 'Dashboard Geral', end: true },
+          { to: '/admin/orgaos', label: 'Órgãos Públicos' },
+        ]
+      }
+    ];
+  }
+
   // Gestor
   return [
     {
@@ -165,8 +177,10 @@ export default function Sidebar({ isOpen, onClose }) {
             <div className={styles.userRole}>{
               user?.perfil === 'ADMIN' ? 'Administrador' :
               user?.perfil === 'ANALYTICS_ADMIN' ? 'Administrador de Analytics' :
+              user?.perfil === 'GLOBAL_ADMIN' ? 'Administrador Global' :
               'Gestor'
             }</div>
+            {user?.orgaoNome && <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{user.orgaoNome}</div>}
           </div>
         </div>
         <button className={styles.logoutBtn} onClick={handleLogout} title="Sair">

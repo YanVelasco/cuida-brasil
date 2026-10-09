@@ -1,16 +1,19 @@
 package br.gov.cuidar.controller;
-import br.gov.cuidar.dto.ApiResponse;
-import br.gov.cuidar.dto.DashboardDTO;
-import br.gov.cuidar.dto.DashboardAdminDTO;
-import br.gov.cuidar.entity.Usuario;
-import br.gov.cuidar.repository.EquipePublicaRepository;
-import br.gov.cuidar.repository.GestorRepository;
-import br.gov.cuidar.repository.UsuarioRepository;
-import br.gov.cuidar.repository.SolicitacaoRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import br.gov.cuidar.dto.ApiResponse;
+import br.gov.cuidar.dto.DashboardAdminDTO;
+import br.gov.cuidar.dto.DashboardDTO;
+import br.gov.cuidar.entity.Usuario;
+import br.gov.cuidar.repository.EquipePublicaRepository;
+import br.gov.cuidar.repository.GestorRepository;
+import br.gov.cuidar.repository.SolicitacaoRepository;
+import br.gov.cuidar.repository.UsuarioRepository;
 
 @RestController
 @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
@@ -30,7 +33,7 @@ public class DashboardController {
     }
 
     @GetMapping("/dashboard")
-    @PreAuthorize("hasAnyRole('GESTOR', 'ADMIN', 'ANALYTICS_ADMIN')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'ADMIN', 'ANALYTICS_ADMIN', 'GLOBAL_ADMIN')")
     public ResponseEntity<ApiResponse<DashboardDTO>> dashboard(@AuthenticationPrincipal Usuario usuario) {
         long abertas, andamento, concluidas, pendentes, urgentes;
 
@@ -50,6 +53,13 @@ public class DashboardController {
             } else {
                 abertas = andamento = concluidas = pendentes = urgentes = 0;
             }
+        } else if ("ADMIN".equals(usuario.getPerfil()) && usuario.getOrgao() != null) {
+            Long orgaoId = usuario.getOrgao().getId();
+            abertas = solRepo.countByStatusAndOrgaoId("PENDENTE", orgaoId) + solRepo.countByStatusAndOrgaoId("TRIAGEM", orgaoId);
+            andamento = solRepo.countByStatusAndOrgaoId("EM_ANDAMENTO", orgaoId) + solRepo.countByStatusAndOrgaoId("EM_CAMPO", orgaoId);
+            concluidas = solRepo.countByStatusAndOrgaoId("CONCLUIDA", orgaoId);
+            pendentes = solRepo.countByStatusAndOrgaoId("PENDENTE", orgaoId);
+            urgentes = solRepo.countUrgentesByOrgaoId(orgaoId);
         } else {
             abertas    = solRepo.countByStatus("PENDENTE") + solRepo.countByStatus("TRIAGEM");
             andamento  = solRepo.countByStatus("EM_ANDAMENTO") + solRepo.countByStatus("EM_CAMPO");
@@ -62,11 +72,21 @@ public class DashboardController {
     }
 
     @GetMapping("/system-dashboard")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYTICS_ADMIN')")
-    public ResponseEntity<ApiResponse<DashboardAdminDTO>> systemDashboard() {
-        long totalGestores = usuarioRepo.countByPerfil("GESTOR");
-        long totalUsuarios = usuarioRepo.countByPerfil("CITIZEN");
-        long totalEquipes  = equipeRepo.count();
+    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYTICS_ADMIN', 'GLOBAL_ADMIN')")
+    public ResponseEntity<ApiResponse<DashboardAdminDTO>> systemDashboard(@AuthenticationPrincipal Usuario usuario) {
+        long totalGestores;
+        long totalUsuarios;
+        long totalEquipes;
+        if ("ADMIN".equals(usuario.getPerfil()) && usuario.getOrgao() != null) {
+            Long orgaoId = usuario.getOrgao().getId();
+            totalGestores = usuarioRepo.findByPerfilAndOrgaoIdOrderByNome("GESTOR", orgaoId).size();
+            totalEquipes = equipeRepo.findByAtivoTrueAndOrgaoId(orgaoId).size();
+            totalUsuarios = 0;
+        } else {
+            totalGestores = usuarioRepo.countByPerfil("GESTOR");
+            totalUsuarios = usuarioRepo.countByPerfil("CITIZEN");
+            totalEquipes = equipeRepo.count();
+        }
         return ResponseEntity.ok(ApiResponse.ok(new DashboardAdminDTO(totalGestores, totalUsuarios, totalEquipes)));
     }
 }

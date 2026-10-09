@@ -1,13 +1,17 @@
 package br.gov.cuidar.controller;
 
+import java.util.Map;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import br.gov.cuidar.entity.Usuario;
 import br.gov.cuidar.repository.GestorRepository;
 import br.gov.cuidar.service.AIChatbotService;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
@@ -39,6 +43,7 @@ public class AIChatbotController {
 
         String perfil = usuario.getPerfil();
         String usuarioId = String.valueOf(usuario.getId());
+        String orgaoId = usuario.getOrgao() != null ? String.valueOf(usuario.getOrgao().getId()) : null;
 
         String equipeId = null;
         if ("GESTOR".equals(perfil)) {
@@ -47,7 +52,7 @@ public class AIChatbotController {
                     .orElse(null);
         }
 
-        String reply = aiChatbotService.processQuery(message, perfil, usuarioId, equipeId);
+        String reply = aiChatbotService.processQuery(message, perfil, usuarioId, equipeId, orgaoId);
         return ResponseEntity.ok(Map.of("reply", reply));
     }
 }

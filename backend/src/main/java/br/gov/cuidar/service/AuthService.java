@@ -40,7 +40,9 @@ public class AuthService {
         auditoriaService.registrar("LOGIN", "Login realizado com sucesso (" + user.getPerfil() + ")", user.getCpf(), user, true, request);
 
         String token = jwtProvider.generateToken(user.getId(), user.getCpf(), user.getNome(), user.getPerfil());
-        return new AuthResponse(token, "Bearer", user.getId(), user.getNome(), user.getCpf(), user.getEmail(), user.getPerfil());
+        AuthResponse response = new AuthResponse(token, "Bearer", user.getId(), user.getNome(), user.getCpf(), user.getEmail(), user.getPerfil());
+        response.setOrgaoNome(user.getOrgao() != null ? user.getOrgao().getNome() : null);
+        return response;
     }
 
     @Transactional
@@ -66,6 +68,8 @@ public class AuthService {
             user.getCpf(), user, true, null);
 
         String token = jwtProvider.generateToken(user.getId(), user.getCpf(), user.getNome(), user.getPerfil());
-        return new AuthResponse(token, "Bearer", user.getId(), user.getNome(), user.getCpf(), user.getEmail(), user.getPerfil());
+        AuthResponse response = new AuthResponse(token, "Bearer", user.getId(), user.getNome(), user.getCpf(), user.getEmail(), user.getPerfil());
+        response.setOrgaoNome(user.getOrgao() != null ? user.getOrgao().getNome() : null);
+        return response;
     }
 }

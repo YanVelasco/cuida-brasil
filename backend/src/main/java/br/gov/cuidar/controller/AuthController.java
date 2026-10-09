@@ -27,7 +27,9 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<?>> me(@AuthenticationPrincipal Usuario usuario) {
         if (usuario == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Nao autenticado"));
-        return ResponseEntity.ok(ApiResponse.ok(new AuthResponse(null, null, usuario.getId(), usuario.getNome(), usuario.getCpf(), usuario.getEmail(), usuario.getPerfil())));
+        AuthResponse response = new AuthResponse(null, null, usuario.getId(), usuario.getNome(), usuario.getCpf(), usuario.getEmail(), usuario.getPerfil());
+        response.setOrgaoNome(usuario.getOrgao() != null ? usuario.getOrgao().getNome() : null);
+        return ResponseEntity.ok(ApiResponse.ok(response));
     }
 }
 
