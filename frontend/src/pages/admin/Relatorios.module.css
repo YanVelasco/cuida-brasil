@@ -1,4 +1,4 @@
-﻿.topBar { margin-bottom: 14px; }
+.topBar { margin-bottom: 14px; }
 .title { font-size: 1.3rem; font-weight: 700; }
 
 .periodBar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
@@ -132,4 +132,260 @@
   color: var(--text-muted, #8a8fa3);
   border-top: 1px solid var(--border, #e5e9f0);
   padding-top: 12px;
+}
+
+/* ===== Abas de Navegação Analítica ===== */
+.dashNavTabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.dashNavBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.dashNavBtn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.dashNavBtnActive {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(47, 128, 237, 0.3);
+}
+
+/* Grid Analítico Avançado */
+.advGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.advCard {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.advCard:hover {
+  box-shadow: 0 6px 24px rgba(0,0,0,0.06);
+}
+
+.advCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.advCardTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.advCardSubtitle {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* CSAT Box */
+.csatHero {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(39, 174, 96, 0.08), rgba(47, 128, 237, 0.08));
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  border: 1px solid rgba(39, 174, 96, 0.2);
+}
+.csatScoreBig {
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: var(--success);
+  line-height: 1;
+}
+.csatScoreLabel {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* Breakdown de Dimensões */
+.ratingDims {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.dimCard {
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  text-align: center;
+}
+.dimLabel {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.dimVal {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+/* Feedbacks Recentes */
+.feedbackList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+.feedbackCard {
+  background: var(--background);
+  border-left: 3px solid var(--primary);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.feedbackCardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.feedbackProto {
+  font-family: monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+.feedbackStars {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #F2C94C;
+}
+.feedbackText {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  font-style: italic;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+.feedbackAuthor {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* Medalhas de Ranking */
+.rankBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 0.75rem;
+}
+.rank1 { background: #FFD700; color: #664d00; }
+.rank2 { background: #C0C0C0; color: #333333; }
+.rank3 { background: #CD7F32; color: #ffffff; }
+.rankOther { background: var(--border); color: var(--text-secondary); }
+
+/* Progress bar percentual */
+.slaProgressBar {
+  height: 8px;
+  background: var(--border);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin: 6px 0;
+}
+.slaProgressFill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease;
+}
+
+/* Tabela Analítica */
+.tableCard {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-top: 16px;
+}
+.tableHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.tableHeaderLeft {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.tableWrapper {
+  overflow-x: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+.table th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
+}
+.table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+.table tr:hover td {
+  background: rgba(255, 255, 255, 0.04);
+}
+.table tr:last-child td {
+  border-bottom: none;
 }

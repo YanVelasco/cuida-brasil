@@ -139,12 +139,12 @@ export const dashboardService = {
 
 // ============ ANALYTICS AVANÇADO (SQL AVANÇADO) ============
 export const analyticsService = {
-  dashboardAvancado: () => api.get('/api/admin/analytics/avancado'),
-  rankingEquipes: () => api.get('/api/admin/analytics/equipes-ranking'),
-  sla: () => api.get('/api/admin/analytics/sla'),
-  satisfacao: () => api.get('/api/admin/analytics/satisfacao'),
-  turnos: () => api.get('/api/admin/analytics/turnos'),
-  gargalos: () => api.get('/api/admin/analytics/gargalos'),
+  dashboardAvancado: (params) => api.get('/api/admin/analytics/avancado', { params }),
+  rankingEquipes: (params) => api.get('/api/admin/analytics/equipes-ranking', { params }),
+  sla: (params) => api.get('/api/admin/analytics/sla', { params }),
+  satisfacao: (params) => api.get('/api/admin/analytics/satisfacao', { params }),
+  turnos: (params) => api.get('/api/admin/analytics/turnos', { params }),
+  gargalos: (params) => api.get('/api/admin/analytics/gargalos', { params }),
 };
 
 // ============ RELATORIOS ============

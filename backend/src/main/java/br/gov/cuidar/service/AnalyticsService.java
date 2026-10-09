@@ -20,8 +20,8 @@ public class AnalyticsService {
         this.solicitacaoRepository = solicitacaoRepository;
     }
 
-    public List<Map<String, Object>> getPerformanceEquipes() {
-        List<Object[]> rows = solicitacaoRepository.queryPerformanceEquipesAvancada();
+    public List<Map<String, Object>> getPerformanceEquipes(Long orgaoId, Long equipeId) {
+        List<Object[]> rows = solicitacaoRepository.queryPerformanceEquipesAvancada(orgaoId, equipeId);
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object[] r : rows) {
             Map<String, Object> item = new LinkedHashMap<>();
@@ -40,8 +40,12 @@ public class AnalyticsService {
         return result;
     }
 
-    public List<Map<String, Object>> getAnaliseSla() {
-        List<Object[]> rows = solicitacaoRepository.queryAnaliseSlaAvancada();
+    public List<Map<String, Object>> getPerformanceEquipes() {
+        return getPerformanceEquipes(null, null);
+    }
+
+    public List<Map<String, Object>> getAnaliseSla(Long orgaoId, Long equipeId) {
+        List<Object[]> rows = solicitacaoRepository.queryAnaliseSlaAvancada(orgaoId, equipeId);
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object[] r : rows) {
             Map<String, Object> item = new LinkedHashMap<>();
@@ -58,8 +62,12 @@ public class AnalyticsService {
         return result;
     }
 
-    public Map<String, Object> getSatisfacaoCidadao() {
-        List<Object[]> rows = solicitacaoRepository.queryAnaliseSatisfacaoAvancada();
+    public List<Map<String, Object>> getAnaliseSla() {
+        return getAnaliseSla(null, null);
+    }
+
+    public Map<String, Object> getSatisfacaoCidadao(Long orgaoId, Long equipeId) {
+        List<Object[]> rows = solicitacaoRepository.queryAnaliseSatisfacaoAvancada(orgaoId, equipeId);
         Map<String, Object> result = new LinkedHashMap<>();
         if (!rows.isEmpty()) {
             Object[] r = rows.get(0);
@@ -87,12 +95,16 @@ public class AnalyticsService {
             result.put("distribuicaoEstrelas", Map.of("5", 0L, "4", 0L, "3", 0L, "2", 0L, "1", 0L));
         }
 
-        result.put("feedbacksRecentes", getFeedbacksRecentes());
+        result.put("feedbacksRecentes", getFeedbacksRecentes(orgaoId, equipeId));
         return result;
     }
 
-    public List<Map<String, Object>> getFeedbacksRecentes() {
-        List<Object[]> rows = solicitacaoRepository.queryFeedbacksRecentesAvancados();
+    public Map<String, Object> getSatisfacaoCidadao() {
+        return getSatisfacaoCidadao(null, null);
+    }
+
+    public List<Map<String, Object>> getFeedbacksRecentes(Long orgaoId, Long equipeId) {
+        List<Object[]> rows = solicitacaoRepository.queryFeedbacksRecentesAvancados(orgaoId, equipeId);
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object[] r : rows) {
             Map<String, Object> item = new LinkedHashMap<>();
@@ -107,8 +119,12 @@ public class AnalyticsService {
         return result;
     }
 
-    public List<Map<String, Object>> getDistribuicaoTurnos() {
-        List<Object[]> rows = solicitacaoRepository.queryDistribuicaoTurnosAvancada();
+    public List<Map<String, Object>> getFeedbacksRecentes() {
+        return getFeedbacksRecentes(null, null);
+    }
+
+    public List<Map<String, Object>> getDistribuicaoTurnos(Long orgaoId, Long equipeId) {
+        List<Object[]> rows = solicitacaoRepository.queryDistribuicaoTurnosAvancada(orgaoId, equipeId);
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object[] r : rows) {
             Map<String, Object> item = new LinkedHashMap<>();
@@ -121,8 +137,12 @@ public class AnalyticsService {
         return result;
     }
 
-    public List<Map<String, Object>> getGargalosUrbanos() {
-        List<Object[]> rows = solicitacaoRepository.queryGargalosUrbanosAvancados();
+    public List<Map<String, Object>> getDistribuicaoTurnos() {
+        return getDistribuicaoTurnos(null, null);
+    }
+
+    public List<Map<String, Object>> getGargalosUrbanos(Long orgaoId, Long equipeId) {
+        List<Object[]> rows = solicitacaoRepository.queryGargalosUrbanosAvancados(orgaoId, equipeId);
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object[] r : rows) {
             Map<String, Object> item = new LinkedHashMap<>();
@@ -139,13 +159,21 @@ public class AnalyticsService {
         return result;
     }
 
-    public Map<String, Object> getDashboardAvancadoCompleto() {
+    public List<Map<String, Object>> getGargalosUrbanos() {
+        return getGargalosUrbanos(null, null);
+    }
+
+    public Map<String, Object> getDashboardAvancadoCompleto(Long orgaoId, Long equipeId) {
         Map<String, Object> consolidated = new LinkedHashMap<>();
-        consolidated.put("performanceEquipes", getPerformanceEquipes());
-        consolidated.put("analiseSla", getAnaliseSla());
-        consolidated.put("satisfacaoCidadao", getSatisfacaoCidadao());
-        consolidated.put("distribuicaoTurnos", getDistribuicaoTurnos());
-        consolidated.put("gargalosUrbanos", getGargalosUrbanos());
+        consolidated.put("performanceEquipes", getPerformanceEquipes(orgaoId, equipeId));
+        consolidated.put("analiseSla", getAnaliseSla(orgaoId, equipeId));
+        consolidated.put("satisfacaoCidadao", getSatisfacaoCidadao(orgaoId, equipeId));
+        consolidated.put("distribuicaoTurnos", getDistribuicaoTurnos(orgaoId, equipeId));
+        consolidated.put("gargalosUrbanos", getGargalosUrbanos(orgaoId, equipeId));
         return consolidated;
+    }
+
+    public Map<String, Object> getDashboardAvancadoCompleto() {
+        return getDashboardAvancadoCompleto(null, null);
     }
 }

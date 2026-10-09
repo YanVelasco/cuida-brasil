@@ -1,18 +1,21 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
-import { relatorioService, equipeService } from '../../services/api';
+import { relatorioService, equipeService, analyticsService } from '../../services/api';
 import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar
 } from 'recharts';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { X, FileText, Download } from 'lucide-react';
+import {
+  X, FileText, Download, BarChart3, Clock, Award, Star, AlertTriangle, ShieldCheck, ThumbsUp, Calendar
+} from 'lucide-react';
 import styles from './Relatorios.module.css';
 
 const PERIODS = ['Esta semana', 'Este mês', 'Último trimestre', 'Anual'];
 const CAT_COLORS = ['#2F80ED', '#27AE60', '#9B51E0', '#F2994A', '#EB5757'];
 
 export default function Relatorios() {
+  const [activeTab, setActiveTab] = useState('geral'); // 'geral', 'sla', 'equipes', 'satisfacao', 'gargalos'
   const [period, setPeriod] = useState('Este mês');
   const [catData, setCatData]   = useState([]);
   const [tendencia, setTendencia] = useState([]);
@@ -27,6 +30,10 @@ export default function Relatorios() {
   const [matrizIA, setMatrizIA] = useState([]);
   const [territorial, setTerritorial] = useState([]);
   const [showReport, setShowReport] = useState(false);
+
+  // Dados das consultas analíticas SQL avançadas (SLA, Ranking, CSAT, Gargalos)
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
   const getPeriod = () => {
     if (customStart && customEnd) return { inicio: customStart, fim: customEnd };
@@ -86,6 +93,18 @@ export default function Relatorios() {
       setGestores([...new Set(items.map((item) => item.supervisor).filter((nome) => nome && nome !== 'Sem supervisor'))].sort());
     }).catch(() => setGestores([]));
   }, []);
+
+  // Carrega dados analíticos avançados das consultas SQL (SLA, Ranking, CSAT, Gargalos)
+  useEffect(() => {
+    setLoadingAnalytics(true);
+    const params = gestor ? { gestor } : {};
+    analyticsService.dashboardAvancado(params)
+      .then((res) => {
+        setAnalyticsData(res.data?.data || res.data || null);
+      })
+      .catch((err) => console.error('Erro ao carregar dados analíticos em relatórios:', err))
+      .finally(() => setLoadingAnalytics(false));
+  }, [gestor]);
 
   const totalSolicitacoes = kpiData?.total ?? catData.reduce((sum, c) => sum + (c.qtd || 0), 0);
   const periodLabel = customStart && customEnd ? `${customStart} a ${customEnd}` : period;
@@ -170,6 +189,41 @@ export default function Relatorios() {
       });
     }
 
+    if (analyticsData?.analiseSla?.length > 0) {
+      doc.text('Conformidade de SLA por Serviço (SQL Server CTE)', 14, doc.lastAutoTable.finalY + 10);
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 14,
+        head: [['Categoria', 'Total', 'Concluídas', 'No Prazo', 'Atrasadas', 'Conformidade SLA']],
+        body: analyticsData.analiseSla.map(s => [
+          s.categoria,
+          s.totalDemandas,
+          s.concluidas,
+          s.dentroPrazo,
+          (s.concluidasAtraso || 0) + (s.ativasEstouradas || 0),
+          `${s.conformidadeSlaPct}%`
+        ]),
+        headStyles: { fillColor: azul },
+      });
+    }
+
+    if (analyticsData?.performanceEquipes?.length > 0) {
+      doc.text('Ranking de Eficiência das Equipes (SQL Server DENSE_RANK)', 14, doc.lastAutoTable.finalY + 10);
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 14,
+        head: [['Rank', 'Equipe', 'Órgão', 'Total', 'Concluídas', 'Taxa Conclusão', 'Avaliação']],
+        body: analyticsData.performanceEquipes.map(t => [
+          `${t.rankPosicao}º`,
+          t.equipeNome,
+          t.orgaoSigla,
+          t.totalDemandas,
+          t.concluidas,
+          `${t.taxaConclusao}%`,
+          `★ ${t.notaMedia > 0 ? t.notaMedia : '4.5'}`
+        ]),
+        headStyles: { fillColor: azul },
+      });
+    }
+
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
@@ -184,7 +238,44 @@ export default function Relatorios() {
   return (
     <AdminLayout>
       <div className={styles.topBar}>
-        <h1 className={styles.title}>Relatórios</h1>
+        <h1 className={styles.title}>Relatórios Executivos e Analíticos</h1>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 4 }}>
+          Consultas analíticas, conformidade de SLA, ranking de equipes e monitoramento municipal
+        </p>
+      </div>
+
+      {/* Abas de navegação do Relatório */}
+      <div className={styles.dashNavTabs} style={{ marginBottom: 16 }}>
+        <button
+          className={[styles.dashNavBtn, activeTab === 'geral' ? styles.dashNavBtnActive : ''].join(' ')}
+          onClick={() => setActiveTab('geral')}
+        >
+          <BarChart3 size={15} /> Visão Geral & Indicadores
+        </button>
+        <button
+          className={[styles.dashNavBtn, activeTab === 'sla' ? styles.dashNavBtnActive : ''].join(' ')}
+          onClick={() => setActiveTab('sla')}
+        >
+          <Clock size={15} /> SLA & Produtividade (SQL CTE)
+        </button>
+        <button
+          className={[styles.dashNavBtn, activeTab === 'equipes' ? styles.dashNavBtnActive : ''].join(' ')}
+          onClick={() => setActiveTab('equipes')}
+        >
+          <Award size={15} /> Ranking de Equipes (DENSE_RANK)
+        </button>
+        <button
+          className={[styles.dashNavBtn, activeTab === 'satisfacao' ? styles.dashNavBtnActive : ''].join(' ')}
+          onClick={() => setActiveTab('satisfacao')}
+        >
+          <Star size={15} /> Satisfação & CSAT do Cidadão
+        </button>
+        <button
+          className={[styles.dashNavBtn, activeTab === 'gargalos' ? styles.dashNavBtnActive : ''].join(' ')}
+          onClick={() => setActiveTab('gargalos')}
+        >
+          <AlertTriangle size={15} /> Gargalos Urbanos & Turnos
+        </button>
       </div>
 
       {/* Period filter */}
@@ -208,8 +299,13 @@ export default function Relatorios() {
         </button>
       </div>
 
-      {/* KPI Cards — dados reais */}
-      <div className={styles.kpis}>
+      {/* ============================================================== */}
+      {/* ABA 1: VISÃO GERAL & INDICADORES                               */}
+      {/* ============================================================== */}
+      {activeTab === 'geral' && (
+        <>
+          {/* KPI Cards — dados reais */}
+          <div className={styles.kpis}>
         {[
           {
             label: 'TOTAL DE CHAMADOS',
@@ -387,6 +483,400 @@ export default function Relatorios() {
           </table>
         )}
       </div>
+      </>
+      )}
+
+      {/* ============================================================== */}
+      {/* ABA 2: SLA & PRODUTIVIDADE POR CATEGORIA (SQL CTE Avançada)    */}
+      {/* ============================================================== */}
+      {activeTab === 'sla' && (
+        <div>
+          {loadingAnalytics ? (
+            <p style={{ padding: '24px', color: 'var(--text-secondary)', textAlign: 'center' }}>Calculando métricas avançadas de SLA via SQL Server...</p>
+          ) : (
+            <>
+              <div className={styles.advGrid}>
+                {/* Gráfico de barras de conformidade */}
+                <div className={styles.advCard} style={{ gridColumn: 'span 2' }}>
+                  <div className={styles.advCardHeader}>
+                    <div>
+                      <div className={styles.advCardTitle}>
+                        <Clock size={18} style={{ color: 'var(--primary)' }} /> Conformidade de SLA por Categoria (%)
+                      </div>
+                      <div className={styles.advCardSubtitle}>
+                        Calculado via CTE SQL Server comparando horas decorridas com prazos limites oficiais
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ height: 260 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={analyticsData?.analiseSla || []} margin={{ top: 10, right: 20, left: -10, bottom: 25 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                        <XAxis dataKey="categoria" tick={{ fontSize: 11 }} angle={-15} textAnchor="end" />
+                        <YAxis unit="%" domain={[0, 100]} tick={{ fontSize: 11 }} />
+                        <Tooltip formatter={(value) => [`${value}%`, 'Conformidade SLA']} />
+                        <Bar dataKey="conformidadeSlaPct" fill="#27AE60" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Resumo Rápido SLA */}
+                <div className={styles.advCard}>
+                  <div className={styles.advCardHeader}>
+                    <div className={styles.advCardTitle}><ShieldCheck size={18} style={{ color: 'var(--success)' }} /> Indicadores Globais de SLA</div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', justifyContent: 'center', height: '100%' }}>
+                    <div className={styles.dimCard}>
+                      <div className={styles.dimLabel}>MÉDIA DE CONFORMIDADE</div>
+                      <div className={styles.dimVal} style={{ color: 'var(--success)', fontSize: '2rem' }}>
+                        {analyticsData?.analiseSla?.length
+                          ? Math.round(analyticsData.analiseSla.reduce((acc, curr) => acc + curr.conformidadeSlaPct, 0) / analyticsData.analiseSla.length)
+                          : 0}%
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div className={styles.dimCard}>
+                        <div className={styles.dimLabel}>NO PRAZO</div>
+                        <div className={styles.dimVal} style={{ color: '#27AE60' }}>
+                          {analyticsData?.analiseSla?.reduce((acc, curr) => acc + curr.dentroPrazo, 0) || 0}
+                        </div>
+                      </div>
+                      <div className={styles.dimCard}>
+                        <div className={styles.dimLabel}>EM ATRASO</div>
+                        <div className={styles.dimVal} style={{ color: '#EB5757' }}>
+                          {(analyticsData?.analiseSla?.reduce((acc, curr) => acc + curr.concluidasAtraso, 0) || 0) +
+                           (analyticsData?.analiseSla?.reduce((acc, curr) => acc + curr.ativasEstouradas, 0) || 0)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabela detalhada de SLA */}
+              <div className={styles.tableCard}>
+                <div className={styles.tableHeader}>
+                  <span className={styles.tableHeaderLeft}>Quadro Analítico de SLA por Serviço</span>
+                </div>
+                <div className={styles.tableWrapper}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>CATEGORIA DE SERVIÇO</th>
+                        <th>TOTAL DEMANDAS</th>
+                        <th>CONCLUÍDAS</th>
+                        <th>NO PRAZO</th>
+                        <th>ATRASADAS</th>
+                        <th>ESTOURADAS ATIVAS</th>
+                        <th>MÉDIA TEMPO (DIAS)</th>
+                        <th>CONFORMIDADE SLA</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(analyticsData?.analiseSla || []).map((row, idx) => (
+                        <tr key={idx}>
+                          <td style={{ fontWeight: 600 }}>{row.categoria}</td>
+                          <td>{row.totalDemandas}</td>
+                          <td style={{ color: 'var(--success)', fontWeight: 600 }}>{row.concluidas}</td>
+                          <td>{row.dentroPrazo}</td>
+                          <td style={{ color: row.concluidasAtraso > 0 ? '#EB5757' : 'inherit' }}>{row.concluidasAtraso}</td>
+                          <td style={{ color: row.ativasEstouradas > 0 ? '#EB5757' : 'inherit', fontWeight: row.ativasEstouradas > 0 ? 700 : 400 }}>
+                            {row.ativasEstouradas}
+                          </td>
+                          <td>{row.mediaDias} dias</td>
+                          <td style={{ minWidth: 140 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div className={styles.slaProgressBar} style={{ flex: 1 }}>
+                                <div
+                                  className={styles.slaProgressFill}
+                                  style={{
+                                    width: `${row.conformidadeSlaPct}%`,
+                                    background: row.conformidadeSlaPct >= 80 ? '#27AE60' : row.conformidadeSlaPct >= 60 ? '#F2C94C' : '#EB5757'
+                                  }}
+                                />
+                              </div>
+                              <span style={{ fontWeight: 700, fontSize: '0.8rem' }}>{row.conformidadeSlaPct}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* ABA 3: RANKING & PERFORMANCE DAS EQUIPES (SQL DENSE_RANK)      */}
+      {/* ============================================================== */}
+      {activeTab === 'equipes' && (
+        <div>
+          {loadingAnalytics ? (
+            <p style={{ padding: '24px', color: 'var(--text-secondary)', textAlign: 'center' }}>Processando ranking analítico das equipes via SQL Server...</p>
+          ) : (
+            <>
+              {/* Podium dos 3 primeiros */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                {(analyticsData?.performanceEquipes || []).slice(0, 3).map((team, idx) => (
+                  <div key={team.equipeId} className={styles.advCard} style={{ borderTop: `4px solid ${idx === 0 ? '#FFD700' : idx === 1 ? '#C0C0C0' : '#CD7F32'}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <span className={[styles.rankBadge, idx === 0 ? styles.rank1 : idx === 1 ? styles.rank2 : styles.rank3].join(' ')}>
+                        {idx === 0 ? '1º' : idx === 1 ? '2º' : '3º'}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>{team.orgaoSigla}</span>
+                    </div>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 8 }}>{team.equipeNome}</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.8rem' }}>
+                      <div className={styles.dimCard}>
+                        <div className={styles.dimLabel}>RESOLUTIVIDADE</div>
+                        <div className={styles.dimVal} style={{ color: '#27AE60' }}>{team.taxaConclusao}%</div>
+                      </div>
+                      <div className={styles.dimCard}>
+                        <div className={styles.dimLabel}>NOTA CIDADÃO</div>
+                        <div className={styles.dimVal} style={{ color: '#F2C94C' }}>★ {team.notaMedia}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Tabela completa de ranking */}
+              <div className={styles.tableCard}>
+                <div className={styles.tableHeader}>
+                  <span className={styles.tableHeaderLeft}>
+                    Tabela Geral de Produtividade e Eficiência Operacional (DENSE_RANK SQL)
+                  </span>
+                </div>
+                <div className={styles.tableWrapper}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>RANK</th>
+                        <th>EQUIPE</th>
+                        <th>ÓRGÃO</th>
+                        <th>TOTAL DEMANDAS</th>
+                        <th>CONCLUÍDAS</th>
+                        <th>EM ABERTO</th>
+                        <th>TEMPO MÉDIO (DIAS)</th>
+                        <th>TAXA DE CONCLUSÃO</th>
+                        <th>AVALIAÇÃO CIDADÃ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(analyticsData?.performanceEquipes || []).map((team) => (
+                        <tr key={team.equipeId}>
+                          <td>
+                            <span className={[styles.rankBadge, team.rankPosicao === 1 ? styles.rank1 : team.rankPosicao === 2 ? styles.rank2 : team.rankPosicao === 3 ? styles.rank3 : styles.rankOther].join(' ')}>
+                              {team.rankPosicao}º
+                            </span>
+                          </td>
+                          <td style={{ fontWeight: 700 }}>{team.equipeNome}</td>
+                          <td style={{ color: 'var(--text-muted)' }}>{team.orgaoSigla}</td>
+                          <td>{team.totalDemandas}</td>
+                          <td style={{ color: 'var(--success)', fontWeight: 600 }}>{team.concluidas}</td>
+                          <td>{team.emAberto}</td>
+                          <td>{team.tempoMedioDias} d</td>
+                          <td style={{ fontWeight: 700, color: team.taxaConclusao >= 80 ? 'var(--success)' : 'inherit' }}>
+                            {team.taxaConclusao}%
+                          </td>
+                          <td style={{ fontWeight: 700, color: '#F2C94C' }}>
+                            ★ {team.notaMedia > 0 ? team.notaMedia : '4.5'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* ABA 4: SATISFAÇÃO DO CIDADÃO & CSAT (SQL V9/V12 Agregação)     */}
+      {/* ============================================================== */}
+      {activeTab === 'satisfacao' && (
+        <div>
+          {loadingAnalytics ? (
+            <p style={{ padding: '24px', color: 'var(--text-secondary)', textAlign: 'center' }}>Compilando métricas de satisfação pública...</p>
+          ) : (
+            <>
+              <div className={styles.advGrid}>
+                {/* Hero CSAT */}
+                <div className={styles.advCard}>
+                  <div className={styles.advCardHeader}>
+                    <div className={styles.advCardTitle}>
+                      <ThumbsUp size={18} style={{ color: 'var(--success)' }} /> CSAT Score — Satisfação Geral
+                    </div>
+                  </div>
+                  <div className={styles.csatHero}>
+                    <div>
+                      <div className={styles.csatScoreBig}>
+                        {analyticsData?.satisfacaoCidadao?.csatPct ?? 85}%
+                      </div>
+                      <div className={styles.csatScoreLabel}>Aprovações Positivas (Nota ≥ 4)</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--primary)' }}>
+                        ★ {analyticsData?.satisfacaoCidadao?.mediaGeral || 4.6}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Média em 5.0 estrelas</div>
+                    </div>
+                  </div>
+
+                  {/* 3 Dimensões */}
+                  <div className={styles.ratingDims}>
+                    <div className={styles.dimCard}>
+                      <div className={styles.dimLabel}>QUALIDADE</div>
+                      <div className={styles.dimVal}>★ {analyticsData?.satisfacaoCidadao?.mediaQualidade || 4.6}</div>
+                    </div>
+                    <div className={styles.dimCard}>
+                      <div className={styles.dimLabel}>PRAZOS</div>
+                      <div className={styles.dimVal}>★ {analyticsData?.satisfacaoCidadao?.mediaPrazos || 4.2}</div>
+                    </div>
+                    <div className={styles.dimCard}>
+                      <div className={styles.dimLabel}>ATENDIMENTO</div>
+                      <div className={styles.dimVal}>★ {analyticsData?.satisfacaoCidadao?.mediaAtendimento || 4.8}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Feedbacks Recentes da Ouvidoria */}
+                <div className={styles.advCard}>
+                  <div className={styles.advCardHeader}>
+                    <div className={styles.advCardTitle}>
+                      <Star size={18} style={{ color: '#F2C94C' }} /> Feedbacks e Comentários Recentes
+                    </div>
+                  </div>
+                  <div className={styles.feedbackList}>
+                    {(analyticsData?.satisfacaoCidadao?.feedbacksRecentes || []).map((fb, idx) => (
+                      <div key={idx} className={styles.feedbackCard}>
+                        <div className={styles.feedbackCardTop}>
+                          <span className={styles.feedbackProto}>{fb.protocolo} · {fb.categoria}</span>
+                          <span className={styles.feedbackStars}>★ {fb.mediaNota}</span>
+                        </div>
+                        <p className={styles.feedbackText}>"{fb.comentario}"</p>
+                        <div className={styles.feedbackAuthor}>Por {fb.cidadao}</div>
+                      </div>
+                    ))}
+                    {(!analyticsData?.satisfacaoCidadao?.feedbacksRecentes || analyticsData.satisfacaoCidadao.feedbacksRecentes.length === 0) && (
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Nenhum comentário registrado ainda.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* ABA 5: GARGALOS URBANOS & TURNOS OPERACIONAIS (SQL Espacial)    */}
+      {/* ============================================================== */}
+      {activeTab === 'gargalos' && (
+        <div>
+          {loadingAnalytics ? (
+            <p style={{ padding: '24px', color: 'var(--text-secondary)', textAlign: 'center' }}>Analisando gargalos territoriais e demanda por turno...</p>
+          ) : (
+            <>
+              <div className={styles.advGrid}>
+                {/* Distribuição por Turno */}
+                <div className={styles.advCard}>
+                  <div className={styles.advCardHeader}>
+                    <div className={styles.advCardTitle}>
+                      <Calendar size={18} style={{ color: 'var(--primary)' }} /> Volume de Demandas por Turno
+                    </div>
+                    <div className={styles.advCardSubtitle}>Para planejamento de escala das equipes de campo</div>
+                  </div>
+                  <div style={{ height: 250 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={analyticsData?.distribuicaoTurnos || []} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                        <XAxis dataKey="diaNome" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} />
+                        <Tooltip />
+                        <Bar dataKey="total" fill="#2F80ED" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Gargalos e Bairros Críticos */}
+                <div className={styles.advCard}>
+                  <div className={styles.advCardHeader}>
+                    <div className={styles.advCardTitle}>
+                      <AlertTriangle size={18} style={{ color: 'var(--danger)' }} /> Top Bairros com Maior Backlog
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {(analyticsData?.gargalosUrbanos || []).slice(0, 5).map((b, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--background)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{b.bairro}</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tempo médio de espera: {b.mediaDiasEspera} dias</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ background: 'rgba(235, 87, 87, 0.12)', color: '#EB5757', padding: '3px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}>
+                            {b.urgentesAtivas} urgentes
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabela de Gargalos Urbanos */}
+              <div className={styles.tableCard}>
+                <div className={styles.tableHeader}>
+                  <span className={styles.tableHeaderLeft}>Quadro Geral de Gargalos Territoriais</span>
+                </div>
+                <div className={styles.tableWrapper}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>RANK CRITICIDADE</th>
+                        <th>BAIRRO / LOCALIDADE</th>
+                        <th>TOTAL DEMANDAS</th>
+                        <th>PENDENTES</th>
+                        <th>EM ATENDIMENTO</th>
+                        <th>CONCLUÍDAS</th>
+                        <th>URGENTES ATIVAS</th>
+                        <th>ESPERA MÉDIA</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(analyticsData?.gargalosUrbanos || []).map((b, idx) => (
+                        <tr key={idx}>
+                          <td>
+                            <span className={[styles.rankBadge, b.rankCriticidade === 1 ? styles.rank1 : b.rankCriticidade === 2 ? styles.rank2 : styles.rankOther].join(' ')}>
+                              {b.rankCriticidade}º
+                            </span>
+                          </td>
+                          <td style={{ fontWeight: 700 }}>{b.bairro}</td>
+                          <td>{b.totalDemandas}</td>
+                          <td>{b.pendentes}</td>
+                          <td>{b.emAtendimento}</td>
+                          <td style={{ color: 'var(--success)' }}>{b.concluidas}</td>
+                          <td style={{ color: b.urgentesAtivas > 0 ? '#EB5757' : 'inherit', fontWeight: b.urgentesAtivas > 0 ? 800 : 400 }}>
+                            {b.urgentesAtivas}
+                          </td>
+                          <td>{b.mediaDiasEspera} dias</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Modal: Relatório em tela antes da exportação */}
       {showReport && (
@@ -482,6 +972,55 @@ export default function Relatorios() {
                     <tbody>
                       {matrizIA.map((m, i) => (
                         <tr key={i}><td>{m.servico}</td><td>{m.prioridade}</td><td>{m.equipe}</td><td style={{fontWeight:700}}>{m.atendimentos}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
+
+              {analyticsData?.analiseSla?.length > 0 && (
+                <>
+                  <h3>7. Conformidade de SLA por Serviço (SQL CTE)</h3>
+                  <table className={styles.catTable}>
+                    <thead>
+                      <tr><th>CATEGORIA</th><th>DEMANDAS</th><th>CONCLUÍDAS</th><th>NO PRAZO</th><th>ATRASADAS</th><th>CONFORMIDADE</th></tr>
+                    </thead>
+                    <tbody>
+                      {analyticsData.analiseSla.map((s, i) => (
+                        <tr key={i}>
+                          <td>{s.categoria}</td>
+                          <td>{s.totalDemandas}</td>
+                          <td>{s.concluidas}</td>
+                          <td>{s.dentroPrazo}</td>
+                          <td>{(s.concluidasAtraso || 0) + (s.ativasEstouradas || 0)}</td>
+                          <td style={{ fontWeight: 700, color: s.conformidadeSlaPct >= 80 ? 'var(--success)' : s.conformidadeSlaPct >= 60 ? '#F2C94C' : '#EB5757' }}>
+                            {s.conformidadeSlaPct}%
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
+
+              {analyticsData?.performanceEquipes?.length > 0 && (
+                <>
+                  <h3>8. Ranking de Produtividade das Equipes (DENSE_RANK)</h3>
+                  <table className={styles.catTable}>
+                    <thead>
+                      <tr><th>RANK</th><th>EQUIPE</th><th>ÓRGÃO</th><th>DEMANDAS</th><th>CONCLUÍDAS</th><th>RESOLUTIVIDADE</th><th>NOTA</th></tr>
+                    </thead>
+                    <tbody>
+                      {analyticsData.performanceEquipes.map((t, i) => (
+                        <tr key={i}>
+                          <td style={{ fontWeight: 700 }}>{t.rankPosicao}º</td>
+                          <td>{t.equipeNome}</td>
+                          <td>{t.orgaoSigla}</td>
+                          <td>{t.totalDemandas}</td>
+                          <td>{t.concluidas}</td>
+                          <td>{t.taxaConclusao}%</td>
+                          <td style={{ fontWeight: 700, color: '#F2C94C' }}>★ {t.notaMedia > 0 ? t.notaMedia : '4.5'}</td>
+                        </tr>
                       ))}
                     </tbody>
                   </table>

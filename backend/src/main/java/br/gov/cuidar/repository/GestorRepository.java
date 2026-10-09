@@ -10,6 +10,9 @@ public interface GestorRepository extends JpaRepository<Gestor, Long> {
 
     @Query("SELECT g.equipe.id FROM Gestor g WHERE g.usuario.id = :usuarioId")
     Optional<Long> findEquipeIdByUsuarioId(@Param("usuarioId") Long usuarioId);
+
+    @Query("SELECT g.equipe.id FROM Gestor g WHERE LOWER(g.usuario.nome) = LOWER(:nome)")
+    Optional<Long> findEquipeIdByGestorNome(@Param("nome") String nome);
     
     java.util.List<Gestor> findByEquipeId(Long equipeId);
 

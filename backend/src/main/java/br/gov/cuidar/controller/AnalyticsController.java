@@ -5,55 +5,141 @@ import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import br.gov.cuidar.dto.ApiResponse;
+import br.gov.cuidar.entity.Usuario;
+import br.gov.cuidar.repository.GestorRepository;
+import br.gov.cuidar.repository.OrgaoPublicoRepository;
 import br.gov.cuidar.service.AnalyticsService;
 
 @RestController
 @RequestMapping("/api/admin/analytics")
-@PreAuthorize("hasAnyRole('ADMIN', 'GESTOR', 'ANALYTICS_ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'GESTOR', 'ANALYTICS_ADMIN', 'GLOBAL_ADMIN')")
 public class AnalyticsController {
 
     private final AnalyticsService analyticsService;
+    private final GestorRepository gestorRepository;
+    private final OrgaoPublicoRepository orgaoRepository;
 
-    public AnalyticsController(AnalyticsService analyticsService) {
+    public AnalyticsController(AnalyticsService analyticsService,
+                               GestorRepository gestorRepository,
+                               OrgaoPublicoRepository orgaoRepository) {
         this.analyticsService = analyticsService;
+        this.gestorRepository = gestorRepository;
+        this.orgaoRepository = orgaoRepository;
+    }
+
+    private record Escopo(Long orgaoId, Long equipeId) {}
+
+    private Escopo resolverEscopo(Usuario usuario, Long orgaoIdParam, Long equipeIdParam, String gestorParam) {
+        if (usuario == null) {
+            return new Escopo(orgaoIdParam, equipeIdParam);
+        }
+
+        // GESTOR: sempre enxerga EXCLUSIVAMENTE a sua equipe
+        if ("GESTOR".equals(usuario.getPerfil())) {
+            Long equipeIdGestor = gestorRepository.findEquipeIdByUsuarioId(usuario.getId()).orElse(null);
+            return new Escopo(null, equipeIdGestor);
+        }
+
+        // Se informou nome do gestor (ex: filtro de dropdown), resolve para a equipe dele
+        Long equipeIdResolvida = equipeIdParam;
+        if (equipeIdResolvida == null && gestorParam != null && !gestorParam.isBlank()) {
+            equipeIdResolvida = gestorRepository.findEquipeIdByGestorNome(gestorParam.trim()).orElse(null);
+        }
+
+        // ADMIN (Administrador do Órgão): enxerga TODAS as ocorrências do seu órgão
+        if ("ADMIN".equals(usuario.getPerfil())) {
+            Long orgaoId = (usuario.getOrgao() != null) ? usuario.getOrgao().getId() : null;
+            if (orgaoId == null) {
+                orgaoId = orgaoRepository.findBySigla("PMSP").map(o -> o.getId()).orElse(null);
+            }
+            return new Escopo(orgaoId, equipeIdResolvida);
+        }
+
+        // GLOBAL_ADMIN / ANALYTICS_ADMIN: visão global por padrão ou filtrada
+        return new Escopo(orgaoIdParam, equipeIdResolvida);
     }
 
     /**
      * Retorna o dashboard analítico consolidado gerado a partir de consultas SQLs avançadas
-     * (CTEs, Window Functions DENSE_RANK, DATEDIFF, agregações de SLA, CSAT e criticidade territorial).
+     * (CTEs, Window Functions DENSE_RANK, DATEDIFF, agregações de SLA, CSAT e criticidade territorial),
+     * respeitando o escopo do usuário (Gestor vê sua equipe; Administrador do Órgão vê seu órgão).
      */
     @GetMapping("/avancado")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getDashboardAvancado() {
-        return ResponseEntity.ok(ApiResponse.ok(analyticsService.getDashboardAvancadoCompleto()));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getDashboardAvancado(
+            @RequestParam(required = false) Long orgaoId,
+            @RequestParam(required = false) Long equipeId,
+            @RequestParam(required = false) String gestor,
+            @AuthenticationPrincipal Usuario usuario) {
+        Escopo escopo = resolverEscopo(usuario, orgaoId, equipeId, gestor);
+        return ResponseEntity.ok(ApiResponse.ok(
+            analyticsService.getDashboardAvancadoCompleto(escopo.orgaoId(), escopo.equipeId())
+        ));
     }
 
     @GetMapping("/equipes-ranking")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRankingEquipes() {
-        return ResponseEntity.ok(ApiResponse.ok(analyticsService.getPerformanceEquipes()));
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRankingEquipes(
+            @RequestParam(required = false) Long orgaoId,
+            @RequestParam(required = false) Long equipeId,
+            @RequestParam(required = false) String gestor,
+            @AuthenticationPrincipal Usuario usuario) {
+        Escopo escopo = resolverEscopo(usuario, orgaoId, equipeId, gestor);
+        return ResponseEntity.ok(ApiResponse.ok(
+            analyticsService.getPerformanceEquipes(escopo.orgaoId(), escopo.equipeId())
+        ));
     }
 
     @GetMapping("/sla")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAnaliseSla() {
-        return ResponseEntity.ok(ApiResponse.ok(analyticsService.getAnaliseSla()));
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAnaliseSla(
+            @RequestParam(required = false) Long orgaoId,
+            @RequestParam(required = false) Long equipeId,
+            @RequestParam(required = false) String gestor,
+            @AuthenticationPrincipal Usuario usuario) {
+        Escopo escopo = resolverEscopo(usuario, orgaoId, equipeId, gestor);
+        return ResponseEntity.ok(ApiResponse.ok(
+            analyticsService.getAnaliseSla(escopo.orgaoId(), escopo.equipeId())
+        ));
     }
 
     @GetMapping("/satisfacao")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getSatisfacaoCidadao() {
-        return ResponseEntity.ok(ApiResponse.ok(analyticsService.getSatisfacaoCidadao()));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getSatisfacaoCidadao(
+            @RequestParam(required = false) Long orgaoId,
+            @RequestParam(required = false) Long equipeId,
+            @RequestParam(required = false) String gestor,
+            @AuthenticationPrincipal Usuario usuario) {
+        Escopo escopo = resolverEscopo(usuario, orgaoId, equipeId, gestor);
+        return ResponseEntity.ok(ApiResponse.ok(
+            analyticsService.getSatisfacaoCidadao(escopo.orgaoId(), escopo.equipeId())
+        ));
     }
 
     @GetMapping("/turnos")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getDistribuicaoTurnos() {
-        return ResponseEntity.ok(ApiResponse.ok(analyticsService.getDistribuicaoTurnos()));
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getDistribuicaoTurnos(
+            @RequestParam(required = false) Long orgaoId,
+            @RequestParam(required = false) Long equipeId,
+            @RequestParam(required = false) String gestor,
+            @AuthenticationPrincipal Usuario usuario) {
+        Escopo escopo = resolverEscopo(usuario, orgaoId, equipeId, gestor);
+        return ResponseEntity.ok(ApiResponse.ok(
+            analyticsService.getDistribuicaoTurnos(escopo.orgaoId(), escopo.equipeId())
+        ));
     }
 
     @GetMapping("/gargalos")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getGargalosUrbanos() {
-        return ResponseEntity.ok(ApiResponse.ok(analyticsService.getGargalosUrbanos()));
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getGargalosUrbanos(
+            @RequestParam(required = false) Long orgaoId,
+            @RequestParam(required = false) Long equipeId,
+            @RequestParam(required = false) String gestor,
+            @AuthenticationPrincipal Usuario usuario) {
+        Escopo escopo = resolverEscopo(usuario, orgaoId, equipeId, gestor);
+        return ResponseEntity.ok(ApiResponse.ok(
+            analyticsService.getGargalosUrbanos(escopo.orgaoId(), escopo.equipeId())
+        ));
     }
 }

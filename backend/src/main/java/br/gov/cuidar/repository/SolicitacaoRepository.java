@@ -1,7 +1,7 @@
 package br.gov.cuidar.repository;
+
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -10,8 +10,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import br.gov.cuidar.entity.Solicitacao;
+
 public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> {
-    Optional<Solicitacao> findByProtocolo(String protocolo);
+
     Page<Solicitacao> findByUsuarioId(Long usuarioId, Pageable pageable);
     List<Solicitacao> findByUsuarioIdOrderByDataCriacaoDesc(Long usuarioId);
     List<Solicitacao> findByEquipeIdOrderByDataCriacaoDesc(Long equipeId);
@@ -33,58 +34,46 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
     List<Solicitacao> findByEquipeId(Long equipeId);
     @Query("SELECT s FROM Solicitacao s WHERE s.equipe IS NOT NULL AND s.equipe.orgao.id = :orgaoId ORDER BY s.dataCriacao DESC")
     List<Solicitacao> findComEquipeByOrgaoId(@Param("orgaoId") Long orgaoId);
-
-    @Query("SELECT s FROM Solicitacao s WHERE s.status = :status AND s.equipe.id = :equipeId")
-    Page<Solicitacao> findByStatusAndEquipeIdOrNull(@Param("status") String status, @Param("equipeId") Long equipeId, Pageable pageable);
-
-    @Query("SELECT s FROM Solicitacao s WHERE s.status = :status AND (s.equipe.id = :equipeId OR s.equipe IS NULL)")
-    Page<Solicitacao> findByStatusAndEquipeIdOrNullAndUnassigned(@Param("status") String status, @Param("equipeId") Long equipeId, Pageable pageable);
-
     @Query("SELECT s FROM Solicitacao s WHERE s.protocolo LIKE CONCAT('%', :protocolo, '%') AND (s.equipe.id = :equipeId OR s.equipe IS NULL)")
     Page<Solicitacao> findByProtocoloAndEquipeIdOrNullAndUnassigned(@Param("protocolo") String protocolo, @Param("equipeId") Long equipeId, Pageable pageable);
-
     @Query("SELECT s FROM Solicitacao s WHERE s.protocolo LIKE CONCAT('%', :protocolo, '%') AND s.status = :status AND (s.equipe.id = :equipeId OR s.equipe IS NULL)")
     Page<Solicitacao> findByProtocoloAndStatusAndEquipeIdOrNullAndUnassigned(@Param("protocolo") String protocolo, @Param("status") String status, @Param("equipeId") Long equipeId, Pageable pageable);
-
-    @Query("SELECT s FROM Solicitacao s WHERE s.equipe.id = :equipeId")
-    Page<Solicitacao> findByEquipeIdOrNull(@Param("equipeId") Long equipeId, Pageable pageable);
-
+    @Query("SELECT s FROM Solicitacao s WHERE s.status = :status AND (s.equipe.id = :equipeId OR s.equipe IS NULL)")
+    Page<Solicitacao> findByStatusAndEquipeIdOrNullAndUnassigned(@Param("status") String status, @Param("equipeId") Long equipeId, Pageable pageable);
     @Query("SELECT s FROM Solicitacao s WHERE s.equipe.id = :equipeId OR s.equipe IS NULL")
     Page<Solicitacao> findByEquipeIdOrNullAndUnassigned(@Param("equipeId") Long equipeId, Pageable pageable);
+    java.util.Optional<Solicitacao> findByProtocolo(String protocolo);
 
-    @Query("SELECT s FROM Solicitacao s WHERE s.equipe.id IN (SELECT g.equipe.id FROM Gestor g WHERE LOWER(g.usuario.nome) = LOWER(:gestor))")
-    Page<Solicitacao> findByGestorNome(@Param("gestor") String gestor, Pageable pageable);
+    // Gestor: busca por nome do gestor (através da equipe)
+    @Query("SELECT s FROM Solicitacao s JOIN Gestor g ON g.equipe.id = s.equipe.id WHERE LOWER(g.usuario.nome) = LOWER(:nome)")
+    Page<Solicitacao> findByGestorNome(@Param("nome") String nome, Pageable pageable);
+    @Query("SELECT s FROM Solicitacao s JOIN Gestor g ON g.equipe.id = s.equipe.id WHERE LOWER(g.usuario.nome) = LOWER(:nome) AND s.status = :status")
+    Page<Solicitacao> findByStatusAndGestorNome(@Param("status") String status, @Param("nome") String nome, Pageable pageable);
+    @Query("SELECT s FROM Solicitacao s JOIN Gestor g ON g.equipe.id = s.equipe.id WHERE LOWER(g.usuario.nome) = LOWER(:nome) AND s.protocolo LIKE CONCAT('%', :protocolo, '%')")
+    Page<Solicitacao> findByProtocoloAndGestorNome(@Param("protocolo") String protocolo, @Param("nome") String nome, Pageable pageable);
+    @Query("SELECT s FROM Solicitacao s JOIN Gestor g ON g.equipe.id = s.equipe.id WHERE LOWER(g.usuario.nome) = LOWER(:nome) AND s.protocolo LIKE CONCAT('%', :protocolo, '%') AND s.status = :status")
+    Page<Solicitacao> findByProtocoloAndStatusAndGestorNome(@Param("protocolo") String protocolo, @Param("status") String status, @Param("nome") String nome, Pageable pageable);
 
-    @Query("SELECT s FROM Solicitacao s WHERE s.status = :status AND s.equipe.id IN (SELECT g.equipe.id FROM Gestor g WHERE LOWER(g.usuario.nome) = LOWER(:gestor))")
-    Page<Solicitacao> findByStatusAndGestorNome(@Param("status") String status, @Param("gestor") String gestor, Pageable pageable);
+    // Solicitacoes nao atribuidas a nenhuma equipe (equipe IS NULL)
+    @Query("SELECT s FROM Solicitacao s WHERE s.equipe IS NULL ORDER BY s.dataCriacao DESC")
+    List<Solicitacao> findNaoAtribuidas();
 
-    @Query("SELECT s FROM Solicitacao s WHERE s.protocolo LIKE CONCAT('%', :protocolo, '%') AND s.equipe.id IN (SELECT g.equipe.id FROM Gestor g WHERE LOWER(g.usuario.nome) = LOWER(:gestor))")
-    Page<Solicitacao> findByProtocoloAndGestorNome(@Param("protocolo") String protocolo, @Param("gestor") String gestor, Pageable pageable);
-
-    @Query("SELECT s FROM Solicitacao s WHERE s.protocolo LIKE CONCAT('%', :protocolo, '%') AND s.status = :status AND s.equipe.id IN (SELECT g.equipe.id FROM Gestor g WHERE LOWER(g.usuario.nome) = LOWER(:gestor))")
-    Page<Solicitacao> findByProtocoloAndStatusAndGestorNome(@Param("protocolo") String protocolo, @Param("status") String status, @Param("gestor") String gestor, Pageable pageable);
-    
+    // Solicitacoes que tem equipe atribuida (para o dropdown de cidadaos por gestor)
     @Query("SELECT s FROM Solicitacao s WHERE s.equipe IS NOT NULL ORDER BY s.dataCriacao DESC")
     List<Solicitacao> findComEquipe();
 
     @Query("SELECT s FROM Solicitacao s WHERE s.equipe.id = :equipeId ORDER BY s.dataCriacao DESC")
     List<Solicitacao> findComEquipeByEquipeId(@Param("equipeId") Long equipeId);
 
-    @Query("SELECT s FROM Solicitacao s WHERE s.equipe IS NULL AND s.status IN ('PENDENTE', 'TRIAGEM') ORDER BY s.dataCriacao ASC")
-    List<Solicitacao> findNaoAtribuidas();
+    // Contadores para o Dashboard
     long countByStatus(String status);
+    long countByStatusAndEquipeId(String status, Long equipeId);
+    long countByStatusAndEquipeNull(String status);
     @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.status = :status AND s.equipe.orgao.id = :orgaoId")
     long countByStatusAndOrgaoId(@Param("status") String status, @Param("orgaoId") Long orgaoId);
+
     @Query("SELECT COUNT(s) FROM Solicitacao s WHERE (s.prioridade = 'ALTA' OR s.prioridade = 'URGENTE') AND s.status NOT IN ('CONCLUIDA', 'CANCELADA') AND s.equipe.orgao.id = :orgaoId")
     long countUrgentesByOrgaoId(@Param("orgaoId") Long orgaoId);
-    @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId")
-    long countByOrgaoId(@Param("orgaoId") Long orgaoId);
-
-    @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.status = :status AND s.equipe.id = :equipeId")
-    long countByStatusAndEquipeId(@Param("status") String status, @Param("equipeId") Long equipeId);
-
-    @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.status = :status AND s.equipe IS NULL")
-    long countByStatusAndEquipeNull(@Param("status") String status);
 
     @Query("SELECT COUNT(s) FROM Solicitacao s WHERE (s.prioridade = 'ALTA' OR s.prioridade = 'URGENTE') AND s.status NOT IN ('CONCLUIDA', 'CANCELADA') AND s.equipe.id = :equipeId")
     long countUrgentesByEquipeId(@Param("equipeId") Long equipeId);
@@ -161,21 +150,29 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
     @Query(value = "SELECT AVG(CAST(DATEDIFF(day, s.data_criacao, s.data_conclusao) AS FLOAT)) FROM TB_SOLICITACAO s INNER JOIN TB_EQUIPE_PUBLICA e ON e.id = s.id_equipe WHERE e.id_orgao = :orgaoId AND s.status = 'CONCLUIDA' AND s.data_conclusao IS NOT NULL", nativeQuery = true)
     Double tempoMedioResolucaoDiasByOrgaoId(@Param("orgaoId") Long orgaoId);
 
-    // Tabela Serviço x Prioridade x Equipe (base de conhecimento para IA)
-    @Query("SELECT s.servico.categoria, s.prioridade, s.equipe.nome, COUNT(s) FROM Solicitacao s WHERE s.equipe IS NOT NULL AND s.prioridade IS NOT NULL GROUP BY s.servico.categoria, s.prioridade, s.equipe.nome ORDER BY s.servico.categoria, s.prioridade, COUNT(s) DESC")
+    // Indicadores reais: taxa de conclusão (%)
+    @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.status = 'CONCLUIDA'")
+    long countConcluidas();
+
+    @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId AND s.status = 'CONCLUIDA'")
+    long countConcluidasByOrgaoId(@Param("orgaoId") Long orgaoId);
+
+    @Query("SELECT COUNT(s) FROM Solicitacao s")
+    long countTotal();
+
+    @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId")
+    long countTotalByOrgaoId(@Param("orgaoId") Long orgaoId);
+
+    // Matriz de IA: agrupamento por serviço, prioridade e equipe para score de criticidade
+    @Query("SELECT s.servico.categoria, s.prioridade, COUNT(s), s.equipe.nome FROM Solicitacao s WHERE s.equipe IS NOT NULL GROUP BY s.servico.categoria, s.prioridade, s.equipe.nome")
     List<Object[]> matrizServicoPrioridadeEquipe();
 
-    @Query("SELECT s.servico.categoria, s.prioridade, s.equipe.nome, COUNT(s) FROM Solicitacao s WHERE s.equipe IS NOT NULL AND s.prioridade IS NOT NULL AND s.equipe.orgao.id = :orgaoId GROUP BY s.servico.categoria, s.prioridade, s.equipe.nome ORDER BY s.servico.categoria, s.prioridade, COUNT(s) DESC")
+    @Query("SELECT s.servico.categoria, s.prioridade, COUNT(s), s.equipe.nome FROM Solicitacao s WHERE s.equipe IS NOT NULL AND s.equipe.orgao.id = :orgaoId GROUP BY s.servico.categoria, s.prioridade, s.equipe.nome")
     List<Object[]> matrizServicoPrioridadeEquipeByOrgaoId(@Param("orgaoId") Long orgaoId);
 
+    // Eficiência de campo: solicitações concluídas por usuário/gestor
     @Query("SELECT s.usuario.id, COUNT(s) FROM Solicitacao s GROUP BY s.usuario.id")
     List<Object[]> countPorUsuario();
-
-    @Query("SELECT DISTINCT s.usuario FROM Solicitacao s WHERE s.equipe.id = :equipeId ORDER BY s.usuario.nome")
-    List<br.gov.cuidar.entity.Usuario> findUsuariosByEquipeId(@Param("equipeId") Long equipeId);
-
-    @Query("SELECT DISTINCT s.usuario FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId AND s.usuario.perfil = 'CITIZEN' ORDER BY s.usuario.nome")
-    List<br.gov.cuidar.entity.Usuario> findUsuariosByOrgaoId(@Param("orgaoId") Long orgaoId);
 
     @Query("SELECT s.usuario.id, COUNT(s) FROM Solicitacao s WHERE s.equipe.id = :equipeId GROUP BY s.usuario.id")
     List<Object[]> countPorUsuarioAndEquipe(@Param("equipeId") Long equipeId);
@@ -183,12 +180,25 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
     @Query("SELECT s.usuario.id, COUNT(s) FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId GROUP BY s.usuario.id")
     List<Object[]> countPorUsuarioAndOrgao(@Param("orgaoId") Long orgaoId);
 
+    @Query("SELECT DISTINCT s.usuario FROM Solicitacao s WHERE s.equipe.id = :equipeId ORDER BY s.usuario.nome")
+    List<br.gov.cuidar.entity.Usuario> findUsuariosByEquipeId(@Param("equipeId") Long equipeId);
+
+    @Query("SELECT DISTINCT s.usuario FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId ORDER BY s.usuario.nome")
+    List<br.gov.cuidar.entity.Usuario> findUsuariosByOrgaoId(@Param("orgaoId") Long orgaoId);
+
+    @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId")
+    long countByOrgaoId(@Param("orgaoId") Long orgaoId);
+
     // Inteligência territorial: dados brutos para agregação por região
     @Query("SELECT s.endereco, s.gps, s.status, s.prioridade FROM Solicitacao s")
     List<Object[]> dadosTerritoriais();
 
+    @Query("SELECT s.endereco, s.gps, s.status, s.prioridade FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId")
+    List<Object[]> dadosTerritoriaisByOrgaoId(@Param("orgaoId") Long orgaoId);
+
     // =========================================================================
     // CONSULTAS SQL AVANÇADAS: DASHBOARDS ANALÍTICOS (Fase 6 / Inteligência)
+    // Suportam escopo de Gestor (:equipeId) e Administrador do Órgão (:orgaoId)
     // =========================================================================
 
     /**
@@ -215,10 +225,12 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
         JOIN TB_ORGAO_PUBLICO o ON o.id = e.id_orgao
         LEFT JOIN TB_SOLICITACAO s ON s.id_equipe = e.id
         WHERE e.ativo = 1
+          AND (:orgaoId IS NULL OR e.id_orgao = :orgaoId)
+          AND (:equipeId IS NULL OR e.id = :equipeId)
         GROUP BY e.id, e.nome, o.sigla
         ORDER BY rank_posicao ASC
         """, nativeQuery = true)
-    List<Object[]> queryPerformanceEquipesAvancada();
+    List<Object[]> queryPerformanceEquipesAvancada(@Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId);
 
     /**
      * 2. Análise de Cumprimento de SLA por Categoria com CTE
@@ -242,7 +254,10 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
                 END AS dias_decorridos
             FROM TB_SOLICITACAO s
             JOIN TB_SERVICO srv ON srv.id = s.id_servico
+            LEFT JOIN TB_EQUIPE_PUBLICA e ON e.id = s.id_equipe
             WHERE s.status <> 'CANCELADA'
+              AND (:orgaoId IS NULL OR e.id_orgao = :orgaoId)
+              AND (:equipeId IS NULL OR s.id_equipe = :equipeId)
         )
         SELECT 
             categoria,
@@ -262,7 +277,7 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
         GROUP BY categoria
         ORDER BY total_demandas DESC
         """, nativeQuery = true)
-    List<Object[]> queryAnaliseSlaAvancada();
+    List<Object[]> queryAnaliseSlaAvancada(@Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId);
 
     /**
      * 3. Satisfação do Cidadão (CSAT, Breakdown de Notas 1-5, Médias por Dimensão)
@@ -285,9 +300,12 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
             SUM(CASE WHEN ROUND((s.nota_qualidade + s.nota_prazos + s.nota_atendimento) / 3.0, 0) = 2 THEN 1 ELSE 0 END) AS nota_2,
             SUM(CASE WHEN ROUND((s.nota_qualidade + s.nota_prazos + s.nota_atendimento) / 3.0, 0) <= 1 THEN 1 ELSE 0 END) AS nota_1
         FROM TB_SOLICITACAO s
-        WHERE s.nota_qualidade IS NOT NULL OR s.nota_prazos IS NOT NULL OR s.nota_atendimento IS NOT NULL
+        LEFT JOIN TB_EQUIPE_PUBLICA e ON e.id = s.id_equipe
+        WHERE (s.nota_qualidade IS NOT NULL OR s.nota_prazos IS NOT NULL OR s.nota_atendimento IS NOT NULL)
+          AND (:orgaoId IS NULL OR e.id_orgao = :orgaoId)
+          AND (:equipeId IS NULL OR s.id_equipe = :equipeId)
         """, nativeQuery = true)
-    List<Object[]> queryAnaliseSatisfacaoAvancada();
+    List<Object[]> queryAnaliseSatisfacaoAvancada(@Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId);
 
     /**
      * 4. Feedbacks Recentes com Protocolo, Cidadão, Nota Média e Comentário
@@ -303,18 +321,21 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
         FROM TB_SOLICITACAO s
         JOIN TB_SERVICO srv ON srv.id = s.id_servico
         JOIN TB_USUARIO u ON u.id = s.id_usuario
+        LEFT JOIN TB_EQUIPE_PUBLICA e ON e.id = s.id_equipe
         WHERE s.feedback_comentario IS NOT NULL AND LEN(s.feedback_comentario) > 0
+          AND (:orgaoId IS NULL OR e.id_orgao = :orgaoId)
+          AND (:equipeId IS NULL OR s.id_equipe = :equipeId)
         ORDER BY s.id DESC
         """, nativeQuery = true)
-    List<Object[]> queryFeedbacksRecentesAvancados();
+    List<Object[]> queryFeedbacksRecentesAvancados(@Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId);
 
     /**
      * 5. Distribuição de Chamados por Turno e Dia da Semana
      */
     @Query(value = """
         SELECT 
-            DATEPART(dw, data_criacao) AS dia_num,
-            CASE DATEPART(dw, data_criacao)
+            DATEPART(dw, s.data_criacao) AS dia_num,
+            CASE DATEPART(dw, s.data_criacao)
                 WHEN 1 THEN 'Dom'
                 WHEN 2 THEN 'Seg'
                 WHEN 3 THEN 'Ter'
@@ -324,24 +345,27 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
                 WHEN 7 THEN 'Sáb'
             END AS dia_nome,
             CASE 
-                WHEN DATEPART(hour, data_criacao) BETWEEN 6 AND 11 THEN 'Manhã'
-                WHEN DATEPART(hour, data_criacao) BETWEEN 12 AND 17 THEN 'Tarde'
-                WHEN DATEPART(hour, data_criacao) BETWEEN 18 AND 23 THEN 'Noite'
+                WHEN DATEPART(hour, s.data_criacao) BETWEEN 6 AND 11 THEN 'Manhã'
+                WHEN DATEPART(hour, s.data_criacao) BETWEEN 12 AND 17 THEN 'Tarde'
+                WHEN DATEPART(hour, s.data_criacao) BETWEEN 18 AND 23 THEN 'Noite'
                 ELSE 'Madrugada'
             END AS turno,
             COUNT(*) AS total
-        FROM TB_SOLICITACAO
+        FROM TB_SOLICITACAO s
+        LEFT JOIN TB_EQUIPE_PUBLICA e ON e.id = s.id_equipe
+        WHERE (:orgaoId IS NULL OR e.id_orgao = :orgaoId)
+          AND (:equipeId IS NULL OR s.id_equipe = :equipeId)
         GROUP BY 
-            DATEPART(dw, data_criacao),
+            DATEPART(dw, s.data_criacao),
             CASE 
-                WHEN DATEPART(hour, data_criacao) BETWEEN 6 AND 11 THEN 'Manhã'
-                WHEN DATEPART(hour, data_criacao) BETWEEN 12 AND 17 THEN 'Tarde'
-                WHEN DATEPART(hour, data_criacao) BETWEEN 18 AND 23 THEN 'Noite'
+                WHEN DATEPART(hour, s.data_criacao) BETWEEN 6 AND 11 THEN 'Manhã'
+                WHEN DATEPART(hour, s.data_criacao) BETWEEN 12 AND 17 THEN 'Tarde'
+                WHEN DATEPART(hour, s.data_criacao) BETWEEN 18 AND 23 THEN 'Noite'
                 ELSE 'Madrugada'
             END
         ORDER BY dia_num
         """, nativeQuery = true)
-    List<Object[]> queryDistribuicaoTurnosAvancada();
+    List<Object[]> queryDistribuicaoTurnosAvancada(@Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId);
 
     /**
      * 6. Gargalos Urbanos por Bairro com DENSE_RANK() e Backlog
@@ -370,6 +394,9 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
                          THEN CAST(DATEDIFF(day, s.data_criacao, GETDATE()) AS FLOAT) 
                          ELSE NULL END) AS media_dias_espera
             FROM TB_SOLICITACAO s
+            LEFT JOIN TB_EQUIPE_PUBLICA e ON e.id = s.id_equipe
+            WHERE (:orgaoId IS NULL OR e.id_orgao = :orgaoId)
+              AND (:equipeId IS NULL OR s.id_equipe = :equipeId)
             GROUP BY 
                 CASE 
                     WHEN s.endereco IS NOT NULL AND CHARINDEX('-', s.endereco) > 0 
@@ -392,8 +419,5 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
         WHERE LEN(bairro) > 2
         ORDER BY rank_criticidade ASC
         """, nativeQuery = true)
-    List<Object[]> queryGargalosUrbanosAvancados();
-    @Query("SELECT s.endereco, s.gps, s.status, s.prioridade FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId")
-    List<Object[]> dadosTerritoriaisByOrgaoId(@Param("orgaoId") Long orgaoId);
+    List<Object[]> queryGargalosUrbanosAvancados(@Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId);
 }
-
