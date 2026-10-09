@@ -1,8 +1,8 @@
 # Cuidar+ Brasil 🌿
 
-Plataforma unificada de zeladoria urbana municipal para solicitação e acompanhamento de serviços prestados por Órgãos Públicos. O sistema conecta o **Cidadão** às **Equipes**, **Gestores** e **Administradores** competentes, agilizando o atendimento de solicitações diversas de forma centralizada, auditada e transparente — com inteligência artificial embarcada.
+Plataforma unificada de zeladoria urbana municipal para solicitação e acompanhamento de serviços prestados por Órgãos Públicos. O sistema conecta o **Cidadão** às **Equipes**, **Gestores** e **Administradores** competentes, agilizando o atendimento de solicitações diversas de forma centralizada, auditada e transparente — com inteligência artificial embarcada e inteligência analítica em tempo real.
 
-Este projeto foi construído utilizando práticas modernas de desenvolvimento de software, com separação clara de responsabilidades entre front-end, back-end, inteligência artificial e infraestrutura.
+Este projeto foi construído utilizando práticas modernas de engenharia de software, com separação clara de responsabilidades entre front-end, back-end, inteligência artificial e infraestrutura de alta performance.
 
 ---
 
@@ -12,56 +12,85 @@ O repositório está dividido nas seguintes partes:
 
 | Diretório | Descrição |
 | :--- | :--- |
-| **`frontend/`** | Aplicação cliente desenvolvida em **React 19 + Vite**, estilizada com Glassmorphism e paleta Dark/Light Mode. Comunica-se com a API via Axios com interceptors JWT. |
-| **`backend/`** | API RESTful em **Java 17/21 + Spring Boot 3.2.5**. Gerencia dados relacionais no **SQL Server**, vetores no **PostgreSQL + pgvector**, perfis de usuário, autenticação JWT Stateless e integração com IA via **Spring AI**. |
+| **`frontend/`** | Aplicação cliente desenvolvida em **React 19 + Vite**, estilizada com Glassmorphism e paleta Dark/Light Mode. Comunica-se com a API via Axios com interceptors JWT e renderiza gráficos analíticos interativos via Recharts. |
+| **`backend/`** | API RESTful em **Java 17/21 + Spring Boot 3.2.5**. Gerencia dados relacionais no **SQL Server 2022**, vetores no **PostgreSQL 16 + pgvector**, perfis de usuário, autenticação JWT Stateless, rotinas de auditoria e integração com IA via **Spring AI**. |
 | **`docker-compose.yml`** | Orquestra a infraestrutura de dados: Microsoft SQL Server 2022, inicializador de banco e PostgreSQL 16 com extensão `pgvector`. |
 
 ---
 
-## ✨ Funcionalidades
+## ✨ Funcionalidades da Plataforma
 
-### Núcleo e Atendimento ao Cidadão
+### 1. Núcleo e Atendimento ao Cidadão
 - 🔐 **Autenticação JWT Stateless** — controle de sessão seguro com perfis (`CITIZEN`, `GESTOR`, `ADMIN`, `GLOBAL_ADMIN`, `ANALYTICS_ADMIN`, `TRABALHADOR`).
 - 📋 **Gestão de Solicitações (CRUD completo)** — abertura de ocorrências com protocolo automático, acompanhamento de status em tempo real e histórico de tramitação.
-- ⭐ **Avaliação e Feedback** — o cidadão pode avaliar o serviço concluído atribuindo notas (estrelas) e comentários de feedback.
-- 📎 **Upload de Fotos com Validação por IA** — envio de fotos do problema com validação automática via Gemini Vision para verificar a coerência da imagem com a solicitação.
-- 📍 **Geolocalização Inteligente** — captura de GPS e resolução automática do endereço (rua, número, bairro e cidade) por cadeia de fallback de geocodificação reversa (*Nominatim → Photon → BigDataCloud*).
+- ⭐ **Avaliação e Feedback com CSAT** — o cidadão pode avaliar o serviço concluído atribuindo notas de 1 a 5 estrelas e comentários detalhados.
+- 📎 **Upload de Fotos com Validação por IA** — envio de fotos do problema com validação automática via Gemini Vision para verificar a conformidade e pertinência da imagem com o chamado.
+- 📍 **Geolocalização Inteligente** — captura de coordenadas GPS e resolução automática do logradouro (rua, número, bairro e cidade) por cadeia de fallback de geocodificação reversa (*Nominatim → Photon → BigDataCloud*).
 
-### Gestão Operacional e Administrativa
+### 2. Gestão Operacional e Administrativa
 - 👥 **Gestão de Equipes Públicas** — criação e gestão de equipes pelo Administrador; inclusão de trabalhadores operacionais e gestores responsáveis.
 - 🧑‍💼 **Gestão de Gestores** — atribuição e visualização de gestores responsáveis por cada equipe e órgão público.
 - 🏛️ **Gestão de Órgãos Públicos** — cadastro, consulta e controle de órgãos municipais e estaduais (exclusivo para Administrador Global).
-- 🧑‍🤝‍🧑 **Controle de Usuários** — isolamento de visualização de usuários conforme a hierarquia do perfil autenticado.
+- 🧑‍🤝‍🧑 **Controle de Usuários e Perfis** — isolamento estrito de visualização de usuários conforme a hierarquia do perfil autenticado.
 - 🗑️ **Exclusão Auditada** — exclusão de solicitações restrita ao perfil Administrador, gerando registros compulsórios na trilha de auditoria.
 
-### Dashboards, Relatórios e Auditoria Corporativa
-- 📊 **Dashboard Executivo e Global** — indicadores em tempo real com isolamento de dados por órgão e perfil, contagem de gestores, equipes, usuários e órgãos.
-- 📈 **Gráficos Operacionais (Recharts)** — visão analítica de volumes por categoria, distribuição por status, tendências mensais e tempo médio de atendimento.
-- 🕵️ **Login Auditado & Trilha de Auditoria** — registro completo de acessos com filtros avançados (sucesso/falha, CPF, usuário, detalhes, IP, período), paginação e exportação.
-- 📄 **Central de Relatórios** — relatórios analíticos (*Resumo Executivo, Categoria, Status, Tendência Mensal, Indicadores Nacionais e Matriz IA*) com pré-visualização em tela e exportação para **PDF** (jsPDF + AutoTable) e **Excel** (SheetJS).
-- 🗺️ **Mapa Geral e de Alocação (Leaflet)** — mapa interativo com marcadores coloridos por status e prioridade, filtros por região e visualização de raio de atendimento.
+### 3. Dashboards Analíticos Avançados (Fase 6)
+O módulo de inteligência analítica foi expandido com consultas SQL avançadas e métricas em tempo real, organizadas em abas dedicadas no **Dashboard Operacional** e na **Central de Relatórios**:
 
-### Inteligência Artificial e Acessibilidade
+- ⏱️ **Análise de SLA por Categoria**:
+  - Cálculo analítico de conformidade de prazos através de expressões `DATEDIFF` em horas úteis.
+  - Métricas de tempo médio de resolução, total de chamados finalizados e taxa percentual de cumprimento de SLA.
+  - Identificação imediata de categorias em risco ou com tempo de resposta acima da meta acordada.
+- 🏆 **Ranking de Performance das Equipes**:
+  - Classificação multidimensional de equipes baseada em: volume de casos resolvidos, taxa de resolução e tempo médio de conclusão.
+  - Média de satisfação dos cidadãos (*Citizen Rating Score*) por equipe, gerando visibilidade sobre eficiência e qualidade técnica.
+- ⭐ **Satisfação do Cidadão (CSAT & Net Promoter)**:
+  - Distribuição estatística de notas de 1 a 5 estrelas calculada de forma segura com `ISNULL(SUM(...), 0)`.
+  - Média ponderada geral, percentual de satisfação (CSAT %) e painel com os comentários de feedback mais recentes.
+- ⚠️ **Gargalos Urbanos & Etapas Estagnadas**:
+  - Detecção proativa de solicitações estagnadas nos estados `PENDENTE`, `TRIAGEM`, `EM_ANDAMENTO` ou `EM_CAMPO`.
+  - Cálculo de dias em aberto, sinalização de prioridade (`ALTA`/`URGENTE`) e indicador visual de atraso operacional.
+- 🔄 **Distribuição de Turnos & Cargas Operacionais**:
+  - Agrupamento de solicitações por turnos (Manhã, Tarde, Noite) e dias da semana para apoiar o dimensionamento das escalas de trabalho das equipes de campo.
+
+### 4. Melhorias de Ordenação e Filtros Avançados (Fase 6)
+- 🔀 **Ordenação Dinâmica Multicolunas**:
+  - As listagens de solicitações e equipes contam com ordenação interativa por cabeçalho de coluna: `dataAbertura`, `prioridade`, `status`, `sla`, `protocolo`, `nome`.
+  - Direção alternável com feedback visual (`asc` / `desc`) integrada nativamente com a paginação do Spring Data JPA (`Pageable`).
+- 🔍 **Filtro Hierárquico por Gestor**:
+  - O Administrador do Órgão pode visualizar o panorama geral de todas as equipes ou filtrar a visualização por um gestor específico, atualizando dinamicamente todos os gráficos e KPIs.
+- 📅 **Filtro Temporal Flexível com Fallback Inteligente**:
+  - Os endpoints de relatórios e análises aceitam intervalos de datas (`inicio` e `fim`) e aplicam automaticamente o período padrão dos últimos 30 dias quando omitidos, prevenindo falhas de requisição.
+
+### 5. Auditoria Corporativa e Exportação
+- 📊 **Dashboard Executivo e Global** — visão condensada de KPIs nacionais com contagem de órgãos, equipes e solicitações.
+- 🕵️ **Login Auditado & Trilha de Auditoria** — registro completo de acessos com filtros avançados (sucesso/falha, CPF, usuário, detalhes, IP, período), paginação e exportação.
+- 📄 **Central de Relatórios com Exportação** — relatórios executivos (*Resumo, Categoria, Status, Tendência Mensal e Indicadores*) com exportação para **PDF** (jsPDF + AutoTable) e **Excel** (SheetJS).
+- 🗺️ **Mapa Geral e de Alocação (Leaflet)** — mapa interativo com marcadores coloridos por status e prioridade, filtros por região e raio de atendimento.
+
+### 6. Inteligência Artificial e Acessibilidade
 - 🤖 **Luna — Assistente IA com RAG** — chatbot flutuante com janela redimensionável e arrastável, renderização Markdown e busca vetorial sobre a base de conhecimento e solicitações.
 - 👁️ **Validação de Imagens via Gemini Vision** — análise multimodal para conferência de conformidade no cadastro de ocorrências.
 - ♿ **Acessibilidade Completa** — integração nativa com o **VLibras** para tradução em Língua Brasileira de Sinais.
 
 ---
 
-## 🔐 Modelo de Permissões
+## 🔐 Modelo de Permissões e Isolamento de Escopo
 
-| Ação | Cidadão (`CITIZEN`) | Gestor (`GESTOR`) | Admin do Órgão (`ADMIN`) | Admin Global (`GLOBAL_ADMIN`) | Analista (`ANALYTICS_ADMIN`) |
+Todo o front-end e o assistente Luna consomem dados reais do backend com isolamento estrito via token JWT Stateless:
+
+| Ação / Visualização | Cidadão (`CITIZEN`) | Gestor (`GESTOR`) | Admin do Órgão (`ADMIN`) | Admin Global (`GLOBAL_ADMIN`) | Analista (`ANALYTICS_ADMIN`) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | Abrir solicitação com fotos e GPS | ✅ | — | — | — | — |
-| Acompanhar e avaliar solicitações | ✅ | — | — | — | — |
+| Acompanhar e avaliar solicitações próprias | ✅ *(apenas suas)* | — | — | — | — |
+| Acessar Dashboard Operacional & Abas Analíticas | — | ✅ *(sua equipe)* | ✅ *(do seu órgão / filtro gestor)* | ✅ *(geral consolidado)* | ✅ *(geral consolidado)* |
 | Criar e gerenciar equipes | — | — | ✅ | ✅ | — |
 | Adicionar trabalhadores à própria equipe | — | ✅ | ✅ | ✅ | — |
-| Atribuir / alterar status e prioridade | — | ✅ *(própria equipe)* | ✅ *(do seu órgão)* | ✅ *(geral)* | — |
+| Atribuir / alterar status e prioridade | — | ✅ *(sua equipe)* | ✅ *(do seu órgão)* | ✅ *(geral)* | — |
 | Gerenciar Órgãos Públicos | — | — | — | ✅ | — |
-| Visualizar Mapas e Ocorrências | — | ✅ *(própria equipe)* | ✅ *(do seu órgão)* | ✅ *(geral)* | — |
-| Acessar Dashboard Operacional / Gráficos | — | ✅ | ✅ | ✅ | ✅ |
+| Visualizar Mapas e Ocorrências | — | ✅ *(sua equipe)* | ✅ *(do seu órgão)* | ✅ *(geral)* | — |
 | Acessar Dashboard Executivo & Login Auditado | — | — | ✅ *(do seu órgão)* | ✅ *(geral)* | ✅ *(geral)* |
-| Emitir e exportar Relatórios (PDF/Excel) | — | ✅ *(da equipe)* | ✅ *(do órgão)* | ✅ *(geral)* | ✅ *(geral)* |
+| Emitir e exportar Relatórios (PDF/Excel) | — | ✅ *(sua equipe)* | ✅ *(do seu órgão)* | ✅ *(geral)* | ✅ *(geral)* |
 | Excluir solicitações (auditado) | — | — | ✅ | ✅ | — |
 | Assistente Virtual Luna (RAG) | ✅ *(seus chamados)* | ✅ *(sua equipe)* | ✅ *(seu órgão)* | ✅ *(geral)* | ✅ *(geral)* |
 
@@ -150,16 +179,17 @@ cd backend
 
 O Flyway executará as migrações automaticamente no SQL Server. A API ficará disponível em **`http://localhost:8080`**.
 
+> **Nota:** Na primeira inicialização, o sistema fará chamadas à API do Gemini para gerar embeddings das solicitações no PGVector.
+
 ---
 
-> **Nota:** Na primeira inicialização, o sistema fará chamadas à API do Gemini para gerar embeddings das solicitações. Isso pode levar alguns segundos.
-
 ### 4. Inicializando o Frontend (React)
+
+Navegue até a pasta `frontend` e execute:
 
 ```bash
 cd frontend
 npm install
-npm install jspdf-autotable
 npm run dev
 ```
 
@@ -167,77 +197,38 @@ Acesse a aplicação no navegador em: **`http://localhost:5173`**
 
 ---
 
-## 🧪 Como Testar (Contas de Seed Pré-cadastradas)
+## 🧪 Contas de Teste Pré-cadastradas
 
-As migrações do Flyway já populam automaticamente os dados iniciais, equipes, serviços e perfis para testes completos da plataforma:
+As migrações do Flyway já populam automaticamente os dados iniciais, equipes, serviços, avaliações e perfis para testes completos da plataforma:
 
-### Contas Pré-cadastradas
-
-| Perfil | Usuário | CPF | Senha | Equipe Associada (Gestores) |
+| Perfil | Usuário | CPF | Senha | Escopo Associado |
 | :--- | :--- | :--- | :--- | :--- |
-| **Administrador do Órgão** | Administrador Sistema | `000.000.000-00` | `Admin@123` | Prefeitura de São Paulo (PMSP) |
-| **Administrador Global** | Administrador Global | `888.888.888-88` | `Admin@123` | Gestão Global de Órgãos |
-| **Analytics Admin** | Analista de Analytics | `999.999.999-99` | `Analytics@123` | Analytics, Relatórios & Auditoria |
+| **Administrador do Órgão** | Administrador Sistema | `000.000.000-00` | `Admin@123` | Prefeitura de São Paulo (PMSP) - 9 Equipes |
+| **Administrador Global** | Administrador Global | `888.888.888-88` | `Admin@123` | Gestão Global de Órgãos e Visão País |
+| **Analytics Admin** | Analista de Analytics | `999.999.999-99` | `Analytics@123` | Leitura Analítica Nacional, Relatórios & Auditoria |
 | **Gestor** | Carlos Alberto Silva | `111.111.111-11` | `Gestor@123` | Equipe Pavimentação 01 (PMSP) |
 | **Gestor** | Ana Paula Ferreira | `333.333.333-33` | `Gestor@123` | Equipe Iluminação 01 (ENEL) |
 | **Gestor** | Roberto Oliveira Santos | `444.444.444-44` | `Gestor@123` | Equipe Saneamento 02 (SABESP) |
 | **Gestor** | Fernanda Lima Costa | `555.555.555-55` | `Gestor@123` | Equipe Poda 02 (COMCAP) |
 | **Gestor** | Gabriela Costa Mendes | `666.666.666-66` | `Gestor@123` | Equipe Limpeza 03 (COMCAP) |
-| **Cidadão** | Maria das Graças Souza | `222.222.222-22` | `Cidadao@123` | Cidadão Solicitante |
+| **Cidadão** | Maria das Graças Souza | `222.222.222-22` | `Cidadao@123` | Cidadão Solicitante (8 chamados cadastrados) |
 | **Cidadão** | João Pedro Alves | `601.501.401-01` | `Cidadao@123` | Cidadão Solicitante |
-| **Cidadão** | Luciana Rodrigues Melo | `602.502.402-02` | `Cidadao@123` | Cidadão Solicitante |
-| **Cidadão** | Carlos Eduardo Nunes | `603.503.403-03` | `Cidadao@123` | Cidadão Solicitante |
-| **Cidadão** | Patricia Souza Lima | `604.504.404-04` | `Cidadao@123` | Cidadão Solicitante |
-| **Cidadão** | Marcos Antonio Vieira | `605.505.405-05` | `Cidadao@123` | Cidadão Solicitante |
-
-> *Dica: Novos cidadãos também podem ser cadastrados diretamente pela tela pública de Cadastro.*
-
-### Testando a Luna (Chatbot IA)
-
-1. Faça login com qualquer perfil
-2. Clique no ícone de chatbot no canto inferior direito da tela
-3. Pergunte algo como: *"Quais são minhas solicitações abertas?"*, *"Quantas equipes estão em campo?"* ou *"Qual o tempo médio de atendimento?"*
-
-### Verificando os Logs
-
-```bash
-docker-compose logs -f
-```
-
-### Isolamento de Dados por Perfil
-Todo o front-end e o assistente Luna consomem dados reais do backend. O acesso aos dados é restrito com base no perfil autenticado no token JWT:
-- **Cidadão (`CITIZEN`)**: Tem acesso exclusivo e limitado a suas próprias solicitações abertas (na IA e nas telas de acompanhamento e avaliação).
-- **Gestor (`GESTOR`)**: Visualiza e interage unicamente com os indicadores de dashboard, equipes, chamados e respostas da IA referentes à sua **Equipe Pública** designada. Não acessa os dados gerais de outras equipes da prefeitura.
-- **Administrador do Órgão (`ADMIN`)**: Possui visão dos dados, dashboards, auditoria e relatórios do próprio órgão. Gerencia equipes e gestores, exclui solicitações e pode atribuir ou realocar solicitações entre equipes do órgão, bem como atualizar status e prioridade.
-- **Administrador Global (`GLOBAL_ADMIN`)**: Administra os órgãos públicos, além de acessar dashboards, relatórios e auditoria em visão global.
-- **Analytics Admin (`ANALYTICS_ADMIN`)**: Acesso para auditoria, leitura analítica de indicadores nacionais, relatórios executivos e consultas avançadas na assistente Luna.
 
 ---
 
-## 🛠 Tecnologias Principais
+## 🔬 Como Executar a Bateria de Verificação Minuciosa
 
-### Front-End
-- **React 19** + **Vite 8** — interface SPA reativa de alta performance
-- **React Router DOM 7** — navegação declarativa protegida por perfis
-- **Axios** — cliente HTTP com interceptor para autenticação JWT Stateless
-- **Leaflet & React-Leaflet** — mapas interativos georreferenciados
-- **Recharts** — gráficos e métricas operacionais
-- **jsPDF & jsPDF-AutoTable** — geração e exportação de relatórios e auditorias em PDF
-- **SheetJS (xlsx)** — exportação de relatórios e auditorias em planilhas Excel
-- **React Rnd & React Markdown** — assistente virtual flutuante e responsivo
-- **Lucide React** — iconografia moderna e consistente
-- **CSS Modules** — estilos encapsulados com tema Glassmorphism e Dark/Light mode
-- **VLibras** — acessibilidade e inclusão em Língua Brasileira de Sinais
+Para validar a integridade de todas as rotas, autenticações e regras de isolamento em lote, execute o script PowerShell incluso:
 
-### Back-End
-- **Java 17 / 21** + **Spring Boot 3.2.5**
-- **Spring Security** + **JJWT 0.12.5** — segurança stateless baseada em Bearer Token
-- **Spring Data JPA** + **Hibernate** — persistência relacional
-- **Spring AI 1.0.0-M1** — integração de IA generativa (Chat, Embeddings e Vector Store)
-- **Microsoft SQL Server 2022** — banco relacional principal
-- **PostgreSQL 16 + pgvector** — banco vetorial para busca semântica (RAG)
-- **Flyway** — versionamento e migrações automáticas de banco de dados
-- **Maven Wrapper** — reprodutibilidade de compilação e execução
+```bash
+# Executa a verificação completa de todos os 5 perfis e endpoints analíticos
+powershell -ExecutionPolicy Bypass -File scratch/comprehensive_check.ps1
+```
+
+O script executa chamadas em tempo real na API e imprime uma tabela validando:
+- Isolamento de escopo por perfil
+- Retorno de dados analíticos (SLA, Ranking, Satisfação, Gargalos, Turnos)
+- Emissão de relatórios e consultas de auditoria
 
 ---
 
