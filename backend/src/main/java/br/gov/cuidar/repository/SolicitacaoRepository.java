@@ -196,11 +196,6 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
     @Query("SELECT s.endereco, s.gps, s.status, s.prioridade FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId")
     List<Object[]> dadosTerritoriaisByOrgaoId(@Param("orgaoId") Long orgaoId);
 
-    // =========================================================================
-    // CONSULTAS SQL AVANÇADAS: DASHBOARDS ANALÍTICOS (Fase 6 / Inteligência)
-    // Suportam escopo de Gestor (:equipeId) e Administrador do Órgão (:orgaoId)
-    // =========================================================================
-
     /**
      * 1. Eficiência e Ranking das Equipes com DENSE_RANK() e agregação analítica
      */
@@ -294,11 +289,11 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
                 THEN (CAST(SUM(CASE WHEN ((s.nota_qualidade + s.nota_prazos + s.nota_atendimento) / 3.0) >= 4.0 THEN 1 ELSE 0 END) AS FLOAT) / COUNT(s.id)) * 100 
                 ELSE 0 END, 1
             ) AS csat_pct,
-            SUM(CASE WHEN ROUND((s.nota_qualidade + s.nota_prazos + s.nota_atendimento) / 3.0, 0) = 5 THEN 1 ELSE 0 END) AS nota_5,
-            SUM(CASE WHEN ROUND((s.nota_qualidade + s.nota_prazos + s.nota_atendimento) / 3.0, 0) = 4 THEN 1 ELSE 0 END) AS nota_4,
-            SUM(CASE WHEN ROUND((s.nota_qualidade + s.nota_prazos + s.nota_atendimento) / 3.0, 0) = 3 THEN 1 ELSE 0 END) AS nota_3,
-            SUM(CASE WHEN ROUND((s.nota_qualidade + s.nota_prazos + s.nota_atendimento) / 3.0, 0) = 2 THEN 1 ELSE 0 END) AS nota_2,
-            SUM(CASE WHEN ROUND((s.nota_qualidade + s.nota_prazos + s.nota_atendimento) / 3.0, 0) <= 1 THEN 1 ELSE 0 END) AS nota_1
+            ISNULL(SUM(CASE WHEN ROUND((s.nota_qualidade + s.nota_prazos + s.nota_atendimento) / 3.0, 0) = 5 THEN 1 ELSE 0 END), 0) AS nota_5,
+            ISNULL(SUM(CASE WHEN ROUND((s.nota_qualidade + s.nota_prazos + s.nota_atendimento) / 3.0, 0) = 4 THEN 1 ELSE 0 END), 0) AS nota_4,
+            ISNULL(SUM(CASE WHEN ROUND((s.nota_qualidade + s.nota_prazos + s.nota_atendimento) / 3.0, 0) = 3 THEN 1 ELSE 0 END), 0) AS nota_3,
+            ISNULL(SUM(CASE WHEN ROUND((s.nota_qualidade + s.nota_prazos + s.nota_atendimento) / 3.0, 0) = 2 THEN 1 ELSE 0 END), 0) AS nota_2,
+            ISNULL(SUM(CASE WHEN ROUND((s.nota_qualidade + s.nota_prazos + s.nota_atendimento) / 3.0, 0) <= 1 THEN 1 ELSE 0 END), 0) AS nota_1
         FROM TB_SOLICITACAO s
         LEFT JOIN TB_EQUIPE_PUBLICA e ON e.id = s.id_equipe
         WHERE (s.nota_qualidade IS NOT NULL OR s.nota_prazos IS NOT NULL OR s.nota_atendimento IS NOT NULL)

@@ -49,14 +49,17 @@ public class RelatorioController {
         this.auditoriaService = auditoriaService;
     }
 
-        @GetMapping("/resumo")
-        public ResponseEntity<ApiResponse<Map<String, Long>>> resumo(
+    @GetMapping("/resumo")
+    public ResponseEntity<ApiResponse<Map<String, Long>>> resumo(
             @AuthenticationPrincipal Usuario usuario,
-            @RequestParam String inicio, @RequestParam String fim,
+            @RequestParam(required = false) String inicio,
+            @RequestParam(required = false) String fim,
             @RequestParam(required = false) String gestor,
             HttpServletRequest request) {
-        LocalDateTime inicioData = LocalDate.parse(inicio).atStartOfDay();
-        LocalDateTime fimData = LocalDate.parse(fim).plusDays(1).atStartOfDay();
+        String iniStr = (inicio != null && !inicio.isBlank()) ? inicio : LocalDate.now().minusDays(30).toString();
+        String fimStr = (fim != null && !fim.isBlank()) ? fim : LocalDate.now().toString();
+        LocalDateTime inicioData = LocalDate.parse(iniStr).atStartOfDay();
+        LocalDateTime fimData = LocalDate.parse(fimStr).plusDays(1).atStartOfDay();
         String filtroGestor = "GESTOR".equals(usuario.getPerfil()) ? usuario.getNome() : gestor;
         Map<String, Long> result = new LinkedHashMap<>();
 
@@ -80,10 +83,10 @@ public class RelatorioController {
         }
 
         auditoriaService.registrar("CONSULTA_RELATORIO_RESUMO",
-            "Resumo solicitado por " + usuario.getNome() + " no periodo " + inicio + " a " + fim + (gestor != null ? " para gestor " + gestor : ""),
+            "Resumo solicitado por " + usuario.getNome() + " no periodo " + iniStr + " a " + fimStr + (gestor != null ? " para gestor " + gestor : ""),
             usuario.getCpf(), usuario, true, request);
         return ResponseEntity.ok(ApiResponse.ok(result));
-        }
+    }
 
     /**
      * Retorna a contagem de solicitações agrupada por categoria de serviço.
@@ -92,29 +95,26 @@ public class RelatorioController {
     @GetMapping("/por-categoria")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> porCategoria(
             @AuthenticationPrincipal Usuario usuario,
-            @RequestParam String inicio, @RequestParam String fim,
+            @RequestParam(required = false) String inicio,
+            @RequestParam(required = false) String fim,
             @RequestParam(required = false) String gestor,
             HttpServletRequest request) {
+
+        String iniStr = (inicio != null && !inicio.isBlank()) ? inicio : LocalDate.now().minusDays(30).toString();
+        String fimStr = (fim != null && !fim.isBlank()) ? fim : LocalDate.now().toString();
+        LocalDateTime inicioData = LocalDate.parse(iniStr).atStartOfDay();
+        LocalDateTime fimData = LocalDate.parse(fimStr).plusDays(1).atStartOfDay();
 
         List<Object[]> raw;
         if (isAdminLocal(usuario)) {
             Long orgaoId = usuario.getOrgao().getId();
-            LocalDateTime inicioData = LocalDate.parse(inicio).atStartOfDay();
-            LocalDateTime fimData = LocalDate.parse(fim).plusDays(1).atStartOfDay();
-            String filtroGestor = gestor;
-            raw = (inicio != null && fim != null)
-                ? solRepo.countByCategoriaAndOrgaoIdPeriod(orgaoId, inicioData, fimData, filtroGestor)
-                : solRepo.countByCategoriaAndOrgaoId(orgaoId);
-        } else if (inicio != null && fim != null) {
-            LocalDateTime inicioData = LocalDate.parse(inicio).atStartOfDay();
-            LocalDateTime fimData = LocalDate.parse(fim).plusDays(1).atStartOfDay();
-            String filtroGestor = "GESTOR".equals(usuario.getPerfil()) ? usuario.getNome() : gestor;
-            raw = solRepo.countByCategoriaPeriod(inicioData, fimData, filtroGestor);
+            raw = solRepo.countByCategoriaAndOrgaoIdPeriod(orgaoId, inicioData, fimData, gestor);
         } else if ("GESTOR".equals(usuario.getPerfil())) {
             Long equipeId = getEquipeId(usuario);
             raw = equipeId != null ? solRepo.countByCategoriaAndEquipeId(equipeId) : List.of();
         } else {
-            raw = solRepo.countByCategoria();
+            String filtroGestor = gestor;
+            raw = solRepo.countByCategoriaPeriod(inicioData, fimData, filtroGestor);
         }
 
         long total = raw.stream().mapToLong(r -> ((Number) r[1]).longValue()).sum();

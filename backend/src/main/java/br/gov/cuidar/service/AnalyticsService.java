@@ -20,6 +20,18 @@ public class AnalyticsService {
         this.solicitacaoRepository = solicitacaoRepository;
     }
 
+    private long toLong(Object val) {
+        return val instanceof Number n ? n.longValue() : 0L;
+    }
+
+    private double toDouble(Object val) {
+        return val instanceof Number n ? n.doubleValue() : 0.0;
+    }
+
+    private int toInt(Object val) {
+        return val instanceof Number n ? n.intValue() : 0;
+    }
+
     public List<Map<String, Object>> getPerformanceEquipes(Long orgaoId, Long equipeId) {
         List<Object[]> rows = solicitacaoRepository.queryPerformanceEquipesAvancada(orgaoId, equipeId);
         List<Map<String, Object>> result = new ArrayList<>();
@@ -28,13 +40,13 @@ public class AnalyticsService {
             item.put("equipeId", r[0]);
             item.put("equipeNome", r[1]);
             item.put("orgaoSigla", r[2]);
-            item.put("totalDemandas", ((Number) r[3]).longValue());
-            item.put("concluidas", ((Number) r[4]).longValue());
-            item.put("emAberto", ((Number) r[5]).longValue());
-            item.put("tempoMedioDias", ((Number) r[6]).doubleValue());
-            item.put("taxaConclusao", ((Number) r[7]).doubleValue());
-            item.put("notaMedia", ((Number) r[8]).doubleValue());
-            item.put("rankPosicao", ((Number) r[9]).intValue());
+            item.put("totalDemandas", toLong(r[3]));
+            item.put("concluidas", toLong(r[4]));
+            item.put("emAberto", toLong(r[5]));
+            item.put("tempoMedioDias", toDouble(r[6]));
+            item.put("taxaConclusao", toDouble(r[7]));
+            item.put("notaMedia", toDouble(r[8]));
+            item.put("rankPosicao", toInt(r[9]));
             result.add(item);
         }
         return result;
@@ -50,13 +62,13 @@ public class AnalyticsService {
         for (Object[] r : rows) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("categoria", r[0]);
-            item.put("totalDemandas", ((Number) r[1]).longValue());
-            item.put("concluidas", ((Number) r[2]).longValue());
-            item.put("dentroPrazo", ((Number) r[3]).longValue());
-            item.put("concluidasAtraso", ((Number) r[4]).longValue());
-            item.put("ativasEstouradas", ((Number) r[5]).longValue());
-            item.put("mediaDias", ((Number) r[6]).doubleValue());
-            item.put("conformidadeSlaPct", ((Number) r[7]).doubleValue());
+            item.put("totalDemandas", toLong(r[1]));
+            item.put("concluidas", toLong(r[2]));
+            item.put("dentroPrazo", toLong(r[3]));
+            item.put("concluidasAtraso", toLong(r[4]));
+            item.put("ativasEstouradas", toLong(r[5]));
+            item.put("mediaDias", toDouble(r[6]));
+            item.put("conformidadeSlaPct", toDouble(r[7]));
             result.add(item);
         }
         return result;
@@ -71,19 +83,19 @@ public class AnalyticsService {
         Map<String, Object> result = new LinkedHashMap<>();
         if (!rows.isEmpty()) {
             Object[] r = rows.get(0);
-            result.put("totalAvaliadas", ((Number) r[0]).longValue());
-            result.put("mediaQualidade", ((Number) r[1]).doubleValue());
-            result.put("mediaPrazos", ((Number) r[2]).doubleValue());
-            result.put("mediaAtendimento", ((Number) r[3]).doubleValue());
-            result.put("mediaGeral", ((Number) r[4]).doubleValue());
-            result.put("csatPct", ((Number) r[5]).doubleValue());
+            result.put("totalAvaliadas", toLong(r[0]));
+            result.put("mediaQualidade", toDouble(r[1]));
+            result.put("mediaPrazos", toDouble(r[2]));
+            result.put("mediaAtendimento", toDouble(r[3]));
+            result.put("mediaGeral", toDouble(r[4]));
+            result.put("csatPct", toDouble(r[5]));
 
             Map<String, Long> estrelas = new LinkedHashMap<>();
-            estrelas.put("5", ((Number) r[6]).longValue());
-            estrelas.put("4", ((Number) r[7]).longValue());
-            estrelas.put("3", ((Number) r[8]).longValue());
-            estrelas.put("2", ((Number) r[9]).longValue());
-            estrelas.put("1", ((Number) r[10]).longValue());
+            estrelas.put("5", toLong(r[6]));
+            estrelas.put("4", toLong(r[7]));
+            estrelas.put("3", toLong(r[8]));
+            estrelas.put("2", toLong(r[9]));
+            estrelas.put("1", toLong(r[10]));
             result.put("distribuicaoEstrelas", estrelas);
         } else {
             result.put("totalAvaliadas", 0L);
@@ -111,7 +123,7 @@ public class AnalyticsService {
             item.put("protocolo", r[0]);
             item.put("categoria", r[1]);
             item.put("comentario", r[2]);
-            item.put("mediaNota", ((Number) r[3]).doubleValue());
+            item.put("mediaNota", toDouble(r[3]));
             item.put("cidadao", r[4]);
             item.put("dataConclusao", r[5]);
             result.add(item);
@@ -131,7 +143,7 @@ public class AnalyticsService {
             item.put("diaNum", r[0]);
             item.put("diaNome", r[1]);
             item.put("turno", r[2]);
-            item.put("total", ((Number) r[3]).longValue());
+            item.put("total", toLong(r[3]));
             result.add(item);
         }
         return result;
@@ -147,13 +159,13 @@ public class AnalyticsService {
         for (Object[] r : rows) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("bairro", r[0]);
-            item.put("totalDemandas", ((Number) r[1]).longValue());
-            item.put("pendentes", ((Number) r[2]).longValue());
-            item.put("emAtendimento", ((Number) r[3]).longValue());
-            item.put("concluidas", ((Number) r[4]).longValue());
-            item.put("urgentesAtivas", ((Number) r[5]).longValue());
-            item.put("mediaDiasEspera", ((Number) r[6]).doubleValue());
-            item.put("rankCriticidade", ((Number) r[7]).intValue());
+            item.put("totalDemandas", toLong(r[1]));
+            item.put("pendentes", toLong(r[2]));
+            item.put("emAtendimento", toLong(r[3]));
+            item.put("concluidas", toLong(r[4]));
+            item.put("urgentesAtivas", toLong(r[5]));
+            item.put("mediaDiasEspera", toDouble(r[6]));
+            item.put("rankCriticidade", toInt(r[7]));
             result.add(item);
         }
         return result;
