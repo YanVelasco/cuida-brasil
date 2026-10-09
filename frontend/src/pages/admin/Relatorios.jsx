@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
-import { relatorioService, equipeService, analyticsService } from '../../services/api';
+import { relatorioService, equipeService, analyticsService, orgaoService } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar
 } from 'recharts';
@@ -15,6 +16,7 @@ const PERIODS = ['Esta semana', 'Este mês', 'Último trimestre', 'Anual'];
 const CAT_COLORS = ['#2F80ED', '#27AE60', '#9B51E0', '#F2994A', '#EB5757'];
 
 export default function Relatorios() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('geral'); // 'geral', 'sla', 'equipes', 'satisfacao', 'gargalos'
   const [period, setPeriod] = useState('Este mês');
   const [catData, setCatData]   = useState([]);
@@ -22,6 +24,8 @@ export default function Relatorios() {
   const [kpiData, setKpiData]   = useState(null);
   const [gestor, setGestor] = useState('');
   const [gestores, setGestores] = useState([]);
+  const [orgaos, setOrgaos] = useState([]);
+  const [orgaoSelecionado, setOrgaoSelecionado] = useState('');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [loading, setLoading]   = useState(true);
@@ -50,7 +54,11 @@ export default function Relatorios() {
   useEffect(() => {
     setLoading(true);
 
-    const params = { ...getPeriod(), ...(gestor ? { gestor } : {}) };
+    const params = {
+      ...getPeriod(),
+      ...(gestor ? { gestor } : {}),
+      ...(orgaoSelecionado ? { orgaoId: orgaoSelecionado } : {})
+    };
     Promise.allSettled([
       relatorioService.porCategoria(params),
       relatorioService.tendenciaMensal(params),
@@ -84,7 +92,14 @@ export default function Relatorios() {
         setTerritorial(terrRes.value?.data?.data || terrRes.value?.data || []);
       }
     }).finally(() => setLoading(false));
-  }, [period, gestor, customStart, customEnd]);
+  }, [period, gestor, orgaoSelecionado, customStart, customEnd]);
+
+  useEffect(() => {
+    orgaoService.listar().then((response) => {
+      const list = response.data?.data || response.data || [];
+      setOrgaos(list.filter((o) => o.ativo !== false));
+    }).catch(() => setOrgaos([]));
+  }, []);
 
   useEffect(() => {
     equipeService.dashboard({ page: 0, size: 200 }).then((response) => {
@@ -97,18 +112,23 @@ export default function Relatorios() {
   // Carrega dados analíticos avançados das consultas SQL (SLA, Ranking, CSAT, Gargalos)
   useEffect(() => {
     setLoadingAnalytics(true);
-    const params = gestor ? { gestor } : {};
+    const params = {
+      ...(gestor ? { gestor } : {}),
+      ...(orgaoSelecionado ? { orgaoId: orgaoSelecionado } : {})
+    };
     analyticsService.dashboardAvancado(params)
       .then((res) => {
         setAnalyticsData(res.data?.data || res.data || null);
       })
       .catch((err) => console.error('Erro ao carregar dados analíticos em relatórios:', err))
       .finally(() => setLoadingAnalytics(false));
-  }, [gestor]);
+  }, [gestor, orgaoSelecionado]);
 
   const totalSolicitacoes = kpiData?.total ?? catData.reduce((sum, c) => sum + (c.qtd || 0), 0);
   const periodLabel = customStart && customEnd ? `${customStart} a ${customEnd}` : period;
   const geradoEm = new Date().toLocaleString('pt-BR');
+  const orgaoObj = orgaos.find((o) => String(o.id) === String(orgaoSelecionado));
+  const orgaoLabel = orgaoObj ? ` | Órgão: ${orgaoObj.sigla || orgaoObj.nome}` : (user?.orgaoNome ? ` | Órgão: ${user.orgaoNome}` : '');
 
   const exportPDF = () => {
     const doc = new jsPDF();
@@ -120,7 +140,7 @@ export default function Relatorios() {
     doc.setFontSize(16);
     doc.text('Cuidar+Brasil — Relatório Executivo', 14, 12);
     doc.setFontSize(9);
-    doc.text(`Período: ${periodLabel}${gestor ? ` | Gestor: ${gestor}` : ''} | Gerado em: ${geradoEm}`, 14, 20);
+    doc.text(`Período: ${periodLabel}${orgaoLabel}${gestor ? ` | Gestor: ${gestor}` : ''} | Gerado em: ${geradoEm}`, 14, 20);
 
     doc.setTextColor(40, 40, 40);
     doc.setFontSize(12);
@@ -238,10 +258,34 @@ export default function Relatorios() {
   return (
     <AdminLayout>
       <div className={styles.topBar}>
-        <h1 className={styles.title}>Relatórios Executivos e Analíticos</h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 4 }}>
-          Consultas analíticas, conformidade de SLA, ranking de equipes e monitoramento municipal
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h1 className={styles.title}>Relatórios Executivos e Analíticos</h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 4 }}>
+              Consultas analíticas, conformidade de SLA, ranking de equipes e monitoramento municipal
+            </p>
+          </div>
+          {user?.perfil === 'ANALYTICS_ADMIN' && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: 'rgba(47, 128, 237, 0.1)', color: '#2F80ED',
+              padding: '6px 14px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700,
+              border: '1px solid rgba(47, 128, 237, 0.25)'
+            }}>
+              <ShieldCheck size={14} /> Modo Analítico (Somente Leitura)
+            </span>
+          )}
+          {user?.perfil === 'GLOBAL_ADMIN' && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: 'rgba(39, 174, 96, 0.1)', color: '#27AE60',
+              padding: '6px 14px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700,
+              border: '1px solid rgba(39, 174, 96, 0.25)'
+            }}>
+              Visão Nacional Consolidada
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Abas de navegação do Relatório */}
@@ -290,6 +334,12 @@ export default function Relatorios() {
           <span>→</span>
           <input type="date" className={styles.dateInput} value={customEnd} onChange={(event) => setCustomEnd(event.target.value)}/>
         </div>
+        {orgaos.length > 1 && (
+          <select className={styles.dateInput} value={orgaoSelecionado} onChange={(event) => setOrgaoSelecionado(event.target.value)}>
+            <option value="">Todos os órgãos</option>
+            {orgaos.map((o) => <option key={o.id} value={o.id}>{o.sigla ? `${o.sigla} - ${o.nome}` : o.nome}</option>)}
+          </select>
+        )}
         <select className={styles.dateInput} value={gestor} onChange={(event) => setGestor(event.target.value)}>
           <option value="">Todos os gestores</option>
           {gestores.map((nome) => <option key={nome} value={nome}>{nome}</option>)}
@@ -885,7 +935,7 @@ export default function Relatorios() {
             <div className={styles.reportHeader}>
               <div>
                 <h2>Relatório Executivo — Cuidar+Brasil</h2>
-                <p>Período: {periodLabel}{gestor ? ` | Gestor: ${gestor}` : ''} | Gerado em: {geradoEm}</p>
+                <p>Período: {periodLabel}{orgaoLabel}{gestor ? ` | Gestor: ${gestor}` : ''} | Gerado em: {geradoEm}</p>
               </div>
               <div className={styles.reportActions}>
                 <button className={styles.exportBtn} onClick={exportPDF}>

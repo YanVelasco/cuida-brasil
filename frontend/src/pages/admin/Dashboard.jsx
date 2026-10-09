@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
-import { dashboardService, ocorrenciaService, analyticsService } from '../../services/api';
+import { dashboardService, ocorrenciaService, analyticsService, orgaoService } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { useRegion } from '../../contexts/RegionContext';
 import useEnderecos from '../../hooks/useEnderecos';
 import {
@@ -79,6 +80,7 @@ function resolveRegionFromGps(gps) {
 }
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('operacional'); // 'operacional', 'sla', 'equipes', 'satisfacao', 'gargalos'
   const [chartTab, setChartTab] = useState('Ano');
   const [search, setSearch]     = useState('');
@@ -86,6 +88,9 @@ export default function Dashboard() {
   const [selectedChartFilter, setSelectedChartFilter] = useState(null);
   const [periodScope, setPeriodScope] = useState(null);
   const { selectedRegion } = useRegion();
+
+  const [orgaos, setOrgaos] = useState([]);
+  const [selectedOrgao, setSelectedOrgao] = useState('');
 
   // Estado para ordenação da tabela de solicitações recentes
   const [tableSortField, setTableSortField] = useState('dataCriacao');
@@ -102,35 +107,46 @@ export default function Dashboard() {
   const [analyticsData, setAnalyticsData] = useState(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
-  // Carrega KPIs do backend (filtrados pela equipe se GESTOR)
+  // Carrega lista de órgãos para administradores globais
+  useEffect(() => {
+    orgaoService.listar().then((response) => {
+      const list = response.data?.data || response.data || [];
+      setOrgaos(list.filter((o) => o.ativo !== false));
+    }).catch(() => setOrgaos([]));
+  }, []);
+
+  // Carrega KPIs do backend (filtrados pela equipe se GESTOR ou pelo órgão selecionado)
   useEffect(() => {
     setLoadingKpi(true);
-    dashboardService.stats()
+    const params = selectedOrgao ? { orgaoId: selectedOrgao } : {};
+    dashboardService.stats(params)
       .then(r => setKpiData(r.data?.data || r.data))
       .catch(() => setKpiData(null))
       .finally(() => setLoadingKpi(false));
-  }, []);
+  }, [selectedOrgao]);
 
   // Carrega lista de solicitações para a tabela
   useEffect(() => {
     setLoadingTable(true);
-    ocorrenciaService.listar({ page: 0, size: 200 })
+    const params = { page: 0, size: 200, ...(selectedOrgao ? { orgaoId: selectedOrgao } : {}) };
+    ocorrenciaService.listar(params)
       .then(r => {
         const content = r.data?.data?.content || r.data?.content || [];
         setTableData(content);
       })
       .catch(() => setTableData([]))
       .finally(() => setLoadingTable(false));
-  }, []);
+  }, [selectedOrgao]);
 
   // Carrega dados analíticos avançados das consultas SQL (SLA, Ranking CTE, CSAT, Gargalos)
   useEffect(() => {
     setLoadingAnalytics(true);
-    analyticsService.dashboardAvancado()
+    const params = selectedOrgao ? { orgaoId: selectedOrgao } : {};
+    analyticsService.dashboardAvancado(params)
       .then(res => setAnalyticsData(res.data?.data || res.data || null))
       .catch(err => console.error('Erro ao carregar dados analíticos avançados:', err))
       .finally(() => setLoadingAnalytics(false));
-  }, []);
+  }, [selectedOrgao]);
 
   const regionFilteredTable = useMemo(() => {
     if (!selectedRegion) return tableData;
@@ -364,9 +380,55 @@ export default function Dashboard() {
   return (
     <AdminLayout>
       <div className={styles.topBar}>
-        <div>
-          <h1 className={styles.pageTitle}>Dashboard Geral e Analítico</h1>
-          <p className={styles.pageSub}>Consultas SQL avançadas, indicadores operacionais e trilha de eficiência municipal</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h1 className={styles.pageTitle}>Dashboard Geral e Analítico</h1>
+            <p className={styles.pageSub}>Consultas SQL avançadas, indicadores operacionais e trilha de eficiência municipal</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {orgaos.length > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Órgão:</span>
+                <select
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.82rem'
+                  }}
+                  value={selectedOrgao}
+                  onChange={(e) => setSelectedOrgao(e.target.value)}
+                >
+                  <option value="">Todos os órgãos</option>
+                  {orgaos.map((o) => (
+                    <option key={o.id} value={o.id}>{o.sigla ? `${o.sigla} - ${o.nome}` : o.nome}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {user?.perfil === 'ANALYTICS_ADMIN' && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: 'rgba(47, 128, 237, 0.1)', color: '#2F80ED',
+                padding: '6px 14px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700,
+                border: '1px solid rgba(47, 128, 237, 0.25)'
+              }}>
+                <ShieldCheck size={14} /> Modo Analítico (Somente Leitura)
+              </span>
+            )}
+            {user?.perfil === 'GLOBAL_ADMIN' && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: 'rgba(39, 174, 96, 0.1)', color: '#27AE60',
+                padding: '6px 14px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700,
+                border: '1px solid rgba(39, 174, 96, 0.25)'
+              }}>
+                Visão Nacional Consolidada
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

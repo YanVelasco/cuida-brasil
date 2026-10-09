@@ -62,7 +62,13 @@ public class AnalyticsController {
             return new Escopo(orgaoId, equipeIdResolvida);
         }
 
-        // GLOBAL_ADMIN / ANALYTICS_ADMIN: visão global por padrão ou filtrada
+        // ANALYTICS_ADMIN: muito parecido com Administrador do Órgão (se vinculado a órgão, foca nele; caso contrário visão ampla)
+        if ("ANALYTICS_ADMIN".equals(usuario.getPerfil())) {
+            Long orgaoId = (usuario.getOrgao() != null) ? usuario.getOrgao().getId() : orgaoIdParam;
+            return new Escopo(orgaoId, equipeIdResolvida);
+        }
+
+        // GLOBAL_ADMIN: visão global por padrão ou filtrada por orgaoIdParam / gestorParam
         return new Escopo(orgaoIdParam, equipeIdResolvida);
     }
 

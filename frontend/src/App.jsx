@@ -58,11 +58,11 @@ function AppRoutes() {
 
       {/* Admin */}
       <Route path="/admin" element={<PrivateRoute><AdminHome /></PrivateRoute>} />
-      <Route path="/admin/dashboard" element={<PrivateRoute roles={['GESTOR', 'ANALYTICS_ADMIN']}><Dashboard /></PrivateRoute>} />
-      <Route path="/admin/mapa" element={<PrivateRoute roles={['ADMIN', 'GESTOR']}><MapaOcorrencias /></PrivateRoute>} />
-      <Route path="/admin/solicitacoes" element={<PrivateRoute roles={['ADMIN', 'GESTOR']}><Solicitacoes /></PrivateRoute>} />
+      <Route path="/admin/dashboard" element={<PrivateRoute roles={['ADMIN', 'GESTOR', 'ANALYTICS_ADMIN', 'GLOBAL_ADMIN']}><Dashboard /></PrivateRoute>} />
+      <Route path="/admin/mapa" element={<PrivateRoute roles={['ADMIN', 'GESTOR', 'GLOBAL_ADMIN']}><MapaOcorrencias /></PrivateRoute>} />
+      <Route path="/admin/solicitacoes" element={<PrivateRoute roles={['ADMIN', 'GESTOR', 'GLOBAL_ADMIN']}><Solicitacoes /></PrivateRoute>} />
       <Route path="/admin/equipes" element={<PrivateRoute roles={['ADMIN', 'GESTOR']}><Equipes /></PrivateRoute>} />
-      <Route path="/admin/relatorios" element={<PrivateRoute roles={['ADMIN', 'GESTOR', 'ANALYTICS_ADMIN']}><Relatorios /></PrivateRoute>} />
+      <Route path="/admin/relatorios" element={<PrivateRoute roles={['ADMIN', 'GESTOR', 'ANALYTICS_ADMIN', 'GLOBAL_ADMIN']}><Relatorios /></PrivateRoute>} />
       <Route path="/admin/orgaos" element={<PrivateRoute role="GLOBAL_ADMIN"><Orgaos /></PrivateRoute>} />
       <Route path="/admin/suporte" element={<PrivateRoute role="GESTOR"><Suporte /></PrivateRoute>} />
 

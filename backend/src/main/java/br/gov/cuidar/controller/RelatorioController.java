@@ -183,7 +183,7 @@ public class RelatorioController {
      * Retorna a tendência mensal dos últimos 6 meses (global — apenas ADMIN).
      */
     @GetMapping("/tendencia-mensal")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYTICS_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYTICS_ADMIN', 'GLOBAL_ADMIN')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> tendenciaMensal(
             @RequestParam(required = false) String inicio, @RequestParam(required = false) String fim,
             @RequestParam(required = false) String gestor,
@@ -382,7 +382,7 @@ public class RelatorioController {
     }
 
     private boolean isAdminLocal(Usuario usuario) {
-        return usuario != null && "ADMIN".equals(usuario.getPerfil()) && usuario.getOrgao() != null;
+        return usuario != null && ("ADMIN".equals(usuario.getPerfil()) || "ANALYTICS_ADMIN".equals(usuario.getPerfil())) && usuario.getOrgao() != null;
     }
 }
 

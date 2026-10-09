@@ -9,14 +9,15 @@ const getNavSections = (perfil, solicitacoesCount) => {
   if (perfil === 'ADMIN') {
     return [
       {
-        label: 'ADMINISTRAÇÃO',
+        label: 'ADMINISTRAÇÃO DO ÓRGÃO',
         items: [
-          { to: '/admin', label: 'Dashboard', end: true },
-          { to: '/admin/relatorios', label: 'Relatórios' },
+          { to: '/admin', label: 'Dashboard Executivo', end: true },
+          { to: '/admin/dashboard', label: 'Dashboard Operacional & SLA' },
+          { to: '/admin/relatorios', label: 'Relatórios do Órgão' },
         ]
       },
       {
-        label: 'OPERAÇÃO GLOBAL',
+        label: 'OPERAÇÃO DO ÓRGÃO',
         items: [
           { to: '/admin/mapa', label: 'Mapa de Ocorrências' },
           { to: '/admin/solicitacoes', label: 'Solicitações', badge: solicitacoesCount },
@@ -29,10 +30,11 @@ const getNavSections = (perfil, solicitacoesCount) => {
   if (perfil === 'ANALYTICS_ADMIN') {
     return [
       {
-        label: 'ANALÍTICA',
+        label: 'ANALÍTICA & AUDITORIA (LEITURA)',
         items: [
-          { to: '/admin', label: 'Dashboard Geral', end: true },
-          { to: '/admin/relatorios', label: 'Relatórios Administrativos' },
+          { to: '/admin', label: 'Dashboard Executivo', end: true },
+          { to: '/admin/dashboard', label: 'Dashboard Operacional & SLA' },
+          { to: '/admin/relatorios', label: 'Relatórios Analíticos' },
         ]
       }
     ];
@@ -43,8 +45,17 @@ const getNavSections = (perfil, solicitacoesCount) => {
       {
         label: 'ADMINISTRAÇÃO GLOBAL',
         items: [
-          { to: '/admin', label: 'Dashboard Geral', end: true },
+          { to: '/admin', label: 'Dashboard Global', end: true },
+          { to: '/admin/dashboard', label: 'Dashboard Operacional & SLA' },
+          { to: '/admin/relatorios', label: 'Relatórios Nacionais' },
           { to: '/admin/orgaos', label: 'Órgãos Públicos' },
+        ]
+      },
+      {
+        label: 'OPERAÇÃO NACIONAL',
+        items: [
+          { to: '/admin/mapa', label: 'Mapa de Ocorrências' },
+          { to: '/admin/solicitacoes', label: 'Solicitações', badge: solicitacoesCount },
         ]
       }
     ];
@@ -55,7 +66,8 @@ const getNavSections = (perfil, solicitacoesCount) => {
     {
       label: 'PRINCIPAL',
       items: [
-        { to: '/admin/dashboard', label: 'Dashboard Operacional', end: true },
+        { to: '/admin/dashboard', label: 'Dashboard Operacional & SLA', end: true },
+        { to: '/admin/relatorios', label: 'Relatórios da Equipe' },
         { to: '/admin/mapa', label: 'Mapa de Ocorrências' },
         { to: '/admin/solicitacoes', label: 'Solicitações', badge: solicitacoesCount },
         { to: '/admin/equipes', label: 'Gestão de Equipes' },
@@ -71,7 +83,7 @@ export default function Sidebar({ isOpen, onClose }) {
   const [solicitacoesCount, setSolicitacoesCount] = useState(null);
 
   useEffect(() => {
-    if (!['GESTOR', 'ADMIN'].includes(user?.perfil)) {
+    if (!['GESTOR', 'ADMIN', 'GLOBAL_ADMIN'].includes(user?.perfil)) {
       setSolicitacoesCount(null);
       return;
     }
@@ -175,8 +187,8 @@ export default function Sidebar({ isOpen, onClose }) {
           <div>
             <div className={styles.userName}>{user?.nome?.split(' ')[0] ?? 'Usuário A.'}</div>
             <div className={styles.userRole}>{
-              user?.perfil === 'ADMIN' ? 'Administrador' :
-              user?.perfil === 'ANALYTICS_ADMIN' ? 'Administrador de Analytics' :
+              user?.perfil === 'ADMIN' ? 'Administrador do Órgão' :
+              user?.perfil === 'ANALYTICS_ADMIN' ? 'Analytics Admin (Leitura)' :
               user?.perfil === 'GLOBAL_ADMIN' ? 'Administrador Global' :
               'Gestor'
             }</div>
