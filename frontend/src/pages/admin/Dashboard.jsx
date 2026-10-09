@@ -203,21 +203,13 @@ export default function Dashboard() {
 
   const kpis = useMemo(() => {
     if (selectedRegion) return kpisFromTable;
-    if (!kpiData) {
-      return [
-        { label: 'TOTAL ABERTAS', value: 0, color: 'gray' },
-        { label: 'EM ANDAMENTO', value: 0, color: 'blue' },
-        { label: 'CONCLUÍDAS', value: 0, color: 'green' },
-        { label: 'PENDENTES', value: 0, color: 'orange' },
-        { label: 'URGENTES', value: 0, color: 'red' },
-      ];
-    }
+    if (!kpiData) return kpisFromTable;
     return [
-      { label: 'TOTAL ABERTAS', value: kpiData.abertas    ?? 0, color: 'gray' },
-      { label: 'EM ANDAMENTO', value: kpiData.andamento  ?? 0, color: 'blue' },
-      { label: 'CONCLUÍDAS', value: kpiData.concluidas  ?? 0, color: 'green' },
-      { label: 'PENDENTES', value: kpiData.pendentes   ?? 0, color: 'orange' },
-      { label: 'URGENTES', value: kpiData.urgentes    ?? 0, color: 'red' },
+      { label: 'TOTAL ABERTAS', value: kpiData.abertas ?? kpiData.totalAbertas ?? kpisFromTable[0].value, color: 'gray' },
+      { label: 'EM ANDAMENTO', value: kpiData.andamento ?? kpiData.emAndamento ?? kpisFromTable[1].value, color: 'blue' },
+      { label: 'CONCLUÍDAS', value: kpiData.concluidas ?? kpiData.resolvidasHoje ?? kpisFromTable[2].value, color: 'green' },
+      { label: 'PENDENTES', value: kpiData.pendentes ?? kpiData.pendentesSla ?? kpisFromTable[3].value, color: 'orange' },
+      { label: 'URGENTES', value: kpiData.urgentes ?? kpisFromTable[4].value, color: 'red' },
     ];
   }, [kpiData, kpisFromTable, selectedRegion]);
 

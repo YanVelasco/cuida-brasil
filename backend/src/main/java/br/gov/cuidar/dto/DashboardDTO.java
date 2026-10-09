@@ -13,4 +13,8 @@ public class DashboardDTO {
     public long getResolvidasHoje() { return resolvidasHoje; } public void setResolvidasHoje(long resolvidasHoje) { this.resolvidasHoje = resolvidasHoje; }
     public long getPendentesSla() { return pendentesSla; } public void setPendentesSla(long pendentesSla) { this.pendentesSla = pendentesSla; }
     public long getUrgentes() { return urgentes; } public void setUrgentes(long urgentes) { this.urgentes = urgentes; }
+    public long getAbertas() { return totalAbertas; }
+    public long getAndamento() { return emAndamento; }
+    public long getConcluidas() { return resolvidasHoje; }
+    public long getPendentes() { return pendentesSla; }
 }
