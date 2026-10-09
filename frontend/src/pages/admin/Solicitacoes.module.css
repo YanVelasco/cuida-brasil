@@ -23,6 +23,17 @@
 .pageActive { background: var(--primary); color: #fff; border-color: var(--primary); }
 .pageSizeSelect { margin-left: auto; padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.78rem; background: var(--surface); font-family: var(--font); }
 
+.sortableTh {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+.sortableTh:hover {
+  background: rgba(47, 128, 237, 0.12) !important;
+  color: var(--primary) !important;
+}
+
 /* Table Wrapper for horizontal scroll */
 .tableWrapper {
   width: 100%;

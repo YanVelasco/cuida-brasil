@@ -42,8 +42,10 @@ public class SolicitacaoController {
                                                             @RequestParam(required = false) String gestor,
                                                             @RequestParam(required = false) String protocolo,
                                                             @RequestParam(defaultValue = "0") int page,
-                                                            @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(ApiResponse.ok(sService.listarTodas(status, gestor, protocolo, page, size, usuario)));
+                                                            @RequestParam(defaultValue = "10") int size,
+                                                            @RequestParam(required = false) String sortBy,
+                                                            @RequestParam(required = false) String sortDir) {
+        return ResponseEntity.ok(ApiResponse.ok(sService.listarTodas(status, gestor, protocolo, page, size, sortBy, sortDir, usuario)));
     }
     
     @GetMapping("/nao-atribuidas") @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")
@@ -56,8 +58,12 @@ public class SolicitacaoController {
         return ResponseEntity.ok(ApiResponse.ok(sService.listarCidadaosPorGestor(usuario)));
     }
     @GetMapping("/minhas")
-    public ResponseEntity<ApiResponse<Page<Response>>> minhas(@AuthenticationPrincipal Usuario usuario, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(ApiResponse.ok(sService.listarPorUsuario(usuario.getId(), page, size)));
+    public ResponseEntity<ApiResponse<Page<Response>>> minhas(@AuthenticationPrincipal Usuario usuario,
+                                                            @RequestParam(defaultValue = "0") int page,
+                                                            @RequestParam(defaultValue = "10") int size,
+                                                            @RequestParam(required = false) String sortBy,
+                                                            @RequestParam(required = false) String sortDir) {
+        return ResponseEntity.ok(ApiResponse.ok(sService.listarPorUsuario(usuario.getId(), page, size, sortBy, sortDir)));
     }
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Response>> buscarPorId(@PathVariable Long id) {

@@ -137,6 +137,16 @@ export const dashboardService = {
     api.get('/api/admin/system-dashboard'),
 };
 
+// ============ ANALYTICS AVANÇADO (SQL AVANÇADO) ============
+export const analyticsService = {
+  dashboardAvancado: () => api.get('/api/admin/analytics/avancado'),
+  rankingEquipes: () => api.get('/api/admin/analytics/equipes-ranking'),
+  sla: () => api.get('/api/admin/analytics/sla'),
+  satisfacao: () => api.get('/api/admin/analytics/satisfacao'),
+  turnos: () => api.get('/api/admin/analytics/turnos'),
+  gargalos: () => api.get('/api/admin/analytics/gargalos'),
+};
+
 // ============ RELATORIOS ============
 export const relatorioService = {
   resumo: (params) => api.get('/api/relatorios/resumo', { params }),

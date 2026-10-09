@@ -19,6 +19,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -46,6 +47,7 @@ public class EquipeController {
         this.passwordEncoder = passwordEncoder;
         this.auditoriaService = auditoriaService;
     }
+
     @GetMapping @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")
     public ResponseEntity<ApiResponse<List<java.util.Map<String, Object>>>> listar(@AuthenticationPrincipal Usuario usuario) {
         List<EquipePublica> equipes;
@@ -80,8 +82,12 @@ public class EquipeController {
     @GetMapping("/dashboard") @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")
     public ResponseEntity<ApiResponse<Page<br.gov.cuidar.dto.EquipeDashboardDTO>>> listarDashboard(
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir,
             @AuthenticationPrincipal Usuario usuario) {
-        Pageable pageable = PageRequest.of(page, size);
+        Sort.Direction direction = "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String prop = (sortBy != null && "id".equalsIgnoreCase(sortBy)) ? "id" : "nome";
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, prop));
         Page<EquipePublica> equipes;
         if (isGestor(usuario)) {
             equipes = gestorRepo.findEquipeIdByUsuarioId(usuario.getId())
@@ -147,9 +153,13 @@ public class EquipeController {
     @GetMapping("/{id}/membros") @PreAuthorize("hasAnyRole('ADMIN','GESTOR','ANALYTICS_ADMIN')")
     public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<br.gov.cuidar.dto.MembroDTO>>> listarMembros(
             @PathVariable Long id, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir,
             @AuthenticationPrincipal Usuario usuario) {
         validarEquipeDoGestor(id, usuario);
-        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        Sort.Direction direction = "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String prop = (sortBy != null && "email".equalsIgnoreCase(sortBy)) ? "usuario.email" : "usuario.nome";
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, Sort.by(direction, prop));
         org.springframework.data.domain.Page<Gestor> membros = gestorRepo.findByEquipeId(id, pageable);
         org.springframework.data.domain.Page<br.gov.cuidar.dto.MembroDTO> dtos = membros.map(m -> new br.gov.cuidar.dto.MembroDTO(
             m.getId(), m.getUsuario().getNome(), m.getUsuario().getEmail(), m.getUsuario().getPerfil()
@@ -240,4 +250,3 @@ public class EquipeController {
         }
     }
 }
-

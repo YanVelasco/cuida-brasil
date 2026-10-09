@@ -171,6 +171,17 @@ export default function Equipes() {
   const [tipoFilter, setTipoFilter] = useState('');
   const [selectedMapTeams, setSelectedMapTeams] = useState([]);
   const [selectedIncidentPriorities, setSelectedIncidentPriorities] = useState([]);
+  const [sortField, setSortField] = useState('nome');
+  const [sortDir, setSortDir]     = useState('asc');
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
   
   // Equipes Pagination
   const [page, setPage] = useState(0);
@@ -460,6 +471,27 @@ export default function Equipes() {
   };
 
   const filteredEquipes = equipes.filter(matchesTeamFilters);
+  const sortedEquipes = [...filteredEquipes].sort((a, b) => {
+    let cmp = 0;
+    if (sortField === 'id') {
+      cmp = Number(a.id || 0) - Number(b.id || 0);
+    } else if (sortField === 'nome') {
+      cmp = (a.nome || '').localeCompare(b.nome || '');
+    } else if (sortField === 'supervisor') {
+      cmp = (a.supervisor || '').localeCompare(b.supervisor || '');
+    } else if (sortField === 'tecnicos') {
+      cmp = Number(a.tecnicos || 0) - Number(b.tecnicos || 0);
+    } else if (sortField === 'tipoServico') {
+      cmp = (a.tipoServico || '').localeCompare(b.tipoServico || '');
+    } else if (sortField === 'regiao') {
+      cmp = (a.regiao || '').localeCompare(b.regiao || '');
+    } else if (sortField === 'casosAbertos') {
+      cmp = Number(a.casosAbertos || 0) - Number(b.casosAbertos || 0);
+    } else if (sortField === 'status') {
+      cmp = (a.status || '').localeCompare(b.status || '');
+    }
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
   const filteredMapEquipes = equipesMapa.filter(matchesTeamFilters);
 
   const teamLegendEntries = filteredMapEquipes.map((team, index) => ({
@@ -547,13 +579,35 @@ export default function Equipes() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>ID</th><th>EQUIPE</th><th>SUPERVISOR</th><th>Membros</th>
-                <th>TIPO DE SERVIÇO</th><th>REGIÃO / ÁREA</th><th>CASOS ABERTOS</th>
-                <th>STATUS</th><th>AÇÕES</th>
+                <th className={styles.sortableTh} onClick={() => handleSort('id')} title="Ordenar por ID">
+                  ID {sortField === 'id' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                </th>
+                <th className={styles.sortableTh} onClick={() => handleSort('nome')} title="Ordenar por Nome">
+                  EQUIPE {sortField === 'nome' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                </th>
+                <th className={styles.sortableTh} onClick={() => handleSort('supervisor')} title="Ordenar por Supervisor">
+                  SUPERVISOR {sortField === 'supervisor' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                </th>
+                <th className={styles.sortableTh} onClick={() => handleSort('tecnicos')} title="Ordenar por Membros">
+                  MEMBROS {sortField === 'tecnicos' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                </th>
+                <th className={styles.sortableTh} onClick={() => handleSort('tipoServico')} title="Ordenar por Tipo de Serviço">
+                  TIPO DE SERVIÇO {sortField === 'tipoServico' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                </th>
+                <th className={styles.sortableTh} onClick={() => handleSort('regiao')} title="Ordenar por Região">
+                  REGIÃO / ÁREA {sortField === 'regiao' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                </th>
+                <th className={styles.sortableTh} onClick={() => handleSort('casosAbertos')} title="Ordenar por Casos Abertos">
+                  CASOS ABERTOS {sortField === 'casosAbertos' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                </th>
+                <th className={styles.sortableTh} onClick={() => handleSort('status')} title="Ordenar por Status">
+                  STATUS {sortField === 'status' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                </th>
+                <th>AÇÕES</th>
               </tr>
             </thead>
             <tbody>
-              {filteredEquipes.map((e,i) => (
+              {sortedEquipes.map((e,i) => (
                 <tr key={e.id}>
                   <td className={styles.id}>EQP-{e.id.toString().padStart(2, '0')}</td>
                   <td className={styles.teamName}>{e.nome}</td>

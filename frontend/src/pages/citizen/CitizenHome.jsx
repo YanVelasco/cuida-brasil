@@ -22,10 +22,11 @@ export default function CitizenHome() {
   const { theme, toggleTheme } = useTheme();
   const [ocorrencias, setOcorrencias] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [citizenSort, setCitizenSort] = useState('recentes');
 
   useEffect(() => {
     // Carrega APENAS as solicitações do cidadão autenticado via token
-    ocorrenciaService.minhas({ page: 0, size: 20 })
+    ocorrenciaService.minhas({ page: 0, size: 50, sortBy: 'dataCriacao', sortDir: 'desc' })
       .then(r => {
         const content = r.data?.data?.content || r.data?.content || [];
         setOcorrencias(content);
@@ -36,6 +37,23 @@ export default function CitizenHome() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const sortedOcorrencias = useMemo(() => {
+    return [...ocorrencias].sort((a, b) => {
+      if (citizenSort === 'antigas') {
+        return new Date(a.dataCriacao || 0) - new Date(b.dataCriacao || 0);
+      }
+      if (citizenSort === 'status') {
+        return (a.status || '').localeCompare(b.status || '');
+      }
+      if (citizenSort === 'prioridade') {
+        const pWeight = { 'URGENTE': 4, 'ALTA': 3, 'MEDIA': 2, 'BAIXA': 1 };
+        return (pWeight[b.prioridade] || 0) - (pWeight[a.prioridade] || 0);
+      }
+      // default: recentes
+      return new Date(b.dataCriacao || 0) - new Date(a.dataCriacao || 0);
+    });
+  }, [ocorrencias, citizenSort]);
 
   // Calcula as estatísticas a partir dos dados reais da API
   const stats = useMemo(() => {
@@ -140,7 +158,28 @@ export default function CitizenHome() {
           <div className={styles.section}>
             <div className={styles.sectionHeader}>
               <span className={styles.sectionTitle}>Minhas Ocorrências</span>
-              <Link to="/app/nova-solicitacao" className={styles.verTodas}>+ Nova</Link>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <select
+                  value={citizenSort}
+                  onChange={e => setCitizenSort(e.target.value)}
+                  style={{
+                    fontSize: '0.72rem',
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer'
+                  }}
+                  title="Ordenar minhas ocorrências"
+                >
+                  <option value="recentes">Mais recentes</option>
+                  <option value="antigas">Mais antigas</option>
+                  <option value="status">Por status</option>
+                  <option value="prioridade">Por urgência</option>
+                </select>
+                <Link to="/app/nova-solicitacao" className={styles.verTodas}>+ Nova</Link>
+              </div>
             </div>
 
             <div className={styles.ocorrenciasList}>
@@ -149,12 +188,12 @@ export default function CitizenHome() {
                   Carregando...
                 </p>
               )}
-              {!loading && ocorrencias.length === 0 && (
+              {!loading && sortedOcorrencias.length === 0 && (
                 <p style={{ color: 'var(--text-secondary)', padding: '12px', fontSize: '0.85rem' }}>
                   Você ainda não tem solicitações. Clique em "+ Nova" para registrar um problema!
                 </p>
               )}
-              {ocorrencias.map(oc => {
+              {sortedOcorrencias.map(oc => {
                 const st = STATUS_MAP[oc.status] || { label: oc.status, bg: '#f1f5f9', color: '#666', border: '#ccc' };
                 return (
                   <Link key={oc.id} to={"/app/protocolo/" + oc.id} className={styles.card}>

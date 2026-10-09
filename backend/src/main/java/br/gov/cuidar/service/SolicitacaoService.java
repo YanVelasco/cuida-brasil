@@ -112,7 +112,54 @@ public class SolicitacaoService {
         return toResponse(sol);
     }
 
-    public Page<Response> listarTodas(String status, String gestor, String protocolo, int page, int size, Usuario usuario) {        Pageable pageable = PageRequest.of(page, size, Sort.by("dataCriacao").descending());
+    private Sort buildSort(String sortBy, String sortDir) {
+        if (sortBy == null || sortBy.isBlank()) {
+            return Sort.by(Sort.Direction.DESC, "dataCriacao");
+        }
+        Sort.Direction direction = "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String property;
+        switch (sortBy.trim().toLowerCase()) {
+            case "protocolo":
+                property = "protocolo";
+                break;
+            case "status":
+                property = "status";
+                break;
+            case "prioridade":
+                property = "prioridade";
+                break;
+            case "categoria":
+            case "categoriaservico":
+                property = "servico.categoria";
+                break;
+            case "subcategoria":
+            case "subcategoriaservico":
+                property = "servico.subcategoria";
+                break;
+            case "endereco":
+                property = "endereco";
+                break;
+            case "equipe":
+            case "nomeequipe":
+                property = "equipe.nome";
+                break;
+            case "cidadao":
+            case "usuario":
+            case "nomecidadao":
+                property = "usuario.nome";
+                break;
+            case "data":
+            case "datacriacao":
+            case "data_criacao":
+            default:
+                property = "dataCriacao";
+                break;
+        }
+        return Sort.by(direction, property);
+    }
+
+    public Page<Response> listarTodas(String status, String gestor, String protocolo, int page, int size, String sortBy, String sortDir, Usuario usuario) {
+        Pageable pageable = PageRequest.of(page, size, buildSort(sortBy, sortDir));
         Page<Solicitacao> result;
         boolean hasProtocolo = protocolo != null && !protocolo.isBlank();
 
@@ -148,6 +195,10 @@ public class SolicitacaoService {
         }
 
         return result.map(this::toResponse);
+    }
+
+    public Page<Response> listarTodas(String status, String gestor, String protocolo, int page, int size, Usuario usuario) {
+        return listarTodas(status, gestor, protocolo, page, size, "dataCriacao", "desc", usuario);
     }
 
     public List<Response> listarNaoAtribuidas() {
@@ -195,9 +246,13 @@ public class SolicitacaoService {
         }).collect(Collectors.toList());
     }
 
-    public Page<Response> listarPorUsuario(Long usuarioId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("dataCriacao").descending());
+    public Page<Response> listarPorUsuario(Long usuarioId, int page, int size, String sortBy, String sortDir) {
+        Pageable pageable = PageRequest.of(page, size, buildSort(sortBy, sortDir));
         return solicitacaoRepository.findByUsuarioId(usuarioId, pageable).map(this::toResponse);
+    }
+
+    public Page<Response> listarPorUsuario(Long usuarioId, int page, int size) {
+        return listarPorUsuario(usuarioId, page, size, "dataCriacao", "desc");
     }
 
     public Response buscarPorId(Long id) {

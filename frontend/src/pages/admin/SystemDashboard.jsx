@@ -36,6 +36,17 @@ export default function SystemDashboard() {
   const [resumoLogins, setResumoLogins] = useState(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [loginSortField, setLoginSortField] = useState('data');
+  const [loginSortDir, setLoginSortDir]     = useState('desc');
+
+  const handleLoginSort = (field) => {
+    if (loginSortField === field) {
+      setLoginSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setLoginSortField(field);
+      setLoginSortDir('asc');
+    }
+  };
 
   const exportAuditoriaExcel = async () => {
     setExporting(true);
@@ -358,16 +369,40 @@ export default function SystemDashboard() {
                 <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem'}}>
                   <thead>
                     <tr style={{textAlign: 'left', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)'}}>
-                      <th style={{padding: '8px'}}>DATA/HORA</th>
-                      <th style={{padding: '8px'}}>USUÁRIO</th>
-                      <th style={{padding: '8px'}}>CPF</th>
-                      <th style={{padding: '8px'}}>IP</th>
-                      <th style={{padding: '8px'}}>RESULTADO</th>
+                      <th onClick={() => handleLoginSort('data')} style={{padding: '8px', cursor: 'pointer', userSelect: 'none'}} title="Ordenar por Data/Hora">
+                        DATA/HORA {loginSortField === 'data' ? (loginSortDir === 'asc' ? '▲' : '▼') : '↕'}
+                      </th>
+                      <th onClick={() => handleLoginSort('usuario')} style={{padding: '8px', cursor: 'pointer', userSelect: 'none'}} title="Ordenar por Usuário">
+                        USUÁRIO {loginSortField === 'usuario' ? (loginSortDir === 'asc' ? '▲' : '▼') : '↕'}
+                      </th>
+                      <th onClick={() => handleLoginSort('cpf')} style={{padding: '8px', cursor: 'pointer', userSelect: 'none'}} title="Ordenar por CPF">
+                        CPF {loginSortField === 'cpf' ? (loginSortDir === 'asc' ? '▲' : '▼') : '↕'}
+                      </th>
+                      <th onClick={() => handleLoginSort('ip')} style={{padding: '8px', cursor: 'pointer', userSelect: 'none'}} title="Ordenar por IP">
+                        IP {loginSortField === 'ip' ? (loginSortDir === 'asc' ? '▲' : '▼') : '↕'}
+                      </th>
+                      <th onClick={() => handleLoginSort('sucesso')} style={{padding: '8px', cursor: 'pointer', userSelect: 'none'}} title="Ordenar por Resultado">
+                        RESULTADO {loginSortField === 'sucesso' ? (loginSortDir === 'asc' ? '▲' : '▼') : '↕'}
+                      </th>
                       <th style={{padding: '8px'}}>DETALHES</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {logins.map((l) => (
+                    {[...logins].sort((a, b) => {
+                      let cmp = 0;
+                      if (loginSortField === 'usuario') {
+                        cmp = (a.usuario || '').localeCompare(b.usuario || '');
+                      } else if (loginSortField === 'cpf') {
+                        cmp = (a.cpf || '').localeCompare(b.cpf || '');
+                      } else if (loginSortField === 'ip') {
+                        cmp = (a.ip || '').localeCompare(b.ip || '');
+                      } else if (loginSortField === 'sucesso') {
+                        cmp = (a.sucesso === b.sucesso ? 0 : a.sucesso ? 1 : -1);
+                      } else {
+                        cmp = new Date(a.data || 0).getTime() - new Date(b.data || 0).getTime();
+                      }
+                      return loginSortDir === 'asc' ? cmp : -cmp;
+                    }).map((l) => (
                       <tr key={l.id} style={{borderBottom: '1px solid var(--border)'}}>
                         <td style={{padding: '8px'}}>{l.data ? new Date(l.data).toLocaleString('pt-BR') : '—'}</td>
                         <td style={{padding: '8px', fontWeight: 600}}>{l.usuario || '—'}</td>

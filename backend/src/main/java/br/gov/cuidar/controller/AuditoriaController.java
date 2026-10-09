@@ -30,13 +30,27 @@ public class AuditoriaController {
         this.auditoriaRepository = auditoriaRepository;
     }
 
-    /** Trilha de auditoria corporativa paginada. Filtro opcional por ação (ex.: LOGIN). */
+    /** Trilha de auditoria corporativa paginada com suporte a ordenação dinâmica. */
     @GetMapping
     public ResponseEntity<ApiResponse<Page<Map<String, Object>>>> listar(
             @RequestParam(required = false) String acao,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("data").descending());
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir) {
+        Sort.Direction direction = "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String prop = "data";
+        if (sortBy != null) {
+            switch (sortBy.trim().toLowerCase()) {
+                case "acao": prop = "acao"; break;
+                case "cpf": prop = "cpf"; break;
+                case "ip": prop = "ip"; break;
+                case "sucesso": prop = "sucesso"; break;
+                case "usuario": prop = "usuario.nome"; break;
+                default: prop = "data"; break;
+            }
+        }
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, prop));
         Page<Auditoria> result = (acao != null && !acao.isBlank())
             ? auditoriaRepository.findByAcaoStartingWith(acao, pageable)
             : auditoriaRepository.findAll(pageable);
@@ -66,4 +80,3 @@ public class AuditoriaController {
         return map;
     }
 }
-

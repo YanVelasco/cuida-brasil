@@ -58,6 +58,19 @@ export default function Solicitacoes() {
   const [cidadaosLoading, setCidadaosLoading] = useState(true);
   const [usuariosComuns, setUsuariosComuns] = useState([]);
   const [usuariosLoading, setUsuariosLoading] = useState(true);
+  const [sortField, setSortField] = useState('dataCriacao');
+  const [sortDir, setSortDir]     = useState('desc');
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+    setPage(0);
+  };
+
   const openedIncidentIdRef = useRef(null);
   const enderecos = useEnderecos(items);
 
@@ -174,7 +187,7 @@ export default function Solicitacoes() {
       return;
     }
 
-    const params = { page, size: PAGE_SIZE };
+    const params = { page, size: PAGE_SIZE, sortBy: sortField, sortDir };
     if (statusFilter) params.status = statusFilter;
     if (gestorFilter) params.gestor = gestorFilter;
     if (/^PRO-/i.test(protocolo)) params.protocolo = protocolo;
@@ -187,7 +200,7 @@ export default function Solicitacoes() {
       })
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
-  }, [page, statusFilter, gestorFilter, search]);
+  }, [page, statusFilter, gestorFilter, search, sortField, sortDir]);
 
   const loadEquipes = useCallback(async () => {
     try {
@@ -349,6 +362,29 @@ export default function Solicitacoes() {
       (!selectedRegion || resolveRegionFromGps(it.gps) === selectedRegion);
   });
 
+  const PRIO_WEIGHT = { 'URGENTE': 4, 'ALTA': 3, 'MEDIA': 2, 'BAIXA': 1 };
+  const sorted = [...filtered].sort((a, b) => {
+    let cmp = 0;
+    if (sortField === 'protocolo') {
+      cmp = (a.protocolo || '').localeCompare(b.protocolo || '');
+    } else if (sortField === 'usuario') {
+      cmp = (a.nomeUsuario || '').localeCompare(b.nomeUsuario || '');
+    } else if (sortField === 'status') {
+      cmp = (a.status || '').localeCompare(b.status || '');
+    } else if (sortField === 'categoria') {
+      cmp = (a.categoriaServico || '').localeCompare(b.categoriaServico || '');
+    } else if (sortField === 'endereco') {
+      const endA = a.endereco || enderecos[a.gps] || a.gps || '';
+      const endB = b.endereco || enderecos[b.gps] || b.gps || '';
+      cmp = endA.localeCompare(endB);
+    } else if (sortField === 'prioridade') {
+      cmp = (PRIO_WEIGHT[a.prioridade] || 0) - (PRIO_WEIGHT[b.prioridade] || 0);
+    } else {
+      cmp = new Date(a.dataCriacao || 0).getTime() - new Date(b.dataCriacao || 0).getTime();
+    }
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
   const categorias = [...new Set(items.map((item) => item.categoriaServico).filter(Boolean))].sort();
 
   return (
@@ -432,18 +468,32 @@ export default function Solicitacoes() {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>PROTOCOLO</th>
-                  <th>CIDADÃO</th>
-                  <th>STATUS</th>
-                  <th>TIPO DE SERVIÇO</th>
-                  <th>LOCALIZAÇÃO</th>
-                  <th>PRIORIDADE</th>
-                  <th>DATA</th>
+                  <th className={styles.sortableTh} onClick={() => handleSort('protocolo')} title="Clique para ordenar por Protocolo">
+                    PROTOCOLO {sortField === 'protocolo' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th className={styles.sortableTh} onClick={() => handleSort('usuario')} title="Clique para ordenar por Cidadão">
+                    CIDADÃO {sortField === 'usuario' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th className={styles.sortableTh} onClick={() => handleSort('status')} title="Clique para ordenar por Status">
+                    STATUS {sortField === 'status' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th className={styles.sortableTh} onClick={() => handleSort('categoria')} title="Clique para ordenar por Tipo de Serviço">
+                    TIPO DE SERVIÇO {sortField === 'categoria' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th className={styles.sortableTh} onClick={() => handleSort('endereco')} title="Clique para ordenar por Localização">
+                    LOCALIZAÇÃO {sortField === 'endereco' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th className={styles.sortableTh} onClick={() => handleSort('prioridade')} title="Clique para ordenar por Prioridade">
+                    PRIORIDADE {sortField === 'prioridade' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th className={styles.sortableTh} onClick={() => handleSort('dataCriacao')} title="Clique para ordenar por Data">
+                    DATA {sortField === 'dataCriacao' ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}
+                  </th>
                   <th>AÇÕES</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((row, i) => {
+                {sorted.map((row, i) => {
                   const st = STATUS_STYLE[row.status] || { label: row.status, color: '#999' };
                   const pr = PRIO_STYLE[row.prioridade] || { bg: '#e5e7eb', color: '#333' };
                   const data = row.dataCriacao
