@@ -5,6 +5,7 @@ import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,6 +25,20 @@ public class AIChatbotController {
     public AIChatbotController(AIChatbotService aiChatbotService, GestorRepository gestorRepository) {
         this.aiChatbotService = aiChatbotService;
         this.gestorRepository = gestorRepository;
+    }
+
+    @GetMapping("/insights")
+    public ResponseEntity<Map<String, Object>> proactiveInsights(
+            @AuthenticationPrincipal Usuario usuario) {
+        if (usuario == null) {
+            return ResponseEntity.status(401).body(Map.of("reply", "Não autenticado.", "hasInsights", false));
+        }
+
+        AIChatbotService.ProactiveInsight insight = aiChatbotService.generateProactiveInsights(usuario);
+        return ResponseEntity.ok(Map.of(
+            "summary", insight.summary(),
+            "hasInsights", insight.hasInsights(),
+            "topics", insight.topics()));
     }
 
     @PostMapping("/ask")

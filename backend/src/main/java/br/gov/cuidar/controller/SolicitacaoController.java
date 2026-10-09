@@ -66,8 +66,9 @@ public class SolicitacaoController {
         return ResponseEntity.ok(ApiResponse.ok(sService.listarPorUsuario(usuario.getId(), page, size, sortBy, sortDir)));
     }
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Response>> buscarPorId(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(sService.buscarPorId(id)));
+    public ResponseEntity<ApiResponse<Response>> buscarPorId(@PathVariable Long id,
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(ApiResponse.ok(sService.buscarPorId(id, usuario)));
     }
     @GetMapping("/protocolo/{protocolo}")
     public ResponseEntity<ApiResponse<Response>> buscarPorProtocolo(@PathVariable String protocolo) {

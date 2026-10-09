@@ -160,6 +160,7 @@ export const relatorioService = {
 
 export const chatService = {
   ask: (message) => api.post('/api/chat/ask', { message }),
+  insights: () => api.get('/api/chat/insights'),
 };
 
 export const gestorService = {

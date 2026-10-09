@@ -13,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -271,8 +272,32 @@ public class SolicitacaoService {
         return listarPorUsuario(usuarioId, page, size, "dataCriacao", "desc");
     }
 
-    public Response buscarPorId(Long id) {
-        return solicitacaoRepository.findById(id).map(this::toResponse).orElseThrow(() -> new RuntimeException("Nao encontrada"));
+    public Response buscarPorId(Long id, Usuario usuario) {
+        Solicitacao solicitacao = solicitacaoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Nao encontrada"));
+
+        if (usuario == null) throw new AccessDeniedException("Acesso não autorizado");
+        if ("CITIZEN".equals(usuario.getPerfil())
+                && !solicitacao.getUsuario().getId().equals(usuario.getId())) {
+            throw new AccessDeniedException("Você só pode consultar suas próprias solicitações");
+        }
+        if ("GESTOR".equals(usuario.getPerfil()) || "TRABALHADOR".equals(usuario.getPerfil())) {
+            Long equipeId = gestorRepository.findEquipeIdByUsuarioId(usuario.getId())
+                    .orElseThrow(() -> new AccessDeniedException("Usuário sem equipe vinculada"));
+            if (solicitacao.getEquipe() != null && !equipeId.equals(solicitacao.getEquipe().getId())) {
+                throw new AccessDeniedException("Você só pode consultar solicitações da própria equipe");
+            }
+        }
+        if ("ADMIN".equals(usuario.getPerfil())
+                && (usuario.getOrgao() == null || solicitacao.getEquipe() == null
+                || !usuario.getOrgao().getId().equals(solicitacao.getEquipe().getOrgao().getId()))) {
+            throw new AccessDeniedException("Você só pode consultar solicitações do próprio órgão");
+        }
+        if (!List.of("CITIZEN", "GESTOR", "TRABALHADOR", "ADMIN", "ANALYTICS_ADMIN", "GLOBAL_ADMIN")
+                .contains(usuario.getPerfil())) {
+            throw new AccessDeniedException("Acesso não autorizado");
+        }
+        return toResponse(solicitacao);
     }
 
     public Response buscarPorProtocolo(String protocolo) {

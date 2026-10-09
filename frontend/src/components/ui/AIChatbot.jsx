@@ -9,6 +9,33 @@ import {
 } from 'lucide-react';
 import styles from './AIChatbot.module.css';
 
+function migrateLegacyProactiveInsight(session) {
+  const messages = Array.isArray(session.messages) ? session.messages : [];
+  const firstUserIndex = messages.findIndex(message => message.sender === 'user');
+  const assistantMessagesBeforeUser = messages
+    .slice(0, firstUserIndex < 0 ? messages.length : firstUserIndex)
+    .filter(message => message.sender === 'ai');
+  const savedInsight = assistantMessagesBeforeUser[1];
+  const hasLegacyInsight = assistantMessagesBeforeUser.length > 1
+    && (!savedInsight?.proactiveInsight
+      || !Array.isArray(savedInsight.topics)
+      || savedInsight.topics.some(topic => !Array.isArray(topic.headers) || !Array.isArray(topic.rows)));
+
+  if (!hasLegacyInsight) return session;
+
+  const welcomeIndex = messages.indexOf(assistantMessagesBeforeUser[0]);
+  const preserveFromIndex = firstUserIndex < 0 ? messages.length : firstUserIndex;
+  const preservedMessages = messages.filter((message, index) => (
+    index === welcomeIndex || index >= preserveFromIndex
+  ));
+
+  return {
+    ...session,
+    messages: preservedMessages,
+    proactiveInsightPending: true,
+  };
+}
+
 export default function AIChatbot() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -24,7 +51,9 @@ export default function AIChatbot() {
 
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [expandedInsightTopic, setExpandedInsightTopic] = useState(null);
   const messageEndRef = useRef(null);
+  const insightsRequestedRef = useRef(new Set());
 
   // Multi-session State
   const [sessions, setSessions] = useState([]);
@@ -89,8 +118,9 @@ export default function AIChatbot() {
         loadedSessions = [defaultSession];
       }
 
-      setSessions(loadedSessions);
-      setActiveSessionId(loadedSessions[0].id);
+      const migratedSessions = loadedSessions.map(migrateLegacyProactiveInsight);
+      setSessions(migratedSessions);
+      setActiveSessionId(migratedSessions[0].id);
     }
   }, [user]);
 
@@ -164,6 +194,78 @@ export default function AIChatbot() {
       return s;
     }).sort((a,b) => b.updatedAt - a.updatedAt));
   };
+
+  const appendMessageToSession = (sessionId, message) => {
+    setSessions(prev => prev.map(session => {
+      if (session.id !== sessionId) return session;
+      const messages = [...session.messages];
+      if (message.proactiveInsight) {
+        messages.splice(Math.min(1, messages.length), 0, message);
+      } else {
+        messages.push(message);
+      }
+      return {
+        ...session,
+        messages,
+        proactiveInsightPending: false,
+        updatedAt: Date.now(),
+      };
+    }).sort((a, b) => b.updatedAt - a.updatedAt));
+  };
+
+  const openInsightOccurrence = (occurrenceId) => {
+    if (user?.perfil === 'CITIZEN') {
+      setIsOpen(false);
+      navigate(`/app/protocolo/${occurrenceId}`);
+      return;
+    }
+
+    if (['ADMIN', 'GESTOR'].includes(user?.perfil)) {
+      setIsOpen(false);
+      navigate('/admin/solicitacoes', { state: { selectedIncidentId: occurrenceId } });
+    }
+  };
+
+  const openInsightDestination = (destination) => {
+    if (!destination) return;
+    setIsOpen(false);
+    navigate(destination);
+  };
+
+  const canOpenInsightOccurrences = ['CITIZEN', 'ADMIN', 'GESTOR'].includes(user?.perfil);
+
+  useEffect(() => {
+    if (!isOpen || !activeSessionId || !user || insightsRequestedRef.current.has(activeSessionId)) return;
+
+    const session = sessions.find(item => item.id === activeSessionId);
+    const shouldLoadInsight = session?.proactiveInsightPending
+      || (session?.messages.length === 1 && session.messages[0].sender === 'ai');
+    if (!session || !shouldLoadInsight) return;
+
+    insightsRequestedRef.current.add(activeSessionId);
+    setIsTyping(true);
+    chatService.insights()
+      .then(response => {
+        const data = response.data;
+        appendMessageToSession(activeSessionId, {
+          id: Date.now(),
+          sender: 'ai',
+          text: data.summary,
+          hasInsights: data.hasInsights,
+          topics: data.topics || [],
+          proactiveInsight: true,
+        });
+      })
+      .catch(() => {
+        appendMessageToSession(activeSessionId, {
+          id: Date.now(),
+          sender: 'ai',
+          text: 'Não consegui preparar seu resumo agora. Você ainda pode conversar normalmente com a Luna.',
+          proactiveInsight: true,
+        });
+      })
+      .finally(() => setIsTyping(false));
+  }, [isOpen, activeSessionId, sessions, user]);
 
   const handleSend = (textToSend) => {
     const text = textToSend || input;
@@ -323,9 +425,75 @@ export default function AIChatbot() {
                     <div className={styles.botThumb}><img src="/avatar_ai.png" alt="Luna" className={styles.botThumbImg} /></div>
                   )}
                   <div className={styles.bubble}>
+                    {msg.topics?.length > 0 && <h4 className={styles.insightSummaryTitle}>Resumo inicial</h4>}
                     <div className={styles.markdownContent}>
                       <ReactMarkdown>{msg.text}</ReactMarkdown>
                     </div>
+                    {msg.topics?.length > 0 && (
+                      <div className={styles.insightTopics} aria-label="Tópicos do resumo proativo">
+                        {msg.topics.map((topic, index) => {
+                          const topicId = `${msg.id}-${index}`;
+                          const isExpanded = expandedInsightTopic === topicId;
+                          return (
+                            <div className={styles.insightTopic} key={topicId}>
+                              <button
+                                className={styles.insightTopicToggle}
+                                aria-expanded={isExpanded}
+                                aria-controls={`insight-detail-${topicId}`}
+                                onClick={() => setExpandedInsightTopic(isExpanded ? null : topicId)}
+                              >
+                                <span>{topic.title}</span>
+                                <ChevronRight className={isExpanded ? styles.insightChevronOpen : ''} size={16} />
+                              </button>
+                              {isExpanded && (
+                                <div className={styles.insightTopicDetail} id={`insight-detail-${topicId}`}>
+                                  <p className={styles.insightTopicDescription}>{topic.detail}</p>
+                                  {topic.headers?.length > 0 && topic.rows?.length > 0 && (
+                                    <div className={styles.insightTableWrap}>
+                                      <table className={styles.insightTable}>
+                                        <thead>
+                                          <tr>
+                                            {topic.headers.map(header => <th key={header}>{header}</th>)}
+                                            {canOpenInsightOccurrences && topic.occurrenceIds?.length > 0 && <th>Ação</th>}
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {topic.rows.map((row, rowIndex) => (
+                                            <tr key={`${topicId}-row-${rowIndex}`}>
+                                              {row.map((cell, cellIndex) => <td key={`${topicId}-${rowIndex}-${cellIndex}`}>{cell}</td>)}
+                                              {canOpenInsightOccurrences && topic.occurrenceIds?.[rowIndex] && (
+                                                <td>
+                                                  {['CITIZEN', 'ADMIN', 'GESTOR'].includes(user?.perfil) && (
+                                                    <button
+                                                      className={styles.insightInlineLink}
+                                                      onClick={() => openInsightOccurrence(topic.occurrenceIds[rowIndex])}
+                                                    >
+                                                      Abrir
+                                                    </button>
+                                                  )}
+                                                </td>
+                                              )}
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                  {topic.destination && topic.linkLabel && (
+                                    <button
+                                      className={styles.insightDestination}
+                                      onClick={() => openInsightDestination(topic.destination)}
+                                    >
+                                      {topic.linkLabel} <ChevronRight size={14} />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                     {renderRichContent(msg)}
                   </div>
                 </div>
