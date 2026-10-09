@@ -34,7 +34,7 @@ public class Usuario {
     private String perfil = "CITIZEN";
     @Column(nullable = false)
     private Boolean ativo = true;
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_orgao")
     private OrgaoPublico orgao;
     @Column(nullable = false)

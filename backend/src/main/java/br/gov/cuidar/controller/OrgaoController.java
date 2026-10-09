@@ -47,9 +47,16 @@ public class OrgaoController {
         if ("GLOBAL_ADMIN".equals(usuario.getPerfil()) || "ANALYTICS_ADMIN".equals(usuario.getPerfil())) {
             return ResponseEntity.ok(ApiResponse.ok(oRepo.findByAtivoTrue().stream().map(toMap).toList()));
         }
-        OrgaoPublico orgao = usuario.getOrgao() != null
-            ? usuario.getOrgao()
-            : oRepo.findBySigla("PMSP").orElse(null);
+        Long orgaoId = null;
+        if (usuario != null && usuario.getOrgao() != null) {
+            try {
+                orgaoId = usuario.getOrgao().getId();
+            } catch (Exception ignored) {}
+        }
+        OrgaoPublico orgao = (orgaoId != null) ? oRepo.findById(orgaoId).orElse(null) : null;
+        if (orgao == null) {
+            orgao = oRepo.findBySigla("PMSP").orElse(null);
+        }
         return ResponseEntity.ok(ApiResponse.ok(orgao == null ? List.of() : List.of(toMap.apply(orgao))));
     }
 

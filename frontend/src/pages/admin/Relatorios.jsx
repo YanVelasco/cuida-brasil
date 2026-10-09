@@ -33,7 +33,7 @@ export default function Relatorios() {
     const end = new Date();
     const start = new Date(end);
     if (period === 'Esta semana') start.setDate(end.getDate() - 6);
-    if (period === 'Este mês') start.setDate(1);
+    if (period === 'Este mês') start.setDate(end.getDate() - 30);
     if (period === 'Último trimestre') start.setMonth(end.getMonth() - 2, 1);
     if (period === 'Anual') start.setMonth(0, 1);
     const format = (date) => date.toISOString().slice(0, 10);
