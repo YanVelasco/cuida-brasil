@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { ocorrenciaService, equipeService, gestorService, anexoService, usuarioService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRegion } from '../../contexts/RegionContext';
-import { resolveRegionFromGps } from '../../utils/geo';
+import { matchesRegion } from '../../utils/geo';
 import useEnderecos from '../../hooks/useEnderecos';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { Search, RefreshCw, Trash2, Camera, Download } from 'lucide-react';
@@ -187,7 +187,12 @@ export default function Solicitacoes() {
       return;
     }
 
-    const params = { page, size: PAGE_SIZE, sortBy: sortField, sortDir };
+    const params = {
+      page: selectedRegion ? 0 : page,
+      size: selectedRegion ? 1000 : PAGE_SIZE,
+      sortBy: sortField,
+      sortDir,
+    };
     if (statusFilter) params.status = statusFilter;
     if (gestorFilter) params.gestor = gestorFilter;
     if (/^PRO-/i.test(protocolo)) params.protocolo = protocolo;
@@ -195,12 +200,19 @@ export default function Solicitacoes() {
     ocorrenciaService.listar(params)
       .then(r => {
         const pageData = r.data?.data || r.data || {};
-        setItems(pageData.content || []);
-        setTotal(pageData.totalPages || 1);
+        const content = pageData.content || [];
+        setItems(content);
+        setTotal(selectedRegion
+          ? Math.max(1, Math.ceil(content.length / PAGE_SIZE))
+          : (pageData.totalPages || 1));
       })
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
-  }, [page, statusFilter, gestorFilter, search, sortField, sortDir]);
+  }, [page, statusFilter, gestorFilter, search, sortField, sortDir, selectedRegion]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [selectedRegion]);
 
   const loadEquipes = useCallback(async () => {
     try {
@@ -367,7 +379,7 @@ export default function Solicitacoes() {
     return matchesSearch &&
       (!categoriaFilter || it.categoriaServico === categoriaFilter) &&
       (!prioridadeFilter || (it.prioridade || '').toUpperCase() === prioridadeFilter) &&
-      (!selectedRegion || resolveRegionFromGps(it.gps) === selectedRegion);
+      matchesRegion(it.endereco || enderecos[it.gps], it.gps, selectedRegion);
   });
 
   const PRIO_WEIGHT = { 'URGENTE': 4, 'ALTA': 3, 'MEDIA': 2, 'BAIXA': 1 };
@@ -392,6 +404,12 @@ export default function Solicitacoes() {
     }
     return sortDir === 'asc' ? cmp : -cmp;
   });
+  const visibleRows = selectedRegion
+    ? sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+    : sorted;
+  const visibleTotalPages = selectedRegion
+    ? Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+    : totalPages;
 
   const categorias = [...new Set(items.map((item) => item.categoriaServico).filter(Boolean))].sort();
 
@@ -501,7 +519,7 @@ export default function Solicitacoes() {
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((row, i) => {
+                {visibleRows.map((row, i) => {
                   const st = STATUS_STYLE[row.status] || { label: row.status, color: '#999' };
                   const pr = PRIO_STYLE[row.prioridade] || { bg: '#e5e7eb', color: '#333' };
                   const data = row.dataCriacao
@@ -588,21 +606,21 @@ export default function Solicitacoes() {
             onClick={() => setPage(Math.max(0, page - 1))}
             disabled={page === 0}
           >‹</button>
-          {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => (
+          {Array.from({ length: Math.min(visibleTotalPages, 5) }, (_, i) => (
             <button
               key={i}
               className={[styles.pageBtn, page === i ? styles.pageActive : ''].join(' ')}
               onClick={() => setPage(i)}
             >{i + 1}</button>
           ))}
-          {totalPages > 5 && <span style={{padding:'0 8px',color:'var(--text-secondary)'}}>...</span>}
+          {visibleTotalPages > 5 && <span style={{padding:'0 8px',color:'var(--text-secondary)'}}>...</span>}
           <button
             className={styles.pageBtn}
-            onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
-            disabled={page >= totalPages - 1}
+            onClick={() => setPage(Math.min(visibleTotalPages - 1, page + 1))}
+            disabled={page >= visibleTotalPages - 1}
           >›</button>
           <span style={{ marginLeft: 12, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            Página {page + 1} de {totalPages}
+            Página {page + 1} de {visibleTotalPages}
           </span>
         </div>
       </div>

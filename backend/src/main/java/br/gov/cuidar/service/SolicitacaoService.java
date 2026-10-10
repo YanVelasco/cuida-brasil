@@ -179,8 +179,12 @@ public class SolicitacaoService {
         } else if ("ADMIN".equals(usuario != null ? usuario.getPerfil() : null) && usuario.getOrgao() != null) {
             Long orgaoId = usuario.getOrgao().getId();
             result = hasProtocolo
-                ? (status != null ? solicitacaoRepository.findByOrgaoIdAndProtocoloAndStatus(orgaoId, protocolo, status, pageable) : solicitacaoRepository.findByOrgaoIdAndProtocolo(orgaoId, protocolo, pageable))
-                : (status != null ? solicitacaoRepository.findByOrgaoIdAndStatus(orgaoId, status, pageable) : solicitacaoRepository.findByOrgaoId(orgaoId, pageable));
+                ? (status != null
+                    ? solicitacaoRepository.findByOrgaoIdOrUnassignedAndProtocoloAndStatus(orgaoId, protocolo, status, pageable)
+                    : solicitacaoRepository.findByOrgaoIdOrUnassignedAndProtocolo(orgaoId, protocolo, pageable))
+                : (status != null
+                    ? solicitacaoRepository.findByOrgaoIdOrUnassignedAndStatus(orgaoId, status, pageable)
+                    : solicitacaoRepository.findByOrgaoIdOrUnassigned(orgaoId, pageable));
         } else if (gestor != null && !gestor.isBlank() && usuario != null
                 && ("ADMIN".equals(usuario.getPerfil()) || "ANALYTICS_ADMIN".equals(usuario.getPerfil()))) {
             result = hasProtocolo

@@ -38,15 +38,47 @@ export function parseGps(gps) {
   return { latitude, longitude };
 }
 
-/** Classifica coordenadas em zonas de São Paulo (mesma regra usada no Dashboard). */
+function isAddressNumber(value) {
+  return /^\d[\d\s./-]*[A-Za-z]?$/.test(value);
+}
+
+/** Extrai bairro/localidade do endereço com a mesma regra usada nos relatórios. */
+export function resolveRegionFromAddress(address) {
+  if (!address || !String(address).trim()) return null;
+
+  const rawAddress = String(address).trim();
+  const hyphenParts = rawAddress.split(' - ');
+  if (hyphenParts.length > 1) {
+    const candidate = hyphenParts[1].split(',')[0].trim();
+    if (candidate && !isAddressNumber(candidate)) return candidate;
+  }
+
+  const textParts = rawAddress.split(',').map(part => part.trim()).filter(part => part && !isAddressNumber(part));
+  if (textParts.length > 1) return textParts[1];
+  if (textParts.length === 1) return textParts[0];
+  return null;
+}
+
+/** Classifica coordenadas em zonas de São Paulo, com os rótulos do backend. */
 export function resolveRegionFromGps(gps) {
   const coords = parseGps(gps);
-  if (!coords) return 'Centro';
+  if (!coords) return 'Não informada';
 
   const { latitude, longitude } = coords;
-  if (latitude < -23.65 && longitude < -46.7) return 'Sul';
-  if (latitude > -23.45 && longitude < -46.5) return 'Norte';
-  if (longitude > -46.5) return 'Leste';
-  if (longitude < -46.8) return 'Oeste';
-  return 'Centro';
+  const deltaLatitude = latitude - (-23.5505);
+  const deltaLongitude = longitude - (-46.6333);
+  if (Math.abs(deltaLatitude) < 0.02 && Math.abs(deltaLongitude) < 0.02) return 'Centro';
+  if (Math.abs(deltaLatitude) >= Math.abs(deltaLongitude)) return deltaLatitude > 0 ? 'Zona Norte' : 'Zona Sul';
+  return deltaLongitude > 0 ? 'Zona Leste' : 'Zona Oeste';
+}
+
+/** Prioriza bairro/localidade do endereço e usa zona GPS somente como fallback. */
+export function resolveRegionFromLocation(address, gps) {
+  return resolveRegionFromAddress(address) || resolveRegionFromGps(gps);
+}
+
+export function matchesRegion(address, gps, selectedRegion) {
+  if (!selectedRegion) return true;
+  const region = resolveRegionFromLocation(address, gps);
+  return region.localeCompare(selectedRegion, 'pt-BR', { sensitivity: 'base' }) === 0;
 }

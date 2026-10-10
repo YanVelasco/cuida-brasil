@@ -27,6 +27,14 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
     Page<Solicitacao> findByOrgaoIdAndProtocolo(@Param("orgaoId") Long orgaoId, @Param("protocolo") String protocolo, Pageable pageable);
     @Query("SELECT s FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId AND s.protocolo LIKE CONCAT('%', :protocolo, '%') AND s.status = :status")
     Page<Solicitacao> findByOrgaoIdAndProtocoloAndStatus(@Param("orgaoId") Long orgaoId, @Param("protocolo") String protocolo, @Param("status") String status, Pageable pageable);
+    @Query("SELECT s FROM Solicitacao s LEFT JOIN s.equipe e WHERE (e.orgao.id = :orgaoId OR e IS NULL)")
+    Page<Solicitacao> findByOrgaoIdOrUnassigned(@Param("orgaoId") Long orgaoId, Pageable pageable);
+    @Query("SELECT s FROM Solicitacao s LEFT JOIN s.equipe e WHERE (e.orgao.id = :orgaoId OR e IS NULL) AND s.status = :status")
+    Page<Solicitacao> findByOrgaoIdOrUnassignedAndStatus(@Param("orgaoId") Long orgaoId, @Param("status") String status, Pageable pageable);
+    @Query("SELECT s FROM Solicitacao s LEFT JOIN s.equipe e WHERE (e.orgao.id = :orgaoId OR e IS NULL) AND s.protocolo LIKE CONCAT('%', :protocolo, '%')")
+    Page<Solicitacao> findByOrgaoIdOrUnassignedAndProtocolo(@Param("orgaoId") Long orgaoId, @Param("protocolo") String protocolo, Pageable pageable);
+    @Query("SELECT s FROM Solicitacao s LEFT JOIN s.equipe e WHERE (e.orgao.id = :orgaoId OR e IS NULL) AND s.protocolo LIKE CONCAT('%', :protocolo, '%') AND s.status = :status")
+    Page<Solicitacao> findByOrgaoIdOrUnassignedAndProtocoloAndStatus(@Param("orgaoId") Long orgaoId, @Param("protocolo") String protocolo, @Param("status") String status, Pageable pageable);
     Page<Solicitacao> findByProtocoloContainingIgnoreCase(String protocolo, Pageable pageable);
     Page<Solicitacao> findByProtocoloContainingIgnoreCaseAndStatus(String protocolo, String status, Pageable pageable);
     Page<Solicitacao> findByEquipeId(Long equipeId, Pageable pageable);
@@ -69,6 +77,8 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
     long countByStatus(String status);
     long countByStatusAndEquipeId(String status, Long equipeId);
     long countByStatusAndEquipeNull(String status);
+    @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.equipe.id = :equipeId")
+    long countByEquipeId(@Param("equipeId") Long equipeId);
     @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.status = :status AND s.equipe.orgao.id = :orgaoId")
     long countByStatusAndOrgaoId(@Param("status") String status, @Param("orgaoId") Long orgaoId);
 
@@ -90,6 +100,9 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
     @Query("SELECT s.servico.categoria, COUNT(s) FROM Solicitacao s WHERE s.equipe.id = :equipeId GROUP BY s.servico.categoria ORDER BY COUNT(s) DESC")
     List<Object[]> countByCategoriaAndEquipeId(@Param("equipeId") Long equipeId);
 
+    @Query("SELECT s.servico.categoria, COUNT(s) FROM Solicitacao s WHERE s.equipe.id = :equipeId AND s.dataCriacao >= :inicio AND s.dataCriacao < :fim GROUP BY s.servico.categoria ORDER BY COUNT(s) DESC")
+    List<Object[]> countByCategoriaAndEquipeIdPeriod(@Param("equipeId") Long equipeId, @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
+
     @Query("SELECT s.servico.categoria, COUNT(s) FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId GROUP BY s.servico.categoria ORDER BY COUNT(s) DESC")
     List<Object[]> countByCategoriaAndOrgaoId(@Param("orgaoId") Long orgaoId);
 
@@ -100,6 +113,9 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
     @Query("SELECT s.status, COUNT(s) FROM Solicitacao s WHERE s.equipe.id = :equipeId GROUP BY s.status")
     List<Object[]> countByStatusGroupedAndEquipeId(@Param("equipeId") Long equipeId);
 
+    @Query("SELECT s.status, COUNT(s) FROM Solicitacao s WHERE s.equipe.id = :equipeId AND s.dataCriacao >= :inicio AND s.dataCriacao < :fim GROUP BY s.status")
+    List<Object[]> countByStatusGroupedAndEquipeIdPeriod(@Param("equipeId") Long equipeId, @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
+
     @Query("SELECT s.status, COUNT(s) FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId GROUP BY s.status")
     List<Object[]> countByStatusGroupedAndOrgaoId(@Param("orgaoId") Long orgaoId);
 
@@ -109,17 +125,29 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
     @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId AND s.dataCriacao >= :inicio AND s.dataCriacao < :fim AND (:gestor IS NULL OR EXISTS (SELECT g.id FROM Gestor g WHERE g.equipe.id = s.equipe.id AND LOWER(g.usuario.nome) = LOWER(:gestor)))")
     long countByOrgaoIdAndPeriod(@Param("orgaoId") Long orgaoId, @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim, @Param("gestor") String gestor);
 
+    @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.equipe.id = :equipeId AND s.dataCriacao >= :inicio AND s.dataCriacao < :fim")
+    long countByEquipeIdAndPeriod(@Param("equipeId") Long equipeId, @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
+
+    @Query("SELECT COUNT(DISTINCT s.usuario.id) FROM Solicitacao s WHERE s.equipe.id = :equipeId AND s.dataCriacao >= :inicio AND s.dataCriacao < :fim")
+    long countUsuariosByEquipeIdAndPeriod(@Param("equipeId") Long equipeId, @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
+
     @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.status = :status AND s.dataCriacao >= :inicio AND s.dataCriacao < :fim AND (:gestor IS NULL OR EXISTS (SELECT g.id FROM Gestor g WHERE g.equipe.id = s.equipe.id AND LOWER(g.usuario.nome) = LOWER(:gestor)))")
     long countByStatusAndPeriod(@Param("status") String status, @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim, @Param("gestor") String gestor);
 
     @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.status = :status AND s.equipe.orgao.id = :orgaoId AND s.dataCriacao >= :inicio AND s.dataCriacao < :fim AND (:gestor IS NULL OR EXISTS (SELECT g.id FROM Gestor g WHERE g.equipe.id = s.equipe.id AND LOWER(g.usuario.nome) = LOWER(:gestor)))")
     long countByStatusAndOrgaoIdAndPeriod(@Param("status") String status, @Param("orgaoId") Long orgaoId, @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim, @Param("gestor") String gestor);
 
+    @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.status = :status AND s.equipe.id = :equipeId AND s.dataCriacao >= :inicio AND s.dataCriacao < :fim")
+    long countByStatusAndEquipeIdAndPeriod(@Param("status") String status, @Param("equipeId") Long equipeId, @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
+
     @Query("SELECT COUNT(s) FROM Solicitacao s WHERE (s.prioridade = 'ALTA' OR s.prioridade = 'URGENTE') AND s.status IN ('PENDENTE', 'TRIAGEM') AND s.dataCriacao >= :inicio AND s.dataCriacao < :fim AND (:gestor IS NULL OR EXISTS (SELECT g.id FROM Gestor g WHERE g.equipe.id = s.equipe.id AND LOWER(g.usuario.nome) = LOWER(:gestor)))")
     long countUrgentesByPeriod(@Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim, @Param("gestor") String gestor);
 
     @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId AND (s.prioridade = 'ALTA' OR s.prioridade = 'URGENTE') AND s.status IN ('PENDENTE', 'TRIAGEM') AND s.dataCriacao >= :inicio AND s.dataCriacao < :fim AND (:gestor IS NULL OR EXISTS (SELECT g.id FROM Gestor g WHERE g.equipe.id = s.equipe.id AND LOWER(g.usuario.nome) = LOWER(:gestor)))")
     long countUrgentesByOrgaoIdAndPeriod(@Param("orgaoId") Long orgaoId, @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim, @Param("gestor") String gestor);
+
+    @Query("SELECT COUNT(s) FROM Solicitacao s WHERE (s.prioridade = 'ALTA' OR s.prioridade = 'URGENTE') AND s.status NOT IN ('CONCLUIDA', 'CANCELADA') AND s.equipe.id = :equipeId AND s.dataCriacao >= :inicio AND s.dataCriacao < :fim")
+    long countUrgentesByEquipeIdAndPeriod(@Param("equipeId") Long equipeId, @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
 
     @Query("SELECT s.servico.categoria, COUNT(s) FROM Solicitacao s WHERE s.dataCriacao >= :inicio AND s.dataCriacao < :fim AND (:gestor IS NULL OR EXISTS (SELECT g.id FROM Gestor g WHERE g.equipe.id = s.equipe.id AND LOWER(g.usuario.nome) = LOWER(:gestor))) GROUP BY s.servico.categoria ORDER BY COUNT(s) DESC")
     List<Object[]> countByCategoriaPeriod(@Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim, @Param("gestor") String gestor);
@@ -143,12 +171,21 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
     @Query(value = "SELECT MONTH(s.data_criacao) as mes, YEAR(s.data_criacao) as ano, COUNT(DISTINCT s.id) as total FROM TB_SOLICITACAO s INNER JOIN TB_EQUIPE_PUBLICA e ON e.id = s.id_equipe LEFT JOIN TB_GESTOR g ON g.id_equipe = e.id LEFT JOIN TB_USUARIO u ON u.id = g.id_usuario WHERE e.id_orgao = :orgaoId AND s.data_criacao >= :inicio AND s.data_criacao < :fim AND (:gestor IS NULL OR LOWER(u.nome) = LOWER(:gestor)) GROUP BY YEAR(s.data_criacao), MONTH(s.data_criacao) ORDER BY ano, mes", nativeQuery = true)
     List<Object[]> tendenciaMensalPeriodAndOrgaoId(@Param("orgaoId") Long orgaoId, @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim, @Param("gestor") String gestor);
 
+    @Query(value = "SELECT MONTH(data_criacao) as mes, YEAR(data_criacao) as ano, COUNT(*) as total FROM TB_SOLICITACAO WHERE id_equipe = :equipeId AND data_criacao >= :inicio AND data_criacao < :fim GROUP BY YEAR(data_criacao), MONTH(data_criacao) ORDER BY ano, mes", nativeQuery = true)
+    List<Object[]> tendenciaMensalPeriodAndEquipeId(@Param("equipeId") Long equipeId, @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
+
     // Indicadores reais: tempo médio de resolução em dias
     @Query(value = "SELECT AVG(CAST(DATEDIFF(day, data_criacao, data_conclusao) AS FLOAT)) FROM TB_SOLICITACAO WHERE status = 'CONCLUIDA' AND data_conclusao IS NOT NULL", nativeQuery = true)
     Double tempoMedioResolucaoDias();
 
     @Query(value = "SELECT AVG(CAST(DATEDIFF(day, s.data_criacao, s.data_conclusao) AS FLOAT)) FROM TB_SOLICITACAO s INNER JOIN TB_EQUIPE_PUBLICA e ON e.id = s.id_equipe WHERE e.id_orgao = :orgaoId AND s.status = 'CONCLUIDA' AND s.data_conclusao IS NOT NULL", nativeQuery = true)
     Double tempoMedioResolucaoDiasByOrgaoId(@Param("orgaoId") Long orgaoId);
+
+    @Query(value = "SELECT AVG(CAST(DATEDIFF(day, data_criacao, data_conclusao) AS FLOAT)) FROM TB_SOLICITACAO WHERE id_equipe = :equipeId AND status = 'CONCLUIDA' AND data_conclusao IS NOT NULL", nativeQuery = true)
+    Double tempoMedioResolucaoDiasByEquipeId(@Param("equipeId") Long equipeId);
+
+    @Query(value = "SELECT AVG(CAST(DATEDIFF(day, data_criacao, data_conclusao) AS FLOAT)) FROM TB_SOLICITACAO WHERE id_equipe = :equipeId AND status = 'CONCLUIDA' AND data_conclusao IS NOT NULL AND data_criacao >= :inicio AND data_criacao < :fim", nativeQuery = true)
+    Double tempoMedioResolucaoDiasByEquipeIdAndPeriod(@Param("equipeId") Long equipeId, @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
 
     // Indicadores reais: taxa de conclusão (%)
     @Query("SELECT COUNT(s) FROM Solicitacao s WHERE s.status = 'CONCLUIDA'")
@@ -169,6 +206,9 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
 
     @Query("SELECT s.servico.categoria, s.prioridade, COUNT(s), s.equipe.nome FROM Solicitacao s WHERE s.equipe IS NOT NULL AND s.equipe.orgao.id = :orgaoId GROUP BY s.servico.categoria, s.prioridade, s.equipe.nome")
     List<Object[]> matrizServicoPrioridadeEquipeByOrgaoId(@Param("orgaoId") Long orgaoId);
+
+    @Query("SELECT s.servico.categoria, s.prioridade, COUNT(s), s.equipe.nome FROM Solicitacao s WHERE s.equipe.id = :equipeId GROUP BY s.servico.categoria, s.prioridade, s.equipe.nome")
+    List<Object[]> matrizServicoPrioridadeEquipeByEquipeId(@Param("equipeId") Long equipeId);
 
     // Eficiência de campo: solicitações concluídas por usuário/gestor
     @Query("SELECT s.usuario.id, COUNT(s) FROM Solicitacao s GROUP BY s.usuario.id")
@@ -195,6 +235,36 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
 
     @Query("SELECT s.endereco, s.gps, s.status, s.prioridade FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId")
     List<Object[]> dadosTerritoriaisByOrgaoId(@Param("orgaoId") Long orgaoId);
+
+    @Query("SELECT s.endereco, s.gps, s.status, s.prioridade FROM Solicitacao s WHERE s.equipe.orgao.id = :orgaoId AND s.dataCriacao >= :inicio AND s.dataCriacao < :fim")
+    List<Object[]> dadosTerritoriaisByOrgaoIdAndPeriod(@Param("orgaoId") Long orgaoId, @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
+
+    @Query("SELECT s.endereco, s.gps, s.status, s.prioridade FROM Solicitacao s LEFT JOIN s.equipe e WHERE e.orgao.id = :orgaoId OR e IS NULL")
+    List<Object[]> dadosTerritoriaisByOrgaoIdOrUnassigned(@Param("orgaoId") Long orgaoId);
+
+    @Query("SELECT s.endereco, s.gps, s.status, s.prioridade FROM Solicitacao s LEFT JOIN s.equipe e WHERE (e.orgao.id = :orgaoId OR e IS NULL) AND s.dataCriacao >= :inicio AND s.dataCriacao < :fim")
+    List<Object[]> dadosTerritoriaisByOrgaoIdOrUnassignedAndPeriod(@Param("orgaoId") Long orgaoId, @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
+
+    @Query("SELECT s.endereco, s.gps, s.status, s.prioridade FROM Solicitacao s WHERE s.equipe.id = :equipeId")
+    List<Object[]> dadosTerritoriaisByEquipeId(@Param("equipeId") Long equipeId);
+
+    @Query("SELECT s.endereco, s.gps, s.status, s.prioridade FROM Solicitacao s WHERE s.equipe.id = :equipeId AND s.dataCriacao >= :inicio AND s.dataCriacao < :fim")
+    List<Object[]> dadosTerritoriaisByEquipeIdAndPeriod(@Param("equipeId") Long equipeId, @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
+
+    @Query("SELECT s.endereco, s.gps, s.status, s.prioridade FROM Solicitacao s WHERE s.dataCriacao >= :inicio AND s.dataCriacao < :fim")
+    List<Object[]> dadosTerritoriaisByPeriod(@Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
+
+        @Query("SELECT s.id, s.protocolo, s.status, s.prioridade, s.dataCriacao, s.servico.categoria, s.endereco, s.gps, e.nome "
+            + "FROM Solicitacao s LEFT JOIN s.equipe e "
+            + "WHERE s.dataCriacao >= :inicio AND s.dataCriacao < :fim "
+            + "AND (:orgaoId IS NULL OR e.orgao.id = :orgaoId) "
+            + "AND (:equipeId IS NULL OR e.id = :equipeId) "
+            + "AND (:includeUnassigned = true OR e IS NOT NULL) "
+            + "AND (:gestor IS NULL OR EXISTS (SELECT g.id FROM Gestor g WHERE g.equipe.id = e.id AND LOWER(g.usuario.nome) = LOWER(:gestor))) "
+            + "ORDER BY s.dataCriacao DESC")
+        List<Object[]> findReportRows(@Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim,
+            @Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId,
+            @Param("includeUnassigned") boolean includeUnassigned, @Param("gestor") String gestor);
 
     /**
      * 1. Eficiência e Ranking das Equipes com DENSE_RANK() e agregação analítica

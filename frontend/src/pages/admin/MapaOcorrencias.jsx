@@ -9,6 +9,7 @@ import { useRegion } from '../../contexts/RegionContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { ocorrenciaService, equipeService } from '../../services/api';
 import useEnderecos from '../../hooks/useEnderecos';
+import { matchesRegion } from '../../utils/geo';
 import styles from './MapaOcorrencias.module.css';
 
 const STATUS_META = {
@@ -27,32 +28,6 @@ const PRIORITY_META = {
   BAIXA: { label: 'Baixa', color: '#27AE60' },
   NORMAL: { label: 'Normal', color: '#6B7280' },
 };
-
-function resolveRegionFromGps(gps) {
-  if (!gps) return 'Centro';
-
-  const raw = String(gps).trim();
-  if (!raw) return 'Centro';
-
-  const matches = Array.from(raw.matchAll(/[-+]?\d{1,3}(?:[.,]\d+)?/g), (match) => {
-    const value = Number(match[0].replace(',', '.'));
-    return Number.isFinite(value) ? value : null;
-  }).filter((value) => value !== null);
-
-  if (matches.length < 2) return 'Centro';
-
-  const latitudeText = raw.match(/lat(?:itude)?\s*[:=]?\s*[-+]?\d{1,3}(?:[.,]\d+)?/i)?.[0]?.split(/[:=]/).pop() ?? String(matches[0]);
-  const longitudeText = raw.match(/(?:lng|lon|longitude)\s*[:=]?\s*[-+]?\d{1,3}(?:[.,]\d+)?/i)?.[0]?.split(/[:=]/).pop() ?? String(matches[1]);
-
-  const latitude = Number(latitudeText.replace(',', '.').trim());
-  const longitude = Number(longitudeText.replace(',', '.').trim());
-
-  if (latitude < -23.65 && longitude < -46.7) return 'Sul';
-  if (latitude > -23.45 && longitude < -46.5) return 'Norte';
-  if (longitude > -46.5) return 'Leste';
-  if (longitude < -46.8) return 'Oeste';
-  return 'Centro';
-}
 
 function parseGps(gps) {
   if (!gps) return null;
@@ -113,19 +88,7 @@ function normalize(value, min, max) {
   return Math.min(Math.max(normalized, 0), 100);
 }
 
-function regionCenterFromName(region) {
-  const centers = {
-    Centro: [-23.55, -46.63],
-    Norte: [-23.47, -46.54],
-    Sul: [-23.66, -46.69],
-    Leste: [-23.55, -46.46],
-    Oeste: [-23.56, -46.79],
-  };
-
-  return centers[region] || [-23.55, -46.63];
-}
-
-function MapFitBounds({ items, selected, selectedRegion }) {
+function MapFitBounds({ items, selected }) {
   const map = useMap();
 
   useEffect(() => {
@@ -134,11 +97,6 @@ function MapFitBounds({ items, selected, selectedRegion }) {
       if (gps) {
         map.setView([gps.latitude, gps.longitude], Math.max(map.getZoom(), 13), { animate: true });
       }
-      return;
-    }
-
-    if (selectedRegion) {
-      map.setView(regionCenterFromName(selectedRegion), 12, { animate: true });
       return;
     }
 
@@ -158,7 +116,7 @@ function MapFitBounds({ items, selected, selectedRegion }) {
     if (bounds.isValid()) {
       map.fitBounds(bounds.pad(0.25), { animate: true, maxZoom: 14 });
     }
-  }, [items, map, selected, selectedRegion]);
+  }, [items, map, selected]);
 
   return null;
 }
@@ -199,12 +157,11 @@ export default function MapaOcorrencias() {
   const [activeFilter, setActiveFilter] = useState(null);
   const [legendFilter, setLegendFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [mapRegionFilter, setMapRegionFilter] = useState('');
   const [gestorFilter, setGestorFilter] = useState('');
   const [gestores, setGestores] = useState([]);
   const [loading, setLoading] = useState(true);
     const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const { selectedRegion } = useRegion();
+  const { selectedRegion, setSelectedRegion, availableRegions } = useRegion();
   const { user } = useAuth();
     const isAdmin = user?.perfil === 'ADMIN';
   const isGestor = user?.perfil === 'GESTOR';
@@ -216,7 +173,7 @@ export default function MapaOcorrencias() {
 
     async function loadOcorrencias() {
       try {
-        const response = await ocorrenciaService.listar({ page: 0, size: 200, ...(gestorFilter ? { gestor: gestorFilter } : {}) });
+        const response = await ocorrenciaService.listar({ page: 0, size: 1000, ...(gestorFilter ? { gestor: gestorFilter } : {}) });
         const items = response.data?.data?.content || response.data?.content || [];
 
         if (isMounted) {
@@ -313,12 +270,10 @@ export default function MapaOcorrencias() {
 
   const filteredOcorrencias = useMemo(() => {
     return mappedOcorrencias.filter((oc) => {
-      const region = resolveRegionFromGps(oc.gps);
       const statusValue = (oc.status || '').toUpperCase();
       const priorityValue = (oc.prioridade || 'NORMAL').toUpperCase();
 
-      if (selectedRegion && region !== selectedRegion) return false;
-      if (mapRegionFilter && region !== mapRegionFilter) return false;
+      if (!matchesRegion(oc.endereco, oc.gps, selectedRegion)) return false;
       if (categoryFilter && oc.categoriaServico !== categoryFilter) return false;
       if (legendFilter && statusValue !== legendFilter && priorityValue !== legendFilter) return false;
 
@@ -331,7 +286,7 @@ export default function MapaOcorrencias() {
 
       return true;
     });
-  }, [mappedOcorrencias, selectedRegion, mapRegionFilter, categoryFilter, activeFilter, legendFilter]);
+  }, [mappedOcorrencias, selectedRegion, categoryFilter, activeFilter, legendFilter]);
 
   const categoryOptions = useMemo(() => (
     [...new Set(ocorrencias.map((oc) => oc.categoriaServico).filter(Boolean))].sort()
@@ -426,7 +381,7 @@ export default function MapaOcorrencias() {
                   attribution='&copy; OpenStreetMap contributors'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                <MapFitBounds items={filteredOcorrencias} selected={selected} selectedRegion={selectedRegion} />
+                <MapFitBounds items={filteredOcorrencias} selected={selected} />
 
                 {filteredOcorrencias.map((oc) => {
                   const gps = parseGps(oc.gps);
@@ -516,11 +471,11 @@ export default function MapaOcorrencias() {
             </select>
             <select
               className={styles.sideSelect}
-              value={mapRegionFilter}
-              onChange={(event) => setMapRegionFilter(event.target.value)}
+              value={selectedRegion}
+              onChange={(event) => setSelectedRegion(event.target.value)}
             >
               <option value="">Todas as regiões</option>
-              {['Centro', 'Norte', 'Sul', 'Leste', 'Oeste'].map((region) => (
+              {availableRegions.map((region) => (
                 <option key={region} value={region}>{region}</option>
               ))}
             </select>

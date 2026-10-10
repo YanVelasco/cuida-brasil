@@ -1,15 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
-import { dashboardService, ocorrenciaService, analyticsService, orgaoService } from '../../services/api';
+import { ocorrenciaService, orgaoService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRegion } from '../../contexts/RegionContext';
 import useEnderecos from '../../hooks/useEnderecos';
+import { matchesRegion } from '../../utils/geo';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area
 } from 'recharts';
 import {
-  BarChart3, Clock, Award, Star, AlertTriangle, ArrowUpDown, TrendingUp, Users,
-  CheckCircle2, ShieldCheck, MapPin, Calendar, ThumbsUp
+  BarChart3, ArrowUpDown, TrendingUp, Users, CheckCircle2, ShieldCheck, MapPin
 } from 'lucide-react';
 import styles from './Dashboard.module.css';
 
@@ -29,59 +29,9 @@ const PRIO_STYLE = {
   'URGENTE': { bg: '#EB5757', color: '#fff' },
 };
 
-function parseGps(gps) {
-  if (!gps) return null;
-  const raw = String(gps).trim();
-  if (!raw) return null;
-
-  const cleaned = raw
-    .replace(/\s+/g, ' ')
-    .replace(/\(|\)|\[|\]/g, '')
-    .replace(/lat\s*[:=]/gi, ' latitude=')
-    .replace(/lng\s*[:=]/gi, ' longitude=')
-    .replace(/lon\s*[:=]/gi, ' longitude=')
-    .replace(/;/g, ',')
-    .replace(/,/g, ' ');
-
-  const matches = Array.from(cleaned.matchAll(/[-+]?\d{1,3}(?:[.,]\d+)?/g), (match) => {
-    const value = Number(match[0].replace(',', '.'));
-    return Number.isFinite(value) ? value : null;
-  }).filter((value) => value !== null);
-
-  if (matches.length < 2) return null;
-
-  const latitudeMatch = raw.match(/lat(?:itude)?\s*[:=]?\s*[-+]?\d{1,3}(?:[.,]\d+)?/i);
-  const longitudeMatch = raw.match(/(?:lng|lon|longitude)\s*[:=]?\s*[-+]?\d{1,3}(?:[.,]\d+)?/i);
-
-  const latitude = latitudeMatch
-    ? Number(latitudeMatch[0].split(/[:=]/).pop().replace(',', '.').trim())
-    : Number(matches[0]);
-  const longitude = longitudeMatch
-    ? Number(longitudeMatch[0].split(/[:=]/).pop().replace(',', '.').trim())
-    : Number(matches[1]);
-
-  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
-    return null;
-  }
-
-  return { latitude, longitude };
-}
-
-function resolveRegionFromGps(gps) {
-  const coords = parseGps(gps);
-  if (!coords) return 'Centro';
-
-  const { latitude, longitude } = coords;
-  if (latitude < -23.65 && longitude < -46.7) return 'Sul';
-  if (latitude > -23.45 && longitude < -46.5) return 'Norte';
-  if (longitude > -46.5) return 'Leste';
-  if (longitude < -46.8) return 'Oeste';
-  return 'Centro';
-}
-
 export default function Dashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('operacional'); // 'operacional', 'sla', 'equipes', 'satisfacao', 'gargalos'
+  const activeTab = 'operacional';
   const [chartTab, setChartTab] = useState('Ano');
   const [search, setSearch]     = useState('');
   const [selectedProtocol, setSelectedProtocol] = useState(null);
@@ -97,15 +47,9 @@ export default function Dashboard() {
   const [tableSortDir, setTableSortDir]     = useState('desc');
 
   // Estado para dados reais
-  const [kpiData, setKpiData]     = useState(null);
   const [tableData, setTableData] = useState([]);
   const enderecos = useEnderecos(tableData);
-  const [loadingKpi, setLoadingKpi] = useState(true);
   const [loadingTable, setLoadingTable] = useState(true);
-
-  // Dados das consultas SQL avançadas (Fase 6)
-  const [analyticsData, setAnalyticsData] = useState(null);
-  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
   // Carrega lista de órgãos para administradores globais
   useEffect(() => {
@@ -114,16 +58,6 @@ export default function Dashboard() {
       setOrgaos(list.filter((o) => o.ativo !== false));
     }).catch(() => setOrgaos([]));
   }, []);
-
-  // Carrega KPIs do backend (filtrados pela equipe se GESTOR ou pelo órgão selecionado)
-  useEffect(() => {
-    setLoadingKpi(true);
-    const params = selectedOrgao ? { orgaoId: selectedOrgao } : {};
-    dashboardService.stats(params)
-      .then(r => setKpiData(r.data?.data || r.data))
-      .catch(() => setKpiData(null))
-      .finally(() => setLoadingKpi(false));
-  }, [selectedOrgao]);
 
   // Carrega lista de solicitações para a tabela
   useEffect(() => {
@@ -138,19 +72,9 @@ export default function Dashboard() {
       .finally(() => setLoadingTable(false));
   }, [selectedOrgao]);
 
-  // Carrega dados analíticos avançados das consultas SQL (SLA, Ranking CTE, CSAT, Gargalos)
-  useEffect(() => {
-    setLoadingAnalytics(true);
-    const params = selectedOrgao ? { orgaoId: selectedOrgao } : {};
-    analyticsService.dashboardAvancado(params)
-      .then(res => setAnalyticsData(res.data?.data || res.data || null))
-      .catch(err => console.error('Erro ao carregar dados analíticos avançados:', err))
-      .finally(() => setLoadingAnalytics(false));
-  }, [selectedOrgao]);
-
   const regionFilteredTable = useMemo(() => {
     if (!selectedRegion) return tableData;
-    return tableData.filter((row) => resolveRegionFromGps(row.gps) === selectedRegion);
+    return tableData.filter((row) => matchesRegion(row.endereco, row.gps, selectedRegion));
   }, [tableData, selectedRegion]);
 
   const filteredTable = useMemo(() => {
@@ -175,60 +99,6 @@ export default function Dashboard() {
     }
   };
 
-  const sortedTableData = useMemo(() => {
-    const PRIO_WEIGHT = { 'URGENTE': 4, 'ALTA': 3, 'MEDIA': 2, 'BAIXA': 1 };
-    return [...filteredTable].sort((a, b) => {
-      let cmp = 0;
-      if (tableSortField === 'protocolo') {
-        cmp = (a.protocolo || '').localeCompare(b.protocolo || '');
-      } else if (tableSortField === 'usuario') {
-        cmp = (a.nomeUsuario || '').localeCompare(b.nomeUsuario || '');
-      } else if (tableSortField === 'status') {
-        cmp = (a.status || '').localeCompare(b.status || '');
-      } else if (tableSortField === 'categoria') {
-        cmp = (a.categoriaServico || '').localeCompare(b.categoriaServico || '');
-      } else if (tableSortField === 'prioridade') {
-        cmp = (PRIO_WEIGHT[a.prioridade] || 0) - (PRIO_WEIGHT[b.prioridade] || 0);
-      } else {
-        cmp = new Date(a.dataCriacao || 0).getTime() - new Date(b.dataCriacao || 0).getTime();
-      }
-      return tableSortDir === 'asc' ? cmp : -cmp;
-    });
-  }, [filteredTable, tableSortField, tableSortDir]);
-
-  const kpisFromTable = useMemo(() => {
-    const counts = regionFilteredTable.reduce((acc, row) => {
-      const status = row.status || 'PENDENTE';
-      if (status === 'PENDENTE') acc.abertas += 1;
-      if (status === 'TRIAGEM') acc.abertas += 1;
-      if (status === 'EM_ANDAMENTO' || status === 'EM_CAMPO') acc.andamento += 1;
-      if (status === 'CONCLUIDA') acc.concluidas += 1;
-      if (status === 'PENDENTE') acc.pendentes += 1;
-      if (['ALTA', 'URGENTE'].includes((row.prioridade || '').toUpperCase())) acc.urgentes += 1;
-      return acc;
-    }, { abertas: 0, andamento: 0, concluidas: 0, pendentes: 0, urgentes: 0 });
-
-    return [
-      { label: 'TOTAL ABERTAS', value: counts.abertas, color: 'gray' },
-      { label: 'EM ANDAMENTO', value: counts.andamento, color: 'blue' },
-      { label: 'CONCLUÍDAS', value: counts.concluidas, color: 'green' },
-      { label: 'PENDENTES', value: counts.pendentes, color: 'orange' },
-      { label: 'URGENTES', value: counts.urgentes, color: 'red' },
-    ];
-  }, [regionFilteredTable]);
-
-  const kpis = useMemo(() => {
-    if (selectedRegion) return kpisFromTable;
-    if (!kpiData) return kpisFromTable;
-    return [
-      { label: 'TOTAL ABERTAS', value: kpiData.abertas ?? kpiData.totalAbertas ?? kpisFromTable[0].value, color: 'gray' },
-      { label: 'EM ANDAMENTO', value: kpiData.andamento ?? kpiData.emAndamento ?? kpisFromTable[1].value, color: 'blue' },
-      { label: 'CONCLUÍDAS', value: kpiData.concluidas ?? kpiData.resolvidasHoje ?? kpisFromTable[2].value, color: 'green' },
-      { label: 'PENDENTES', value: kpiData.pendentes ?? kpiData.pendentesSla ?? kpisFromTable[3].value, color: 'orange' },
-      { label: 'URGENTES', value: kpiData.urgentes ?? kpisFromTable[4].value, color: 'red' },
-    ];
-  }, [kpiData, kpisFromTable, selectedRegion]);
-
   const toggleChartFilter = (filter) => {
     setSelectedChartFilter((current) => {
       if (current?.type === filter.type && current?.value === filter.value) {
@@ -252,7 +122,7 @@ export default function Dashboard() {
   };
 
   const chartFilteredTable = useMemo(() => {
-    return regionFilteredTable.filter((row) => {
+    return filteredTable.filter((row) => {
       if (selectedChartFilter?.type === 'category') {
         const rowCategory = row.categoriaServico || 'Outros';
         if (rowCategory !== selectedChartFilter.value) return false;
@@ -260,8 +130,14 @@ export default function Dashboard() {
 
       if (selectedChartFilter?.type === 'status') {
         const rowStatus = row.status || 'PENDENTE';
-        if (rowStatus !== selectedChartFilter.value) return false;
+        if (selectedChartFilter.statuses
+          ? !selectedChartFilter.statuses.includes(rowStatus)
+          : rowStatus !== selectedChartFilter.value) return false;
       }
+
+      if (selectedChartFilter?.type === 'priority'
+          && (!['ALTA', 'URGENTE'].includes((row.prioridade || '').toUpperCase())
+              || ['CONCLUIDA', 'CANCELADA'].includes(row.status))) return false;
 
       if (periodScope?.start && periodScope?.end) {
         const rowDate = new Date(row.dataCriacao);
@@ -270,7 +146,49 @@ export default function Dashboard() {
 
       return true;
     });
-  }, [regionFilteredTable, selectedChartFilter, periodScope]);
+  }, [filteredTable, selectedChartFilter, periodScope]);
+
+  const sortedTableData = useMemo(() => {
+    const priorityWeight = { URGENTE: 4, ALTA: 3, MEDIA: 2, BAIXA: 1 };
+    return [...chartFilteredTable].sort((first, second) => {
+      let comparison = 0;
+      if (tableSortField === 'protocolo') {
+        comparison = (first.protocolo || '').localeCompare(second.protocolo || '');
+      } else if (tableSortField === 'usuario') {
+        comparison = (first.nomeUsuario || '').localeCompare(second.nomeUsuario || '');
+      } else if (tableSortField === 'status') {
+        comparison = (first.status || '').localeCompare(second.status || '');
+      } else if (tableSortField === 'categoria') {
+        comparison = (first.categoriaServico || '').localeCompare(second.categoriaServico || '');
+      } else if (tableSortField === 'prioridade') {
+        comparison = (priorityWeight[first.prioridade] || 0) - (priorityWeight[second.prioridade] || 0);
+      } else {
+        comparison = new Date(first.dataCriacao || 0).getTime() - new Date(second.dataCriacao || 0).getTime();
+      }
+      return tableSortDir === 'asc' ? comparison : -comparison;
+    });
+  }, [chartFilteredTable, tableSortField, tableSortDir]);
+
+  const kpis = useMemo(() => {
+    const counts = chartFilteredTable.reduce((acc, row) => {
+      const status = row.status || 'PENDENTE';
+      if (status === 'PENDENTE' || status === 'TRIAGEM') acc.abertas += 1;
+      if (status === 'EM_ANDAMENTO' || status === 'EM_CAMPO') acc.andamento += 1;
+      if (status === 'CONCLUIDA') acc.concluidas += 1;
+      if (status === 'PENDENTE') acc.pendentes += 1;
+      if (['ALTA', 'URGENTE'].includes((row.prioridade || '').toUpperCase())
+          && !['CONCLUIDA', 'CANCELADA'].includes(status)) acc.urgentes += 1;
+      return acc;
+    }, { abertas: 0, andamento: 0, concluidas: 0, pendentes: 0, urgentes: 0 });
+
+    return [
+      { label: 'TOTAL ABERTAS', value: counts.abertas, color: 'gray', filter: { type: 'status', value: 'abertas', statuses: ['PENDENTE', 'TRIAGEM'] } },
+      { label: 'EM ANDAMENTO', value: counts.andamento, color: 'blue', filter: { type: 'status', value: 'andamento', statuses: ['EM_ANDAMENTO', 'EM_CAMPO'] } },
+      { label: 'CONCLUÍDAS', value: counts.concluidas, color: 'green', filter: { type: 'status', value: 'CONCLUIDA', statuses: ['CONCLUIDA'] } },
+      { label: 'PENDENTES', value: counts.pendentes, color: 'orange', filter: { type: 'status', value: 'PENDENTE', statuses: ['PENDENTE'] } },
+      { label: 'URGENTES', value: counts.urgentes, color: 'red', filter: { type: 'priority', value: 'urgent' } },
+    ];
+  }, [chartFilteredTable]);
 
   const barData = useMemo(() => {
     const today = new Date();
@@ -297,7 +215,7 @@ export default function Dashboard() {
           name: date.toLocaleDateString('pt-BR', { day: '2-digit', weekday: 'short' }).replace('.', ''),
           start: new Date(date.setHours(0, 0, 0, 0)),
           end: new Date(date.setHours(23, 59, 59, 999)),
-          abertas: dayRows.length,
+          abertas: dayRows.filter((row) => !['CONCLUIDA', 'CANCELADA'].includes(row.status)).length,
           resolvidas: dayRows.filter((row) => row.status === 'CONCLUIDA').length,
         };
       });
@@ -314,7 +232,7 @@ export default function Dashboard() {
           name: monthStart.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
           start: monthStart,
           end: new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0, 23, 59, 59, 999),
-          abertas: monthRows.length,
+          abertas: monthRows.filter((row) => !['CONCLUIDA', 'CANCELADA'].includes(row.status)).length,
           resolvidas: monthRows.filter((row) => row.status === 'CONCLUIDA').length,
         };
       });
@@ -334,7 +252,7 @@ export default function Dashboard() {
         name: `Sem. ${index + 1}`,
         start: bucketStart,
         end: bucketEnd,
-        abertas: bucketRows.length,
+        abertas: bucketRows.filter((row) => !['CONCLUIDA', 'CANCELADA'].includes(row.status)).length,
         resolvidas: bucketRows.filter((row) => row.status === 'CONCLUIDA').length,
       };
     });
@@ -434,36 +352,9 @@ export default function Dashboard() {
 
       {/* Abas de navegação do Dashboard */}
       <div className={styles.dashNavTabs}>
-        <button
-          className={[styles.dashNavBtn, activeTab === 'operacional' ? styles.dashNavBtnActive : ''].join(' ')}
-          onClick={() => setActiveTab('operacional')}
-        >
+        <span className={[styles.dashNavBtn, styles.dashNavBtnActive].join(' ')}>
           <BarChart3 size={15} /> Visão Geral Operacional
-        </button>
-        <button
-          className={[styles.dashNavBtn, activeTab === 'sla' ? styles.dashNavBtnActive : ''].join(' ')}
-          onClick={() => setActiveTab('sla')}
-        >
-          <Clock size={15} /> SLA & Produtividade (SQL CTE)
-        </button>
-        <button
-          className={[styles.dashNavBtn, activeTab === 'equipes' ? styles.dashNavBtnActive : ''].join(' ')}
-          onClick={() => setActiveTab('equipes')}
-        >
-          <Award size={15} /> Ranking de Equipes (DENSE_RANK)
-        </button>
-        <button
-          className={[styles.dashNavBtn, activeTab === 'satisfacao' ? styles.dashNavBtnActive : ''].join(' ')}
-          onClick={() => setActiveTab('satisfacao')}
-        >
-          <Star size={15} /> Satisfação & CSAT do Cidadão
-        </button>
-        <button
-          className={[styles.dashNavBtn, activeTab === 'gargalos' ? styles.dashNavBtnActive : ''].join(' ')}
-          onClick={() => setActiveTab('gargalos')}
-        >
-          <AlertTriangle size={15} /> Gargalos Urbanos & Turnos
-        </button>
+        </span>
       </div>
 
       {/* ============================================================== */}
@@ -473,13 +364,22 @@ export default function Dashboard() {
         <>
           {/* KPI Cards */}
           <div className={styles.stats}>
-            {loadingKpi ? (
+            {loadingTable ? (
               <p style={{ color: 'var(--text-secondary)', padding: '12px' }}>Carregando indicadores...</p>
             ) : kpis.map((k, i) => (
-              <div key={i} className={[styles.statCard, styles[k.color]].join(' ')}>
+              <button key={i} type="button"
+                className={[styles.statCard, styles[k.color], styles.statCardInteractive,
+                  selectedChartFilter?.value === k.filter.value ? styles.chartSelected : ''].join(' ')}
+                onClick={() => k.filter.type === 'priority'
+                  ? toggleChartFilter(k.filter)
+                  : k.filter.value === 'abertas' || k.filter.value === 'andamento'
+                    ? toggleChartFilter(k.filter)
+                    : toggleChartFilter({ type: 'status', value: k.filter.value })}
+                aria-pressed={selectedChartFilter?.value === k.filter.value}
+                title={`Filtrar painel por ${k.label.toLowerCase()}`}>
                 <div className={styles.statLabel}>{k.label}</div>
                 <div className={[styles.statValue, styles[k.color]].join(' ')}>{k.value.toLocaleString()}</div>
-              </div>
+              </button>
             ))}
           </div>
 
@@ -610,7 +510,9 @@ export default function Dashboard() {
                         <tr key={row.id || i}>
                           <td className={styles.proto}>{row.protocolo}</td>
                           <td className={styles.muted}>{row.nomeUsuario || '—'}</td>
-                          <td>
+                          <td className={styles.filterableCell}
+                            onClick={() => toggleChartFilter({ type: 'status', value: row.status, statuses: [row.status] })}
+                            title={`Filtrar o painel por status ${st.label}`}>
                             <span style={{
                               background: st.bg,
                               color: st.color,
@@ -621,7 +523,11 @@ export default function Dashboard() {
                               whiteSpace: 'nowrap'
                             }}>{st.label}</span>
                           </td>
-                          <td>{row.categoriaServico}<br/><small style={{color:'var(--text-secondary)'}}>{row.subcategoriaServico}</small></td>
+                          <td className={styles.filterableCell}
+                            onClick={() => toggleChartFilter({ type: 'category', value: row.categoriaServico || 'Outros' })}
+                            title={`Filtrar o painel por categoria ${row.categoriaServico || 'Outros'}`}>
+                            {row.categoriaServico}<br/><small style={{color:'var(--text-secondary)'}}>{row.subcategoriaServico}</small>
+                          </td>
                           <td>
                             {pr ? (
                               <span style={{

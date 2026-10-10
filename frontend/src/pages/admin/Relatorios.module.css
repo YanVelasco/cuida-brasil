@@ -11,6 +11,9 @@
 
 .kpis { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 18px; }
 .kpiCard { background: var(--surface); border: 1.5px solid var(--border); border-top: 3px solid; border-radius: var(--radius-md); padding: 14px 16px; box-shadow: var(--shadow-sm); }
+.kpiInteractive { width: 100%; color: inherit; text-align: left; cursor: pointer; font: inherit; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.kpiInteractive:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.kpiInteractive:focus-visible, .statusInsightButton:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .kpiCard.gray  { border-top-color: var(--text-muted); }
 .kpiCard.green { border-top-color: var(--success); }
 .kpiCard.orange { border-top-color: var(--warning); }
@@ -30,6 +33,11 @@
 .catTable th { text-align: left; padding: 6px 8px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border); }
 .catTable td { padding: 8px 8px; border-bottom: 1px solid var(--border); }
 .catTable tr:last-child td { border-bottom: none; }
+.selectableRow { cursor: pointer; transition: background-color 0.12s ease; }
+.selectableRow:hover { background: color-mix(in srgb, var(--primary) 7%, var(--surface)); }
+
+.activeInsightFilter { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; padding: 9px 12px; border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--border)); border-radius: var(--radius-md); background: color-mix(in srgb, var(--primary) 6%, var(--surface)); color: var(--text-primary); font-size: 0.8rem; font-weight: 650; }
+.activeInsightFilter button { border: 0; background: transparent; color: var(--primary); font: inherit; font-weight: 700; cursor: pointer; }
 
 .slaCard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px; box-shadow: var(--shadow-sm); }
 .slaHeader { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
@@ -37,6 +45,8 @@
 .slaSub { font-size: 0.78rem; color: var(--text-muted); }
 .slaGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; }
 .slaRow { display: flex; align-items: center; gap: 10px; }
+.statusInsightButton { width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.statusInsightButton:hover { background: color-mix(in srgb, var(--primary) 6%, var(--surface)); }
 .slaName { width: 90px; flex-shrink: 0; font-size: 0.82rem; font-weight: 500; }
 .slaBar { flex: 1; height: 10px; background: var(--border); border-radius: var(--radius-full); overflow: hidden; }
 .slaFill { height: 100%; border-radius: var(--radius-full); }

@@ -49,6 +49,74 @@ public class RelatorioController {
         this.auditoriaService = auditoriaService;
     }
 
+    @GetMapping("/visao-geral")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> visaoGeral(
+            @AuthenticationPrincipal Usuario usuario,
+            @RequestParam(required = false) String inicio,
+            @RequestParam(required = false) String fim,
+            @RequestParam(required = false) String gestor,
+            @RequestParam(required = false) Long orgaoId,
+            HttpServletRequest request) {
+        LocalDate dataFim = fim == null || fim.isBlank() ? LocalDate.now() : LocalDate.parse(fim);
+        LocalDate dataInicio = inicio == null || inicio.isBlank()
+                ? dataFim.minusDays(29)
+                : LocalDate.parse(inicio);
+        if (dataInicio.isAfter(dataFim)) {
+            LocalDate swap = dataInicio;
+            dataInicio = dataFim;
+            dataFim = swap;
+        }
+
+        Long escopoOrgao = null;
+        Long escopoEquipe = null;
+        boolean incluirNaoAtribuidas = false;
+        String filtroGestor = gestor == null || gestor.isBlank() ? null : gestor.trim();
+
+        if ("GESTOR".equals(usuario.getPerfil())) {
+            escopoEquipe = getEquipeId(usuario);
+            filtroGestor = null;
+        } else if ("ADMIN".equals(usuario.getPerfil())) {
+            if (usuario.getOrgao() == null) {
+                escopoOrgao = -1L;
+                incluirNaoAtribuidas = false;
+            } else {
+                escopoOrgao = usuario.getOrgao().getId();
+                incluirNaoAtribuidas = true;
+            }
+        } else if ("ANALYTICS_ADMIN".equals(usuario.getPerfil()) && usuario.getOrgao() != null) {
+            escopoOrgao = usuario.getOrgao().getId();
+            incluirNaoAtribuidas = true;
+        } else {
+            escopoOrgao = orgaoId;
+            incluirNaoAtribuidas = escopoOrgao == null;
+        }
+
+        List<Object[]> rows = ("GESTOR".equals(usuario.getPerfil()) && escopoEquipe == null)
+                ? List.of()
+                : solRepo.findReportRows(dataInicio.atStartOfDay(), dataFim.plusDays(1).atStartOfDay(),
+                        escopoOrgao, escopoEquipe, incluirNaoAtribuidas, filtroGestor);
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object[] row : rows) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", row[0]);
+            item.put("protocolo", row[1]);
+            item.put("status", row[2]);
+            item.put("prioridade", row[3]);
+            item.put("dataCriacao", row[4]);
+            item.put("categoria", row[5]);
+            item.put("endereco", row[6]);
+            item.put("gps", row[7]);
+            item.put("equipe", row[8]);
+            result.add(item);
+        }
+
+        auditoriaService.registrar("CONSULTA_RELATORIO_VISAO_GERAL",
+                "Visão geral consultada por " + usuario.getNome() + " no período " + dataInicio + " a " + dataFim,
+                usuario.getCpf(), usuario, true, request);
+        return ResponseEntity.ok(ApiResponse.ok(result));
+    }
+
     @GetMapping("/resumo")
     public ResponseEntity<ApiResponse<Map<String, Long>>> resumo(
             @AuthenticationPrincipal Usuario usuario,
@@ -60,26 +128,42 @@ public class RelatorioController {
         String fimStr = (fim != null && !fim.isBlank()) ? fim : LocalDate.now().toString();
         LocalDateTime inicioData = LocalDate.parse(iniStr).atStartOfDay();
         LocalDateTime fimData = LocalDate.parse(fimStr).plusDays(1).atStartOfDay();
-        String filtroGestor = "GESTOR".equals(usuario.getPerfil()) ? usuario.getNome() : gestor;
         Map<String, Long> result = new LinkedHashMap<>();
 
-        if (isAdminLocal(usuario)) {
+        if ("GESTOR".equals(usuario.getPerfil())) {
+            Long equipeId = getEquipeId(usuario);
+            if (equipeId == null) {
+                result.put("total", 0L);
+                result.put("concluidas", 0L);
+                result.put("emAndamento", 0L);
+                result.put("abertas", 0L);
+                result.put("urgentes", 0L);
+            } else {
+                result.put("total", solRepo.countByEquipeIdAndPeriod(equipeId, inicioData, fimData));
+                result.put("concluidas", solRepo.countByStatusAndEquipeIdAndPeriod("CONCLUIDA", equipeId, inicioData, fimData));
+                result.put("emAndamento", solRepo.countByStatusAndEquipeIdAndPeriod("EM_ANDAMENTO", equipeId, inicioData, fimData)
+                        + solRepo.countByStatusAndEquipeIdAndPeriod("EM_CAMPO", equipeId, inicioData, fimData));
+                result.put("abertas", solRepo.countByStatusAndEquipeIdAndPeriod("PENDENTE", equipeId, inicioData, fimData)
+                        + solRepo.countByStatusAndEquipeIdAndPeriod("TRIAGEM", equipeId, inicioData, fimData));
+                result.put("urgentes", solRepo.countUrgentesByEquipeIdAndPeriod(equipeId, inicioData, fimData));
+            }
+        } else if (isAdminLocal(usuario)) {
             Long orgaoId = usuario.getOrgao().getId();
-            result.put("total", solRepo.countByOrgaoIdAndPeriod(orgaoId, inicioData, fimData, filtroGestor));
-            result.put("concluidas", solRepo.countByStatusAndOrgaoIdAndPeriod("CONCLUIDA", orgaoId, inicioData, fimData, filtroGestor));
-            result.put("emAndamento", solRepo.countByStatusAndOrgaoIdAndPeriod("EM_ANDAMENTO", orgaoId, inicioData, fimData, filtroGestor)
-                + solRepo.countByStatusAndOrgaoIdAndPeriod("EM_CAMPO", orgaoId, inicioData, fimData, filtroGestor));
-            result.put("abertas", solRepo.countByStatusAndOrgaoIdAndPeriod("PENDENTE", orgaoId, inicioData, fimData, filtroGestor)
-                + solRepo.countByStatusAndOrgaoIdAndPeriod("TRIAGEM", orgaoId, inicioData, fimData, filtroGestor));
-            result.put("urgentes", solRepo.countUrgentesByOrgaoIdAndPeriod(orgaoId, inicioData, fimData, filtroGestor));
+            result.put("total", solRepo.countByOrgaoIdAndPeriod(orgaoId, inicioData, fimData, gestor));
+            result.put("concluidas", solRepo.countByStatusAndOrgaoIdAndPeriod("CONCLUIDA", orgaoId, inicioData, fimData, gestor));
+            result.put("emAndamento", solRepo.countByStatusAndOrgaoIdAndPeriod("EM_ANDAMENTO", orgaoId, inicioData, fimData, gestor)
+                + solRepo.countByStatusAndOrgaoIdAndPeriod("EM_CAMPO", orgaoId, inicioData, fimData, gestor));
+            result.put("abertas", solRepo.countByStatusAndOrgaoIdAndPeriod("PENDENTE", orgaoId, inicioData, fimData, gestor)
+                + solRepo.countByStatusAndOrgaoIdAndPeriod("TRIAGEM", orgaoId, inicioData, fimData, gestor));
+            result.put("urgentes", solRepo.countUrgentesByOrgaoIdAndPeriod(orgaoId, inicioData, fimData, gestor));
         } else {
-            result.put("total", solRepo.countByPeriod(inicioData, fimData, filtroGestor));
-            result.put("concluidas", solRepo.countByStatusAndPeriod("CONCLUIDA", inicioData, fimData, filtroGestor));
-            result.put("emAndamento", solRepo.countByStatusAndPeriod("EM_ANDAMENTO", inicioData, fimData, filtroGestor)
-                + solRepo.countByStatusAndPeriod("EM_CAMPO", inicioData, fimData, filtroGestor));
-            result.put("abertas", solRepo.countByStatusAndPeriod("PENDENTE", inicioData, fimData, filtroGestor)
-                + solRepo.countByStatusAndPeriod("TRIAGEM", inicioData, fimData, filtroGestor));
-            result.put("urgentes", solRepo.countUrgentesByPeriod(inicioData, fimData, filtroGestor));
+            result.put("total", solRepo.countByPeriod(inicioData, fimData, gestor));
+            result.put("concluidas", solRepo.countByStatusAndPeriod("CONCLUIDA", inicioData, fimData, gestor));
+            result.put("emAndamento", solRepo.countByStatusAndPeriod("EM_ANDAMENTO", inicioData, fimData, gestor)
+                + solRepo.countByStatusAndPeriod("EM_CAMPO", inicioData, fimData, gestor));
+            result.put("abertas", solRepo.countByStatusAndPeriod("PENDENTE", inicioData, fimData, gestor)
+                + solRepo.countByStatusAndPeriod("TRIAGEM", inicioData, fimData, gestor));
+            result.put("urgentes", solRepo.countUrgentesByPeriod(inicioData, fimData, gestor));
         }
 
         auditoriaService.registrar("CONSULTA_RELATORIO_RESUMO",
@@ -111,7 +195,9 @@ public class RelatorioController {
             raw = solRepo.countByCategoriaAndOrgaoIdPeriod(orgaoId, inicioData, fimData, gestor);
         } else if ("GESTOR".equals(usuario.getPerfil())) {
             Long equipeId = getEquipeId(usuario);
-            raw = equipeId != null ? solRepo.countByCategoriaAndEquipeId(equipeId) : List.of();
+            raw = equipeId != null
+                    ? solRepo.countByCategoriaAndEquipeIdPeriod(equipeId, inicioData, fimData)
+                    : List.of();
         } else {
             String filtroGestor = gestor;
             raw = solRepo.countByCategoriaPeriod(inicioData, fimData, filtroGestor);
@@ -154,6 +240,11 @@ public class RelatorioController {
             raw = (inicio != null && fim != null)
                 ? solRepo.countByStatusGroupedAndOrgaoIdPeriod(orgaoId, inicioData, fimData, filtroGestor)
                 : solRepo.countByStatusGroupedAndOrgaoId(orgaoId);
+        } else if ("GESTOR".equals(usuario.getPerfil())) {
+            Long equipeId = getEquipeId(usuario);
+            raw = equipeId == null ? List.of()
+                : solRepo.countByStatusGroupedAndEquipeIdPeriod(equipeId,
+                    LocalDate.parse(inicio).atStartOfDay(), LocalDate.parse(fim).plusDays(1).atStartOfDay());
         } else if (inicio != null && fim != null) {
             LocalDateTime inicioData = LocalDate.parse(inicio).atStartOfDay();
             LocalDateTime fimData = LocalDate.parse(fim).plusDays(1).atStartOfDay();
@@ -180,10 +271,10 @@ public class RelatorioController {
     }
 
     /**
-     * Retorna a tendência mensal dos últimos 6 meses (global — apenas ADMIN).
+        * Retorna a tendência mensal no escopo autorizado do usuário.
      */
     @GetMapping("/tendencia-mensal")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ANALYTICS_ADMIN', 'GLOBAL_ADMIN')")
+        @PreAuthorize("hasAnyRole('ADMIN', 'GESTOR', 'ANALYTICS_ADMIN', 'GLOBAL_ADMIN')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> tendenciaMensal(
             @RequestParam(required = false) String inicio, @RequestParam(required = false) String fim,
             @RequestParam(required = false) String gestor,
@@ -192,7 +283,11 @@ public class RelatorioController {
         LocalDateTime fimData = fim != null ? LocalDate.parse(fim).plusDays(1).atStartOfDay() : LocalDateTime.now().plusDays(1);
         LocalDateTime inicioData = inicio != null ? LocalDate.parse(inicio).atStartOfDay() : fimData.minusMonths(6);
         List<Object[]> raw;
-        if (isAdminLocal(usuario)) {
+        if ("GESTOR".equals(usuario.getPerfil())) {
+            Long equipeId = getEquipeId(usuario);
+            raw = equipeId == null ? List.of()
+                : solRepo.tendenciaMensalPeriodAndEquipeId(equipeId, inicioData, fimData);
+        } else if (isAdminLocal(usuario)) {
             Long orgaoId = usuario.getOrgao().getId();
             raw = solRepo.tendenciaMensalPeriodAndOrgaoId(orgaoId, inicioData, fimData, gestor);
         } else {
@@ -219,7 +314,11 @@ public class RelatorioController {
      * taxa de conclusão, tempo médio de resolução, cobertura territorial, engajamento.
      */
     @GetMapping("/indicadores")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> indicadores(@AuthenticationPrincipal Usuario usuario, HttpServletRequest request) {
+        public ResponseEntity<ApiResponse<Map<String, Object>>> indicadores(
+            @AuthenticationPrincipal Usuario usuario,
+            @RequestParam(required = false) String inicio,
+            @RequestParam(required = false) String fim,
+            HttpServletRequest request) {
         long total;
         long concluidas;
         Double tempoMedio;
@@ -227,7 +326,32 @@ public class RelatorioController {
         long gestoresCount;
         long equipesCount;
 
-        if (isAdminLocal(usuario)) {
+        String inicioPeriodo = (inicio != null && !inicio.isBlank()) ? inicio : LocalDate.now().minusDays(30).toString();
+        String fimPeriodo = (fim != null && !fim.isBlank()) ? fim : LocalDate.now().toString();
+        LocalDateTime inicioData = LocalDate.parse(inicioPeriodo).atStartOfDay();
+        LocalDateTime fimData = LocalDate.parse(fimPeriodo).plusDays(1).atStartOfDay();
+
+        if ("GESTOR".equals(usuario.getPerfil())) {
+            Long equipeId = getEquipeId(usuario);
+            if (equipeId == null) {
+                total = 0;
+                concluidas = 0;
+                tempoMedio = null;
+                regioes = 0;
+                gestoresCount = 0;
+                equipesCount = 0;
+            } else {
+                total = solRepo.countByEquipeIdAndPeriod(equipeId, inicioData, fimData);
+                concluidas = solRepo.countByStatusAndEquipeIdAndPeriod("CONCLUIDA", equipeId, inicioData, fimData);
+                tempoMedio = solRepo.tempoMedioResolucaoDiasByEquipeIdAndPeriod(equipeId, inicioData, fimData);
+                regioes = solRepo.dadosTerritoriaisByEquipeIdAndPeriod(equipeId, inicioData, fimData).stream()
+                        .map(row -> extrairRegiao((String) row[0], (String) row[1]))
+                        .filter(region -> !"Não informada".equals(region))
+                        .distinct().count();
+                gestoresCount = 1;
+                equipesCount = 1;
+            }
+        } else if (isAdminLocal(usuario)) {
             Long orgaoId = usuario.getOrgao().getId();
             total = solRepo.countByOrgaoId(orgaoId);
             concluidas = solRepo.countByStatusAndOrgaoId("CONCLUIDA", orgaoId);
@@ -255,11 +379,15 @@ public class RelatorioController {
         result.put("concluidas", concluidas);
         result.put("taxaConclusao", total > 0 ? Math.round(concluidas * 1000.0 / total) / 10.0 : 0);
         result.put("tempoMedioResolucaoDias", tempoMedio != null ? Math.round(tempoMedio * 10.0) / 10.0 : null);
-        result.put("urgentesAbertas", isAdminLocal(usuario) ? solRepo.countUrgentesByOrgaoId(usuario.getOrgao().getId()) : solRepo.countUrgentes());
-        result.put("cidadaosCadastrados", usuarioRepo.countByPerfil("CITIZEN"));
+        result.put("urgentesAbertas", "GESTOR".equals(usuario.getPerfil())
+            ? (getEquipeId(usuario) == null ? 0L : solRepo.countUrgentesByEquipeIdAndPeriod(getEquipeId(usuario), inicioData, fimData))
+            : (isAdminLocal(usuario) ? solRepo.countUrgentesByOrgaoId(usuario.getOrgao().getId()) : solRepo.countUrgentes()));
+        result.put("cidadaosCadastrados", "GESTOR".equals(usuario.getPerfil())
+            ? (getEquipeId(usuario) == null ? 0L : solRepo.countUsuariosByEquipeIdAndPeriod(getEquipeId(usuario), inicioData, fimData))
+            : usuarioRepo.countByPerfil("CITIZEN"));
         result.put("gestoresAtivos", gestoresCount);
         result.put("equipesOperacionais", equipesCount);
-        result.put("orgaosIntegrados", isAdminLocal(usuario) ? 1L : orgaoRepo.count());
+        result.put("orgaosIntegrados", "GESTOR".equals(usuario.getPerfil()) || isAdminLocal(usuario) ? 1L : orgaoRepo.count());
         result.put("regioesAtendidas", regioes);
         auditoriaService.registrar("CONSULTA_INDICADORES_NACIONAIS",
             "Indicadores consultados por " + usuario.getNome(),
@@ -274,9 +402,15 @@ public class RelatorioController {
     @GetMapping("/matriz-ia")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> matrizIA(@AuthenticationPrincipal Usuario usuario, HttpServletRequest request) {
         List<Map<String, Object>> result = new ArrayList<>();
-        List<Object[]> rows = isAdminLocal(usuario)
-            ? solRepo.matrizServicoPrioridadeEquipeByOrgaoId(usuario.getOrgao().getId())
-            : solRepo.matrizServicoPrioridadeEquipe();
+        List<Object[]> rows;
+        if ("GESTOR".equals(usuario.getPerfil())) {
+            Long equipeId = getEquipeId(usuario);
+            rows = equipeId == null ? List.of() : solRepo.matrizServicoPrioridadeEquipeByEquipeId(equipeId);
+        } else if (isAdminLocal(usuario)) {
+            rows = solRepo.matrizServicoPrioridadeEquipeByOrgaoId(usuario.getOrgao().getId());
+        } else {
+            rows = solRepo.matrizServicoPrioridadeEquipe();
+        }
         for (Object[] row : rows) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("servico", row[0]);
@@ -296,11 +430,44 @@ public class RelatorioController {
      * extraída do endereço), com abertas, concluídas e urgentes por região.
      */
     @GetMapping("/territorial")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> territorial(@AuthenticationPrincipal Usuario usuario, HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> territorial(
+            @AuthenticationPrincipal Usuario usuario,
+            @RequestParam(required = false) String inicio,
+            @RequestParam(required = false) String fim,
+            HttpServletRequest request) {
         Map<String, long[]> porRegiao = new LinkedHashMap<>();
-        List<Object[]> rows = isAdminLocal(usuario)
-            ? solRepo.dadosTerritoriaisByOrgaoId(usuario.getOrgao().getId())
-            : solRepo.dadosTerritoriais();
+        List<Object[]> rows;
+        boolean hasPeriod = (inicio != null && !inicio.isBlank()) || (fim != null && !fim.isBlank());
+        LocalDateTime inicioData = null;
+        LocalDateTime fimData = null;
+        if (hasPeriod) {
+            LocalDate dateEnd = fim == null || fim.isBlank() ? LocalDate.now() : LocalDate.parse(fim);
+            LocalDate dateStart = inicio == null || inicio.isBlank() ? dateEnd : LocalDate.parse(inicio);
+            if (dateStart.isAfter(dateEnd)) {
+                LocalDate swap = dateStart;
+                dateStart = dateEnd;
+                dateEnd = swap;
+            }
+            inicioData = dateStart.atStartOfDay();
+            fimData = dateEnd.plusDays(1).atStartOfDay();
+        }
+
+        if (isAdminLocal(usuario)) {
+            Long orgaoId = usuario.getOrgao().getId();
+            rows = hasPeriod
+                    ? solRepo.dadosTerritoriaisByOrgaoIdOrUnassignedAndPeriod(orgaoId, inicioData, fimData)
+                    : solRepo.dadosTerritoriaisByOrgaoIdOrUnassigned(orgaoId);
+        } else if ("GESTOR".equals(usuario.getPerfil())) {
+            Long equipeId = getEquipeId(usuario);
+            rows = equipeId == null ? List.of()
+                    : (hasPeriod
+                        ? solRepo.dadosTerritoriaisByEquipeIdAndPeriod(equipeId, inicioData, fimData)
+                        : solRepo.dadosTerritoriaisByEquipeId(equipeId));
+        } else {
+            rows = hasPeriod
+                    ? solRepo.dadosTerritoriaisByPeriod(inicioData, fimData)
+                    : solRepo.dadosTerritoriais();
+        }
         for (Object[] row : rows) {
             String regiao = extrairRegiao((String) row[0], (String) row[1]);
             String status = (String) row[2];

@@ -149,11 +149,12 @@ export const analyticsService = {
 
 // ============ RELATORIOS ============
 export const relatorioService = {
+  visaoGeral: (params) => api.get('/api/relatorios/visao-geral', { params }),
   resumo: (params) => api.get('/api/relatorios/resumo', { params }),
   porCategoria: (params) => api.get('/api/relatorios/por-categoria', { params }),
   porStatus: (params) => api.get('/api/relatorios/por-status', { params }),
   tendenciaMensal: (params) => api.get('/api/relatorios/tendencia-mensal', { params }),
-  indicadores: () => api.get('/api/relatorios/indicadores'),
+  indicadores: (params) => api.get('/api/relatorios/indicadores', { params }),
   matrizIA: () => api.get('/api/relatorios/matriz-ia'),
   territorial: () => api.get('/api/relatorios/territorial'),
 };

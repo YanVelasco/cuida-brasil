@@ -51,6 +51,16 @@
   border-top: 3px solid;
   box-shadow: var(--shadow-sm);
 }
+.statCardInteractive {
+  width: 100%;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, outline-color 0.15s ease;
+}
+.statCardInteractive:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.statCardInteractive:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .statCard.blue  { border-top-color: var(--primary); }
 .statCard.green { border-top-color: var(--success); }
 .statCard.orange { border-top-color: var(--warning); }
@@ -212,6 +222,8 @@
 .table tr:last-child td { border-bottom: none; }
 .proto { font-family: monospace; font-weight: 600; color: var(--text-primary); }
 .muted { color: var(--text-secondary); }
+.filterableCell { cursor: pointer; }
+.filterableCell:hover { background: color-mix(in srgb, var(--primary) 7%, var(--surface)); }
 .prazo { font-weight: 500; }
 .prazo.urgent { color: var(--danger); }
 .prazo.ok { color: var(--success); }

@@ -12,7 +12,7 @@ const getNavSections = (perfil, solicitacoesCount) => {
         label: 'ADMINISTRAÇÃO DO ÓRGÃO',
         items: [
           { to: '/admin', label: 'Dashboard Executivo', end: true },
-          { to: '/admin/dashboard', label: 'Dashboard Operacional & SLA' },
+          { to: '/admin/dashboard', label: 'Dashboard Operacional' },
           { to: '/admin/relatorios', label: 'Relatórios do Órgão' },
         ]
       },
@@ -33,7 +33,7 @@ const getNavSections = (perfil, solicitacoesCount) => {
         label: 'ANALÍTICA & AUDITORIA (LEITURA)',
         items: [
           { to: '/admin', label: 'Dashboard Executivo', end: true },
-          { to: '/admin/dashboard', label: 'Dashboard Operacional & SLA' },
+          { to: '/admin/dashboard', label: 'Dashboard Operacional' },
           { to: '/admin/relatorios', label: 'Relatórios Analíticos' },
         ]
       }
@@ -46,7 +46,7 @@ const getNavSections = (perfil, solicitacoesCount) => {
         label: 'ADMINISTRAÇÃO GLOBAL',
         items: [
           { to: '/admin', label: 'Dashboard Global', end: true },
-          { to: '/admin/dashboard', label: 'Dashboard Operacional & SLA' },
+          { to: '/admin/dashboard', label: 'Dashboard Operacional' },
           { to: '/admin/relatorios', label: 'Relatórios Nacionais' },
           { to: '/admin/orgaos', label: 'Órgãos Públicos' },
         ]
@@ -66,7 +66,7 @@ const getNavSections = (perfil, solicitacoesCount) => {
     {
       label: 'PRINCIPAL',
       items: [
-        { to: '/admin/dashboard', label: 'Dashboard Operacional & SLA', end: true },
+        { to: '/admin/dashboard', label: 'Dashboard Operacional', end: true },
         { to: '/admin/relatorios', label: 'Relatórios da Equipe' },
         { to: '/admin/mapa', label: 'Mapa de Ocorrências' },
         { to: '/admin/solicitacoes', label: 'Solicitações', badge: solicitacoesCount },

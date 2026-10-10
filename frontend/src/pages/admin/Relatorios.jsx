@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
-import { relatorioService, equipeService, analyticsService, orgaoService } from '../../services/api';
+import { relatorioService, gestorService, analyticsService, orgaoService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRegion } from '../../contexts/RegionContext';
+import { matchesRegion, resolveRegionFromLocation } from '../../utils/geo';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar
 } from 'recharts';
@@ -17,11 +19,11 @@ const CAT_COLORS = ['#2F80ED', '#27AE60', '#9B51E0', '#F2994A', '#EB5757'];
 
 export default function Relatorios() {
   const { user } = useAuth();
+  const { selectedRegion } = useRegion();
   const [activeTab, setActiveTab] = useState('geral'); // 'geral', 'sla', 'equipes', 'satisfacao', 'gargalos'
   const [period, setPeriod] = useState('Este mês');
-  const [catData, setCatData]   = useState([]);
-  const [tendencia, setTendencia] = useState([]);
-  const [kpiData, setKpiData]   = useState(null);
+  const [reportRows, setReportRows] = useState([]);
+  const [selectedInsight, setSelectedInsight] = useState(null);
   const [gestor, setGestor] = useState('');
   const [gestores, setGestores] = useState([]);
   const [orgaos, setOrgaos] = useState([]);
@@ -29,26 +31,37 @@ export default function Relatorios() {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [loading, setLoading]   = useState(true);
-  const [statusData, setStatusData] = useState([]);
   const [indicadores, setIndicadores] = useState(null);
-  const [matrizIA, setMatrizIA] = useState([]);
-  const [territorial, setTerritorial] = useState([]);
   const [showReport, setShowReport] = useState(false);
 
   // Dados das consultas analíticas SQL avançadas (SLA, Ranking, CSAT, Gargalos)
   const [analyticsData, setAnalyticsData] = useState(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
+  const formatDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const getPeriod = () => {
-    if (customStart && customEnd) return { inicio: customStart, fim: customEnd };
+    if (customStart || customEnd) {
+      const start = customStart || customEnd;
+      const end = customEnd || customStart;
+      return start <= end ? { inicio: start, fim: end } : { inicio: end, fim: start };
+    }
     const end = new Date();
     const start = new Date(end);
-    if (period === 'Esta semana') start.setDate(end.getDate() - 6);
-    if (period === 'Este mês') start.setDate(end.getDate() - 30);
-    if (period === 'Último trimestre') start.setMonth(end.getMonth() - 2, 1);
-    if (period === 'Anual') start.setMonth(0, 1);
-    const format = (date) => date.toISOString().slice(0, 10);
-    return { inicio: format(start), fim: format(end) };
+    const selectedPeriod = PERIODS.includes(period) ? period : 'Este mês';
+    if (selectedPeriod === 'Esta semana') {
+      const daysSinceMonday = (end.getDay() + 6) % 7;
+      start.setDate(end.getDate() - daysSinceMonday);
+    }
+    if (selectedPeriod === 'Este mês') start.setDate(1);
+    if (selectedPeriod === 'Último trimestre') start.setMonth(end.getMonth() - 2, 1);
+    if (selectedPeriod === 'Anual') start.setMonth(0, 1);
+    return { inicio: formatDate(start), fim: formatDate(end) };
   };
 
   useEffect(() => {
@@ -60,39 +73,21 @@ export default function Relatorios() {
       ...(orgaoSelecionado ? { orgaoId: orgaoSelecionado } : {})
     };
     Promise.allSettled([
-      relatorioService.porCategoria(params),
-      relatorioService.tendenciaMensal(params),
-      relatorioService.resumo(params),
-      relatorioService.porStatus(params),
-      relatorioService.indicadores(),
-      relatorioService.matrizIA(),
-      relatorioService.territorial(),
-    ]).then(([catRes, tendRes, kpiRes, statusRes, indRes, matrizRes, terrRes]) => {
-      if (catRes.status === 'fulfilled') {
-        const raw = catRes.value?.data?.data || catRes.value?.data || [];
-        setCatData(raw.map((item, i) => ({ ...item, color: CAT_COLORS[i % CAT_COLORS.length] })));
-      }
-      if (tendRes.status === 'fulfilled') {
-        const raw = tendRes.value?.data?.data || tendRes.value?.data || [];
-        setTendencia(raw);
-      }
-      if (kpiRes.status === 'fulfilled') {
-        setKpiData(kpiRes.value?.data?.data || kpiRes.value?.data);
-      }
-      if (statusRes.status === 'fulfilled') {
-        setStatusData(statusRes.value?.data?.data || statusRes.value?.data || []);
+      relatorioService.visaoGeral(params),
+      relatorioService.indicadores(params),
+    ]).then(([rowsRes, indRes]) => {
+      if (rowsRes.status === 'fulfilled') {
+        setReportRows(rowsRes.value?.data?.data || rowsRes.value?.data || []);
+      } else {
+        setReportRows([]);
       }
       if (indRes.status === 'fulfilled') {
         setIndicadores(indRes.value?.data?.data || indRes.value?.data);
-      }
-      if (matrizRes.status === 'fulfilled') {
-        setMatrizIA(matrizRes.value?.data?.data || matrizRes.value?.data || []);
-      }
-      if (terrRes.status === 'fulfilled') {
-        setTerritorial(terrRes.value?.data?.data || terrRes.value?.data || []);
+      } else {
+        setIndicadores(null);
       }
     }).finally(() => setLoading(false));
-  }, [period, gestor, orgaoSelecionado, customStart, customEnd]);
+  }, [period, gestor, orgaoSelecionado, customStart, customEnd, user?.perfil]);
 
   useEffect(() => {
     orgaoService.listar().then((response) => {
@@ -102,12 +97,19 @@ export default function Relatorios() {
   }, []);
 
   useEffect(() => {
-    equipeService.dashboard({ page: 0, size: 200 }).then((response) => {
-      const data = response.data?.data || response.data || {};
-      const items = Array.isArray(data) ? data : (data.content || []);
-      setGestores([...new Set(items.map((item) => item.supervisor).filter((nome) => nome && nome !== 'Sem supervisor'))].sort());
+    if (user?.perfil === 'GESTOR') {
+      setGestores([]);
+      setGestor('');
+      return undefined;
+    }
+
+    gestorService.listar().then((response) => {
+      const data = response.data?.data || response.data || [];
+      setGestores([...new Set(data.map((item) => item.nome).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, 'pt-BR')));
     }).catch(() => setGestores([]));
-  }, []);
+    return undefined;
+  }, [user?.perfil]);
 
   // Carrega dados analíticos avançados das consultas SQL (SLA, Ranking, CSAT, Gargalos)
   useEffect(() => {
@@ -124,11 +126,105 @@ export default function Relatorios() {
       .finally(() => setLoadingAnalytics(false));
   }, [gestor, orgaoSelecionado]);
 
-  const totalSolicitacoes = kpiData?.total ?? catData.reduce((sum, c) => sum + (c.qtd || 0), 0);
-  const periodLabel = customStart && customEnd ? `${customStart} a ${customEnd}` : period;
+  const effectivePeriod = getPeriod();
+  const periodLabel = customStart || customEnd
+    ? `${effectivePeriod.inicio} a ${effectivePeriod.fim}`
+    : (period || 'Este mês');
   const geradoEm = new Date().toLocaleString('pt-BR');
   const orgaoObj = orgaos.find((o) => String(o.id) === String(orgaoSelecionado));
   const orgaoLabel = orgaoObj ? ` | Órgão: ${orgaoObj.sigla || orgaoObj.nome}` : (user?.orgaoNome ? ` | Órgão: ${user.orgaoNome}` : '');
+  const regionLabel = selectedRegion ? ` | Região: ${selectedRegion}` : '';
+  const toggleInsight = (filter) => {
+    setSelectedInsight(current => current?.type === filter.type && current?.value === filter.value ? null : filter);
+  };
+  const clearInsightFilter = () => setSelectedInsight(null);
+
+  const filteredReportRows = useMemo(() => reportRows.filter(row => {
+    if (!matchesRegion(row.endereco, row.gps, selectedRegion)) return false;
+    if (!selectedInsight) return true;
+    if (selectedInsight.type === 'status') return selectedInsight.values.includes(row.status);
+    if (selectedInsight.type === 'category') return row.categoria === selectedInsight.value;
+    if (selectedInsight.type === 'region') {
+      return matchesRegion(row.endereco, row.gps, selectedInsight.value);
+    }
+    if (selectedInsight.type === 'priority') {
+      return ['ALTA', 'URGENTE'].includes((row.prioridade || '').toUpperCase())
+        && !['CONCLUIDA', 'CANCELADA'].includes(row.status);
+    }
+    if (selectedInsight.type === 'month') return String(row.dataCriacao || '').slice(0, 7) === selectedInsight.value;
+    return true;
+  }), [reportRows, selectedRegion, selectedInsight]);
+
+  const { totalSolicitacoes, kpiData, catData, statusData, tendencia, visibleTerritorial, matrizIA } = useMemo(() => {
+    const total = filteredReportRows.length;
+    const concluded = filteredReportRows.filter(row => row.status === 'CONCLUIDA').length;
+    const inProgress = filteredReportRows.filter(row => ['EM_ANDAMENTO', 'EM_CAMPO'].includes(row.status)).length;
+    const open = filteredReportRows.filter(row => ['PENDENTE', 'TRIAGEM'].includes(row.status)).length;
+    const urgent = filteredReportRows.filter(row => ['ALTA', 'URGENTE'].includes((row.prioridade || '').toUpperCase())
+      && !['CONCLUIDA', 'CANCELADA'].includes(row.status)).length;
+
+    const categoryCounts = new Map();
+    const statusCounts = new Map();
+    const regionCounts = new Map();
+    const monthCounts = new Map();
+    const matrixCounts = new Map();
+
+    filteredReportRows.forEach(row => {
+      const category = row.categoria || 'Não informada';
+      categoryCounts.set(category, (categoryCounts.get(category) || 0) + 1);
+      statusCounts.set(row.status || 'INDEFINIDO', (statusCounts.get(row.status || 'INDEFINIDO') || 0) + 1);
+      const matrixKey = [category, row.prioridade || 'Não informada', row.equipe || 'Sem equipe'].join('|');
+      matrixCounts.set(matrixKey, (matrixCounts.get(matrixKey) || 0) + 1);
+
+      const region = resolveRegionFromLocation(row.endereco, row.gps);
+      const regionEntry = regionCounts.get(region) || { total: 0, abertas: 0, concluidas: 0, urgentes: 0 };
+      regionEntry.total += 1;
+      if (['PENDENTE', 'TRIAGEM', 'EM_ANDAMENTO', 'EM_CAMPO'].includes(row.status)) regionEntry.abertas += 1;
+      if (row.status === 'CONCLUIDA') regionEntry.concluidas += 1;
+      if (['ALTA', 'URGENTE'].includes((row.prioridade || '').toUpperCase())
+          && !['CONCLUIDA', 'CANCELADA'].includes(row.status)) regionEntry.urgentes += 1;
+      regionCounts.set(region, regionEntry);
+
+      const monthKey = String(row.dataCriacao || '').slice(0, 7);
+      if (monthKey.length === 7) monthCounts.set(monthKey, (monthCounts.get(monthKey) || 0) + 1);
+    });
+
+    const categories = [...categoryCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([nome, qtd], index) => ({
+        nome,
+        qtd,
+        pct: total ? Math.round(qtd * 100 / total) : 0,
+        color: CAT_COLORS[index % CAT_COLORS.length],
+      }));
+    const statuses = [...statusCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([status, count]) => ({ status, total: count }));
+    const territories = [...regionCounts.entries()]
+      .sort((a, b) => b[1].total - a[1].total)
+      .map(([regiao, values]) => ({ ...values, regiao, criticidade: values.total ? Math.round(values.urgentes * 100 / values.total) : 0 }));
+    const months = [...monthCounts.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([key, count]) => {
+      const [year, month] = key.split('-').map(Number);
+      const monthName = new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'short' });
+      return { key, mes: monthName, ano: year, label: `${monthName} ${year}`, total: count };
+    });
+    const matrix = [...matrixCounts.entries()]
+      .map(([key, atendimentos]) => {
+        const [servico, prioridade, equipe] = key.split('|');
+        return { servico, prioridade, equipe, atendimentos };
+      })
+      .sort((a, b) => b.atendimentos - a.atendimentos);
+
+    return {
+      totalSolicitacoes: total,
+      kpiData: { total, concluidas: concluded, emAndamento: inProgress, abertas: open, urgentes: urgent },
+      catData: categories,
+      statusData: statuses,
+      tendencia: months,
+      visibleTerritorial: territories,
+      matrizIA: matrix,
+    };
+  }, [filteredReportRows]);
 
   const exportPDF = () => {
     const doc = new jsPDF();
@@ -140,7 +236,7 @@ export default function Relatorios() {
     doc.setFontSize(16);
     doc.text('Cuidar+Brasil — Relatório Executivo', 14, 12);
     doc.setFontSize(9);
-    doc.text(`Período: ${periodLabel}${orgaoLabel}${gestor ? ` | Gestor: ${gestor}` : ''} | Gerado em: ${geradoEm}`, 14, 20);
+    doc.text(`Período: ${periodLabel}${orgaoLabel}${gestor ? ` | Gestor: ${gestor}` : ''}${regionLabel} | Gerado em: ${geradoEm}`, 14, 20);
 
     doc.setTextColor(40, 40, 40);
     doc.setFontSize(12);
@@ -161,7 +257,7 @@ export default function Relatorios() {
           ['Taxa de conclusão', `${indicadores.taxaConclusao ?? 0}%`],
           ['Tempo médio de resolução', indicadores.tempoMedioResolucaoDias != null ? `${indicadores.tempoMedioResolucaoDias} dias` : 'N/D'],
           ['Urgentes em aberto', indicadores.urgentesAbertas ?? 0],
-          ['Cidadãos cadastrados', indicadores.cidadaosCadastrados ?? 0],
+          [user?.perfil === 'GESTOR' ? 'Cidadãos com solicitações na equipe' : 'Cidadãos cadastrados', indicadores.cidadaosCadastrados ?? 0],
           ['Gestores ativos', indicadores.gestoresAtivos ?? 0],
           ['Equipes operacionais', indicadores.equipesOperacionais ?? 0],
           ['Órgãos integrados', indicadores.orgaosIntegrados ?? 0],
@@ -189,12 +285,12 @@ export default function Relatorios() {
       });
     }
 
-    if (territorial.length > 0) {
+    if (visibleTerritorial.length > 0) {
       doc.text('Inteligência Territorial (por região)', 14, doc.lastAutoTable.finalY + 10);
       autoTable(doc, {
         startY: doc.lastAutoTable.finalY + 14,
         head: [['Região', 'Total', 'Abertas', 'Concluídas', 'Urgentes', 'Criticidade']],
-        body: territorial.slice(0, 15).map(t => [t.regiao, t.total, t.abertas, t.concluidas, t.urgentes, `${t.criticidade}%`]),
+        body: visibleTerritorial.slice(0, 15).map(t => [t.regiao, t.total, t.abertas, t.concluidas, t.urgentes, `${t.criticidade}%`]),
         headStyles: { fillColor: azul },
       });
     }
@@ -326,13 +422,13 @@ export default function Relatorios() {
       <div className={styles.periodBar}>
         <div className={styles.periodTabs}>
           {PERIODS.map(p => (
-            <button key={p} className={[styles.periodTab, period === p ? styles.periodActive : ''].join(' ')} onClick={() => { setPeriod(p); setCustomStart(''); setCustomEnd(''); }}>{p}</button>
+            <button key={p} className={[styles.periodTab, !customStart && !customEnd && period === p ? styles.periodActive : ''].join(' ')} onClick={() => { setPeriod(p); setCustomStart(''); setCustomEnd(''); }}>{p}</button>
           ))}
         </div>
         <div className={styles.customRange}>
-          <input type="date" className={styles.dateInput} value={customStart} onChange={(event) => setCustomStart(event.target.value)}/>
+          <input type="date" className={styles.dateInput} aria-label="Data inicial" max={customEnd || formatDate(new Date())} value={customStart} onChange={(event) => { setPeriod(''); setCustomStart(event.target.value); }}/>
           <span>→</span>
-          <input type="date" className={styles.dateInput} value={customEnd} onChange={(event) => setCustomEnd(event.target.value)}/>
+          <input type="date" className={styles.dateInput} aria-label="Data final" min={customStart || undefined} max={formatDate(new Date())} value={customEnd} onChange={(event) => { setPeriod(''); setCustomEnd(event.target.value); }}/>
         </div>
         {orgaos.length > 1 && (
           <select className={styles.dateInput} value={orgaoSelecionado} onChange={(event) => setOrgaoSelecionado(event.target.value)}>
@@ -340,10 +436,12 @@ export default function Relatorios() {
             {orgaos.map((o) => <option key={o.id} value={o.id}>{o.sigla ? `${o.sigla} - ${o.nome}` : o.nome}</option>)}
           </select>
         )}
-        <select className={styles.dateInput} value={gestor} onChange={(event) => setGestor(event.target.value)}>
-          <option value="">Todos os gestores</option>
-          {gestores.map((nome) => <option key={nome} value={nome}>{nome}</option>)}
-        </select>
+        {user?.perfil !== 'GESTOR' && (
+          <select className={styles.dateInput} value={gestor} onChange={(event) => setGestor(event.target.value)}>
+            <option value="">Todos os gestores</option>
+            {gestores.map((nome) => <option key={nome} value={nome}>{nome}</option>)}
+          </select>
+        )}
         <button className={styles.exportBtn} onClick={() => setShowReport(true)} disabled={loading}>
           <FileText size={16} style={{verticalAlign: 'middle', marginRight: 6}}/>Visualizar Relatório
         </button>
@@ -354,39 +452,50 @@ export default function Relatorios() {
       {/* ============================================================== */}
       {activeTab === 'geral' && (
         <>
+          {selectedInsight && (
+            <div className={styles.activeInsightFilter}>
+              <span>Filtro cruzado: {selectedInsight.label}</span>
+              <button type="button" onClick={clearInsightFilter}>Limpar filtro</button>
+            </div>
+          )}
           {/* KPI Cards — dados reais */}
           <div className={styles.kpis}>
         {[
           {
             label: 'TOTAL DE CHAMADOS',
             value: loading ? '...' : totalSolicitacoes.toLocaleString('pt-BR'),
-            sub: 'dados do banco',
-            color: 'gray'
+            sub: 'no escopo e período filtrados',
+            color: 'gray',
+            filter: { type: 'clear', value: 'all', label: 'Todos os registros' },
           },
           {
             label: 'CONCLUÍDAS',
             value: loading ? '...' : (kpiData?.concluidas ?? 0),
             sub: 'total concluídas',
-            color: 'green'
+            color: 'green',
+            filter: { type: 'status', value: 'CONCLUIDA', values: ['CONCLUIDA'], label: 'Status: Concluídas' },
           },
           {
             label: 'URGENTES ABERTAS',
             value: loading ? '...' : (kpiData?.urgentes ?? 0),
             sub: 'requerem ação',
-            color: 'orange'
+            color: 'orange',
+            filter: { type: 'priority', value: 'URGENTE_ALTA', label: 'Prioridade: Alta ou urgente' },
           },
           {
             label: 'EM ANDAMENTO',
             value: loading ? '...' : (kpiData?.emAndamento ?? 0),
             sub: 'total em andamento',
-            color: 'yellow'
+            color: 'yellow',
+            filter: { type: 'status', value: 'EM_ANDAMENTO', values: ['EM_ANDAMENTO', 'EM_CAMPO'], label: 'Status: Em andamento ou em campo' },
           },
         ].map((k, i) => (
-          <div key={i} className={[styles.kpiCard, styles[k.color]].join(' ')}>
+          <button key={i} type="button" className={[styles.kpiCard, styles[k.color], styles.kpiInteractive].join(' ')}
+            onClick={() => k.filter.type === 'clear' ? clearInsightFilter() : toggleInsight(k.filter)} title={`Filtrar: ${k.filter.label}`}>
             <div className={styles.kpiLabel}>{k.label}</div>
             <div className={styles.kpiVal}>{k.value}</div>
             <div className={styles.kpiSub}>{k.sub}</div>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -402,9 +511,13 @@ export default function Relatorios() {
             </p>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={tendencia} margin={{top:5,right:10,left:-20,bottom:0}}>
+              <AreaChart data={tendencia} margin={{top:5,right:10,left:-20,bottom:0}}
+                onClick={(event) => {
+                  const point = event?.activePayload?.[0]?.payload;
+                  if (point) toggleInsight({ type: 'month', value: point.key, label: `Mês: ${point.mes} ${point.ano}` });
+                }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
-                <XAxis dataKey="mes" tick={{fontSize:11}} axisLine={false} tickLine={false}/>
+                <XAxis dataKey="label" tick={{fontSize:11}} axisLine={false} tickLine={false}/>
                 <YAxis tick={{fontSize:11}} axisLine={false} tickLine={false}/>
                 <Tooltip/>
                 <Area type="monotone" dataKey="total" stroke="#2F80ED" fill="rgba(47,128,237,0.08)" strokeWidth={2}/>
@@ -436,7 +549,8 @@ export default function Relatorios() {
               </thead>
               <tbody>
                 {catData.map((c, i) => (
-                  <tr key={i}>
+                  <tr key={i} className={styles.selectableRow} onClick={() => toggleInsight({ type: 'category', value: c.nome, label: `Categoria: ${c.nome}` })}
+                    title={`Filtrar todas as visualizações por ${c.nome}`} aria-label={`Filtrar por categoria ${c.nome}`}>
                     <td>{c.nome}</td>
                     <td style={{fontWeight: 700}}>{c.qtd}</td>
                     <td>
@@ -459,22 +573,23 @@ export default function Relatorios() {
       <div className={styles.slaCard}>
         <div className={styles.slaHeader}>
           <h3>Resumo por Status</h3>
-          <span className={styles.slaSub}>dados em tempo real</span>
+          <span className={styles.slaSub}>mesma base filtrada; urgentes é um subconjunto</span>
         </div>
         <div className={styles.slaGrid}>
           {[
-            { nome: 'Abertas (Pendente + Triagem)', pct: kpiData ? Math.min(100, Math.round(kpiData.abertas / Math.max(totalSolicitacoes, 1) * 100)) : 0, color: '#F2994A' },
-            { nome: 'Em Andamento + Campo',          pct: kpiData ? Math.min(100, Math.round(kpiData.emAndamento / Math.max(totalSolicitacoes, 1) * 100)) : 0, color: '#2F80ED' },
-            { nome: 'Concluídas',                    pct: kpiData ? Math.min(100, Math.round(kpiData.concluidas / Math.max(totalSolicitacoes, 1) * 100)) : 0, color: '#27AE60' },
-            { nome: 'Urgentes em Aberto',             pct: kpiData ? Math.min(100, Math.round(kpiData.urgentes / Math.max(totalSolicitacoes, 1) * 100)) : 0, color: '#EB5757' },
+            { nome: 'Abertas (Pendente + Triagem)', count: kpiData.abertas, pct: Math.min(100, Math.round(kpiData.abertas / Math.max(totalSolicitacoes, 1) * 100)), color: '#F2994A', filter: { type: 'status', value: 'open', values: ['PENDENTE', 'TRIAGEM'], label: 'Status: Abertas' } },
+            { nome: 'Em Andamento + Campo', count: kpiData.emAndamento, pct: Math.min(100, Math.round(kpiData.emAndamento / Math.max(totalSolicitacoes, 1) * 100)), color: '#2F80ED', filter: { type: 'status', value: 'progress', values: ['EM_ANDAMENTO', 'EM_CAMPO'], label: 'Status: Em andamento ou em campo' } },
+            { nome: 'Concluídas', count: kpiData.concluidas, pct: Math.min(100, Math.round(kpiData.concluidas / Math.max(totalSolicitacoes, 1) * 100)), color: '#27AE60', filter: { type: 'status', value: 'done', values: ['CONCLUIDA'], label: 'Status: Concluídas' } },
+            { nome: 'Urgentes em Aberto', count: kpiData.urgentes, pct: Math.min(100, Math.round(kpiData.urgentes / Math.max(totalSolicitacoes, 1) * 100)), color: '#EB5757', filter: { type: 'priority', value: 'URGENTE_ALTA', label: 'Prioridade: Alta ou urgente' } },
           ].map((s, i) => (
-            <div key={i} className={styles.slaRow}>
+            <button key={i} type="button" className={[styles.slaRow, styles.statusInsightButton].join(' ')}
+              onClick={() => toggleInsight(s.filter)} title={`${s.count} solicitações (${s.pct}%). Clique para cruzar os dados.`} aria-pressed={selectedInsight?.value === s.filter.value}>
               <span className={styles.slaName}>{s.nome}</span>
               <div className={styles.slaBar}>
                 <div className={styles.slaFill} style={{width: s.pct + '%', background: s.color}}/>
               </div>
-              <span className={styles.slaPct} style={{color: s.color}}>{loading ? '...' : s.pct + '%'}</span>
-            </div>
+              <span className={styles.slaPct} style={{color: s.color}}>{loading ? '...' : `${s.count} · ${s.pct}%`}</span>
+            </button>
           ))}
         </div>
       </div>
@@ -482,7 +597,7 @@ export default function Relatorios() {
       <div className={styles.slaCard} style={{marginTop: 16}}>
         <div className={styles.slaHeader}>
           <h3>Matriz Serviço × Prioridade × Equipe (IA)</h3>
-          <span className={styles.slaSub}>base de conhecimento usada pela IA para roteamento de equipes</span>
+          <span className={styles.slaSub}>agrupada pelas mesmas ocorrências e filtros desta visão</span>
         </div>
         {matrizIA.length === 0 ? (
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Sem dados suficientes ainda.</p>
@@ -511,7 +626,7 @@ export default function Relatorios() {
           <h3>Inteligência Territorial</h3>
           <span className={styles.slaSub}>solicitações agregadas por região</span>
         </div>
-        {territorial.length === 0 ? (
+        {visibleTerritorial.length === 0 ? (
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Sem dados territoriais ainda.</p>
         ) : (
           <table className={styles.catTable}>
@@ -519,8 +634,9 @@ export default function Relatorios() {
               <tr><th>REGIÃO</th><th>TOTAL</th><th>ABERTAS</th><th>CONCLUÍDAS</th><th>URGENTES</th><th>CRITICIDADE</th></tr>
             </thead>
             <tbody>
-              {territorial.slice(0, 10).map((t, i) => (
-                <tr key={i}>
+              {visibleTerritorial.slice(0, 10).map((t, i) => (
+                <tr key={i} className={styles.selectableRow} onClick={() => toggleInsight({ type: 'region', value: t.regiao, label: `Região: ${t.regiao}` })}
+                  title={`Filtrar todas as visualizações por ${t.regiao}`} aria-label={`Filtrar por região ${t.regiao}`}>
                   <td>{t.regiao}</td>
                   <td style={{fontWeight: 700}}>{t.total}</td>
                   <td>{t.abertas}</td>
@@ -935,7 +1051,7 @@ export default function Relatorios() {
             <div className={styles.reportHeader}>
               <div>
                 <h2>Relatório Executivo — Cuidar+Brasil</h2>
-                <p>Período: {periodLabel}{orgaoLabel}{gestor ? ` | Gestor: ${gestor}` : ''} | Gerado em: {geradoEm}</p>
+                <p>Período: {periodLabel}{orgaoLabel}{gestor ? ` | Gestor: ${gestor}` : ''}{regionLabel} | Gerado em: {geradoEm}</p>
               </div>
               <div className={styles.reportActions}>
                 <button className={styles.exportBtn} onClick={exportPDF}>
@@ -966,7 +1082,7 @@ export default function Relatorios() {
                       <tr><td>Taxa de conclusão</td><td style={{fontWeight:700}}>{indicadores.taxaConclusao ?? 0}%</td></tr>
                       <tr><td>Tempo médio de resolução</td><td style={{fontWeight:700}}>{indicadores.tempoMedioResolucaoDias != null ? `${indicadores.tempoMedioResolucaoDias} dias` : 'N/D'}</td></tr>
                       <tr><td>Urgentes em aberto</td><td style={{fontWeight:700}}>{indicadores.urgentesAbertas ?? 0}</td></tr>
-                      <tr><td>Cidadãos cadastrados</td><td style={{fontWeight:700}}>{indicadores.cidadaosCadastrados ?? 0}</td></tr>
+                      <tr><td>{user?.perfil === 'GESTOR' ? 'Cidadãos com solicitações na equipe' : 'Cidadãos cadastrados'}</td><td style={{fontWeight:700}}>{indicadores.cidadaosCadastrados ?? 0}</td></tr>
                       <tr><td>Gestores ativos</td><td style={{fontWeight:700}}>{indicadores.gestoresAtivos ?? 0}</td></tr>
                       <tr><td>Equipes operacionais</td><td style={{fontWeight:700}}>{indicadores.equipesOperacionais ?? 0}</td></tr>
                       <tr><td>Órgãos integrados</td><td style={{fontWeight:700}}>{indicadores.orgaosIntegrados ?? 0}</td></tr>
@@ -1000,13 +1116,13 @@ export default function Relatorios() {
                 </>
               )}
 
-              {territorial.length > 0 && (
+              {visibleTerritorial.length > 0 && (
                 <>
                   <h3>5. Inteligência Territorial</h3>
                   <table className={styles.catTable}>
                     <thead><tr><th>REGIÃO</th><th>TOTAL</th><th>ABERTAS</th><th>CONCLUÍDAS</th><th>URGENTES</th></tr></thead>
                     <tbody>
-                      {territorial.slice(0, 15).map((t, i) => (
+                      {visibleTerritorial.slice(0, 15).map((t, i) => (
                         <tr key={i}><td>{t.regiao}</td><td style={{fontWeight:700}}>{t.total}</td><td>{t.abertas}</td><td>{t.concluidas}</td><td>{t.urgentes}</td></tr>
                       ))}
                     </tbody>
