@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { relatorioService, gestorService, analyticsService, orgaoService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -37,6 +38,7 @@ export default function Relatorios() {
   // Dados das consultas analíticas SQL avançadas (SLA, Ranking, CSAT, Gargalos)
   const [analyticsData, setAnalyticsData] = useState(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [analyticsFilter, setAnalyticsFilter] = useState(null);
 
   const formatDate = (date) => {
     const year = date.getFullYear();
@@ -113,18 +115,27 @@ export default function Relatorios() {
 
   // Carrega dados analíticos avançados das consultas SQL (SLA, Ranking, CSAT, Gargalos)
   useEffect(() => {
+    let cancelled = false;
     setLoadingAnalytics(true);
     const params = {
+      ...getPeriod(),
       ...(gestor ? { gestor } : {}),
-      ...(orgaoSelecionado ? { orgaoId: orgaoSelecionado } : {})
+      ...(orgaoSelecionado ? { orgaoId: orgaoSelecionado } : {}),
+      ...(activeTab === 'gargalos' && analyticsFilter?.tab === 'gargalos' && analyticsFilter.type === 'bairro'
+        ? { bairro: analyticsFilter.value } : {}),
+      ...(activeTab === 'gargalos' && analyticsFilter?.tab === 'gargalos' && analyticsFilter.type === 'turno'
+        ? { diaNum: analyticsFilter.diaNum, turno: analyticsFilter.turno } : {})
     };
     analyticsService.dashboardAvancado(params)
       .then((res) => {
-        setAnalyticsData(res.data?.data || res.data || null);
+        if (!cancelled) setAnalyticsData(res.data?.data || res.data || null);
       })
       .catch((err) => console.error('Erro ao carregar dados analíticos em relatórios:', err))
-      .finally(() => setLoadingAnalytics(false));
-  }, [gestor, orgaoSelecionado]);
+      .finally(() => {
+        if (!cancelled) setLoadingAnalytics(false);
+      });
+    return () => { cancelled = true; };
+  }, [period, customStart, customEnd, gestor, orgaoSelecionado, activeTab, analyticsFilter]);
 
   const effectivePeriod = getPeriod();
   const periodLabel = customStart || customEnd
@@ -134,10 +145,52 @@ export default function Relatorios() {
   const orgaoObj = orgaos.find((o) => String(o.id) === String(orgaoSelecionado));
   const orgaoLabel = orgaoObj ? ` | Órgão: ${orgaoObj.sigla || orgaoObj.nome}` : (user?.orgaoNome ? ` | Órgão: ${user.orgaoNome}` : '');
   const regionLabel = selectedRegion ? ` | Região: ${selectedRegion}` : '';
+  const activeReportTitle = {
+    geral: 'Visão Geral e Indicadores',
+    sla: 'SLA e Produtividade por Categoria',
+    equipes: 'Ranking e Performance das Equipes',
+    satisfacao: 'Satisfação do Cidadão e CSAT',
+    gargalos: 'Gargalos Urbanos e Turnos',
+  }[activeTab];
+  const hasCsatEvaluations = Number(analyticsData?.satisfacaoCidadao?.totalAvaliadas || 0) > 0;
   const toggleInsight = (filter) => {
     setSelectedInsight(current => current?.type === filter.type && current?.value === filter.value ? null : filter);
   };
   const clearInsightFilter = () => setSelectedInsight(null);
+  const toggleAnalyticsFilter = (filter) => {
+    setAnalyticsFilter((current) => current?.tab === activeTab && current?.value === filter.value
+      ? null
+      : { ...filter, tab: activeTab });
+  };
+  const selectShiftBar = (entry) => {
+    const row = entry?.payload || entry;
+    if (!row?.diaNum || !row?.turno) return;
+    toggleAnalyticsFilter({
+      type: 'turno', value: `${row.diaNum}-${row.turno}`, diaNum: row.diaNum,
+      diaNome: row.diaNome, turno: row.turno, label: `${row.diaNome} · ${row.turno}`,
+    });
+  };
+
+  const slaRows = analyticsData?.analiseSla || [];
+  const rankingRows = analyticsData?.performanceEquipes || [];
+  const feedbackRows = analyticsData?.satisfacaoCidadao?.feedbacksRecentes || [];
+  const shiftRows = analyticsData?.distribuicaoTurnos || [];
+  const labeledShiftRows = shiftRows.map((row) => ({
+    ...row,
+    periodo: row.periodo || `${row.diaNome} · ${row.turno}`,
+  }));
+  const bottleneckRows = analyticsData?.gargalosUrbanos || [];
+  const isAnalyticsFilterActive = analyticsFilter?.tab === activeTab;
+  const visibleSlaRows = isAnalyticsFilterActive && analyticsFilter.type === 'categoria'
+    ? slaRows.filter((row) => row.categoria === analyticsFilter.value) : slaRows;
+  const visibleRankingRows = isAnalyticsFilterActive && analyticsFilter.type === 'equipe'
+    ? rankingRows.filter((row) => String(row.equipeId) === String(analyticsFilter.value)) : rankingRows;
+  const visibleFeedbackRows = isAnalyticsFilterActive && analyticsFilter.type === 'feedbackCategoria'
+    ? feedbackRows.filter((row) => row.categoria === analyticsFilter.value) : feedbackRows;
+  const visibleShiftRows = isAnalyticsFilterActive && analyticsFilter.type === 'turno'
+    ? labeledShiftRows.filter((row) => row.diaNome === analyticsFilter.diaNome && row.turno === analyticsFilter.turno) : labeledShiftRows;
+  const visibleBottleneckRows = isAnalyticsFilterActive && analyticsFilter.type === 'bairro'
+    ? bottleneckRows.filter((row) => row.bairro === analyticsFilter.value) : bottleneckRows;
 
   const filteredReportRows = useMemo(() => reportRows.filter(row => {
     if (!matchesRegion(row.endereco, row.gps, selectedRegion)) return false;
@@ -234,9 +287,63 @@ export default function Relatorios() {
     doc.rect(0, 0, 210, 28, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
-    doc.text('Cuidar+Brasil — Relatório Executivo', 14, 12);
+    doc.text(`Cuidar+Brasil — ${activeReportTitle}`, 14, 12);
     doc.setFontSize(9);
     doc.text(`Período: ${periodLabel}${orgaoLabel}${gestor ? ` | Gestor: ${gestor}` : ''}${regionLabel} | Gerado em: ${geradoEm}`, 14, 20);
+
+    if (activeTab !== 'geral') {
+      doc.setTextColor(40, 40, 40);
+      doc.setFontSize(12);
+      const addTable = (title, head, body) => {
+        const startY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 14 : 38;
+        doc.text(title, 14, startY - 4);
+        autoTable(doc, { startY, head: [head], body, headStyles: { fillColor: azul } });
+      };
+
+      if (activeTab === 'sla') {
+        addTable('Conformidade de SLA por categoria',
+          ['Categoria', 'Demandas', 'Concluídas', 'No prazo', 'Atrasadas', 'SLA'],
+          visibleSlaRows.map((row) => [row.categoria, row.totalDemandas, row.concluidas, row.dentroPrazo,
+            (row.concluidasAtraso || 0) + (row.ativasEstouradas || 0), `${row.conformidadeSlaPct}%`]));
+      }
+      if (activeTab === 'equipes') {
+        addTable('Ranking de eficiência das equipes',
+          ['Rank', 'Equipe', 'Órgão', 'Demandas', 'Concluídas', 'Taxa', 'Avaliação'],
+          visibleRankingRows.map((row) => [`${row.rankPosicao}º`, row.equipeNome, row.orgaoSigla, row.totalDemandas,
+            row.concluidas, `${row.taxaConclusao}%`, row.notaMedia > 0 ? `${row.notaMedia}/5` : 'N/D']));
+      }
+      if (activeTab === 'satisfacao') {
+        const csat = analyticsData?.satisfacaoCidadao || {};
+        addTable('Indicadores de satisfação', ['Indicador', 'Valor'], [
+          ['Avaliações', csat.totalAvaliadas ?? 0],
+          ['CSAT positivo', hasCsatEvaluations ? `${csat.csatPct}%` : 'N/D'],
+          ['Média geral', hasCsatEvaluations ? `${csat.mediaGeral}/5` : 'N/D'],
+          ['Qualidade', hasCsatEvaluations ? `${csat.mediaQualidade}/5` : 'N/D'],
+          ['Prazo', hasCsatEvaluations ? `${csat.mediaPrazos}/5` : 'N/D'],
+          ['Atendimento', hasCsatEvaluations ? `${csat.mediaAtendimento}/5` : 'N/D'],
+        ]);
+        addTable('Feedbacks recentes', ['Protocolo', 'Categoria', 'Nota', 'Cidadão', 'Comentário'],
+          visibleFeedbackRows.map((row) => [row.protocolo, row.categoria, row.mediaNota, row.cidadao, row.comentario]));
+      }
+      if (activeTab === 'gargalos') {
+        addTable('Demanda por dia e turno', ['Dia', 'Turno', 'Demandas'],
+          visibleShiftRows.map((row) => [row.diaNome, row.turno, row.total]));
+        addTable('Gargalos por bairro',
+          ['Rank', 'Bairro', 'Demandas', 'Pendentes', 'Em atendimento', 'Concluídas', 'Urgentes', 'Espera média'],
+          visibleBottleneckRows.map((row) => [row.rankCriticidade, row.bairro, row.totalDemandas, row.pendentes,
+            row.emAtendimento, row.concluidas, row.urgentesAtivas, `${row.mediaDiasEspera} dias`]));
+      }
+
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let page = 1; page <= pageCount; page++) {
+        doc.setPage(page);
+        doc.setFontSize(8);
+        doc.setTextColor(130, 130, 130);
+        doc.text(`Cuidar+Brasil GovTech — Página ${page} de ${pageCount}`, 14, 290);
+      }
+      doc.save(`relatorio-${activeTab}-cuidar-brasil-${new Date().toISOString().slice(0, 10)}.pdf`);
+      return;
+    }
 
     doc.setTextColor(40, 40, 40);
     doc.setFontSize(12);
@@ -301,41 +408,6 @@ export default function Relatorios() {
         startY: doc.lastAutoTable.finalY + 14,
         head: [['Serviço', 'Prioridade', 'Equipe', 'Atendimentos']],
         body: matrizIA.map(m => [m.servico, m.prioridade, m.equipe, m.atendimentos]),
-        headStyles: { fillColor: azul },
-      });
-    }
-
-    if (analyticsData?.analiseSla?.length > 0) {
-      doc.text('Conformidade de SLA por Serviço (SQL Server CTE)', 14, doc.lastAutoTable.finalY + 10);
-      autoTable(doc, {
-        startY: doc.lastAutoTable.finalY + 14,
-        head: [['Categoria', 'Total', 'Concluídas', 'No Prazo', 'Atrasadas', 'Conformidade SLA']],
-        body: analyticsData.analiseSla.map(s => [
-          s.categoria,
-          s.totalDemandas,
-          s.concluidas,
-          s.dentroPrazo,
-          (s.concluidasAtraso || 0) + (s.ativasEstouradas || 0),
-          `${s.conformidadeSlaPct}%`
-        ]),
-        headStyles: { fillColor: azul },
-      });
-    }
-
-    if (analyticsData?.performanceEquipes?.length > 0) {
-      doc.text('Ranking de Eficiência das Equipes (SQL Server DENSE_RANK)', 14, doc.lastAutoTable.finalY + 10);
-      autoTable(doc, {
-        startY: doc.lastAutoTable.finalY + 14,
-        head: [['Rank', 'Equipe', 'Órgão', 'Total', 'Concluídas', 'Taxa Conclusão', 'Avaliação']],
-        body: analyticsData.performanceEquipes.map(t => [
-          `${t.rankPosicao}º`,
-          t.equipeNome,
-          t.orgaoSigla,
-          t.totalDemandas,
-          t.concluidas,
-          `${t.taxaConclusao}%`,
-          `★ ${t.notaMedia > 0 ? t.notaMedia : '4.5'}`
-        ]),
         headStyles: { fillColor: azul },
       });
     }
@@ -446,6 +518,13 @@ export default function Relatorios() {
           <FileText size={16} style={{verticalAlign: 'middle', marginRight: 6}}/>Visualizar Relatório
         </button>
       </div>
+
+      {activeTab !== 'geral' && isAnalyticsFilterActive && (
+        <div className={styles.activeInsightFilter}>
+          <span>Filtro cruzado: {analyticsFilter.label}</span>
+          <button type="button" onClick={() => setAnalyticsFilter(null)}>Limpar filtro</button>
+        </div>
+      )}
 
       {/* ============================================================== */}
       {/* ABA 1: VISÃO GERAL & INDICADORES                               */}
@@ -676,12 +755,13 @@ export default function Relatorios() {
                   </div>
                   <div style={{ height: 260 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={analyticsData?.analiseSla || []} margin={{ top: 10, right: 20, left: -10, bottom: 25 }}>
+                      <BarChart data={visibleSlaRows} margin={{ top: 10, right: 20, left: -10, bottom: 25 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                         <XAxis dataKey="categoria" tick={{ fontSize: 11 }} angle={-15} textAnchor="end" />
                         <YAxis unit="%" domain={[0, 100]} tick={{ fontSize: 11 }} />
                         <Tooltip formatter={(value) => [`${value}%`, 'Conformidade SLA']} />
-                        <Bar dataKey="conformidadeSlaPct" fill="#27AE60" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="conformidadeSlaPct" fill="#27AE60" radius={[4, 4, 0, 0]} cursor="pointer"
+                          onClick={(entry) => entry?.payload && toggleAnalyticsFilter({ type: 'categoria', value: entry.payload.categoria, label: `Categoria: ${entry.payload.categoria}` })} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -696,8 +776,8 @@ export default function Relatorios() {
                     <div className={styles.dimCard}>
                       <div className={styles.dimLabel}>MÉDIA DE CONFORMIDADE</div>
                       <div className={styles.dimVal} style={{ color: 'var(--success)', fontSize: '2rem' }}>
-                        {analyticsData?.analiseSla?.length
-                          ? Math.round(analyticsData.analiseSla.reduce((acc, curr) => acc + curr.conformidadeSlaPct, 0) / analyticsData.analiseSla.length)
+                        {visibleSlaRows.length
+                          ? Math.round(visibleSlaRows.reduce((acc, curr) => acc + curr.conformidadeSlaPct, 0) / visibleSlaRows.length)
                           : 0}%
                       </div>
                     </div>
@@ -705,14 +785,13 @@ export default function Relatorios() {
                       <div className={styles.dimCard}>
                         <div className={styles.dimLabel}>NO PRAZO</div>
                         <div className={styles.dimVal} style={{ color: '#27AE60' }}>
-                          {analyticsData?.analiseSla?.reduce((acc, curr) => acc + curr.dentroPrazo, 0) || 0}
+                          {visibleSlaRows.reduce((acc, curr) => acc + curr.dentroPrazo, 0)}
                         </div>
                       </div>
                       <div className={styles.dimCard}>
                         <div className={styles.dimLabel}>EM ATRASO</div>
                         <div className={styles.dimVal} style={{ color: '#EB5757' }}>
-                          {(analyticsData?.analiseSla?.reduce((acc, curr) => acc + curr.concluidasAtraso, 0) || 0) +
-                           (analyticsData?.analiseSla?.reduce((acc, curr) => acc + curr.ativasEstouradas, 0) || 0)}
+                          {visibleSlaRows.reduce((acc, curr) => acc + curr.concluidasAtraso + curr.ativasEstouradas, 0)}
                         </div>
                       </div>
                     </div>
@@ -740,8 +819,9 @@ export default function Relatorios() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(analyticsData?.analiseSla || []).map((row, idx) => (
-                        <tr key={idx}>
+                      {visibleSlaRows.map((row, idx) => (
+                        <tr key={idx} className={styles.selectableRow} onClick={() => toggleAnalyticsFilter({ type: 'categoria', value: row.categoria, label: `Categoria: ${row.categoria}` })}
+                          aria-selected={isAnalyticsFilterActive && analyticsFilter.value === row.categoria}>
                           <td style={{ fontWeight: 600 }}>{row.categoria}</td>
                           <td>{row.totalDemandas}</td>
                           <td style={{ color: 'var(--success)', fontWeight: 600 }}>{row.concluidas}</td>
@@ -786,9 +866,11 @@ export default function Relatorios() {
           ) : (
             <>
               {/* Podium dos 3 primeiros */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-                {(analyticsData?.performanceEquipes || []).slice(0, 3).map((team, idx) => (
-                  <div key={team.equipeId} className={styles.advCard} style={{ borderTop: `4px solid ${idx === 0 ? '#FFD700' : idx === 1 ? '#C0C0C0' : '#CD7F32'}` }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '16px', marginBottom: '20px' }}>
+                {visibleRankingRows.slice(0, 3).map((team, idx) => (
+                  <button type="button" key={team.equipeId} className={`${styles.advCard} ${styles.advCardInteractive}`} onClick={() => toggleAnalyticsFilter({ type: 'equipe', value: team.equipeId, label: `Equipe: ${team.equipeNome}` })}
+                    aria-pressed={isAnalyticsFilterActive && String(analyticsFilter.value) === String(team.equipeId)}
+                    style={{ borderTop: `4px solid ${idx === 0 ? '#FFD700' : idx === 1 ? '#C0C0C0' : '#CD7F32'}` }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                       <span className={[styles.rankBadge, idx === 0 ? styles.rank1 : idx === 1 ? styles.rank2 : styles.rank3].join(' ')}>
                         {idx === 0 ? '1º' : idx === 1 ? '2º' : '3º'}
@@ -803,10 +885,10 @@ export default function Relatorios() {
                       </div>
                       <div className={styles.dimCard}>
                         <div className={styles.dimLabel}>NOTA CIDADÃO</div>
-                        <div className={styles.dimVal} style={{ color: '#F2C94C' }}>★ {team.notaMedia}</div>
+                        <div className={styles.dimVal} style={{ color: '#F2C94C' }}>{team.notaMedia > 0 ? `★ ${team.notaMedia}` : 'N/D'}</div>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
 
@@ -833,8 +915,9 @@ export default function Relatorios() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(analyticsData?.performanceEquipes || []).map((team) => (
-                        <tr key={team.equipeId}>
+                      {visibleRankingRows.map((team) => (
+                        <tr key={team.equipeId} className={styles.selectableRow} onClick={() => toggleAnalyticsFilter({ type: 'equipe', value: team.equipeId, label: `Equipe: ${team.equipeNome}` })}
+                          aria-selected={isAnalyticsFilterActive && String(analyticsFilter.value) === String(team.equipeId)}>
                           <td>
                             <span className={[styles.rankBadge, team.rankPosicao === 1 ? styles.rank1 : team.rankPosicao === 2 ? styles.rank2 : team.rankPosicao === 3 ? styles.rank3 : styles.rankOther].join(' ')}>
                               {team.rankPosicao}º
@@ -850,7 +933,7 @@ export default function Relatorios() {
                             {team.taxaConclusao}%
                           </td>
                           <td style={{ fontWeight: 700, color: '#F2C94C' }}>
-                            ★ {team.notaMedia > 0 ? team.notaMedia : '4.5'}
+                            {team.notaMedia > 0 ? `★ ${team.notaMedia}` : 'N/D'}
                           </td>
                         </tr>
                       ))}
@@ -883,13 +966,13 @@ export default function Relatorios() {
                   <div className={styles.csatHero}>
                     <div>
                       <div className={styles.csatScoreBig}>
-                        {analyticsData?.satisfacaoCidadao?.csatPct ?? 85}%
+                        {hasCsatEvaluations ? `${analyticsData.satisfacaoCidadao.csatPct}%` : 'N/D'}
                       </div>
                       <div className={styles.csatScoreLabel}>Aprovações Positivas (Nota ≥ 4)</div>
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--primary)' }}>
-                        ★ {analyticsData?.satisfacaoCidadao?.mediaGeral || 4.6}
+                        {hasCsatEvaluations ? `★ ${analyticsData.satisfacaoCidadao.mediaGeral}` : 'N/D'}
                       </div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Média em 5.0 estrelas</div>
                     </div>
@@ -899,15 +982,15 @@ export default function Relatorios() {
                   <div className={styles.ratingDims}>
                     <div className={styles.dimCard}>
                       <div className={styles.dimLabel}>QUALIDADE</div>
-                      <div className={styles.dimVal}>★ {analyticsData?.satisfacaoCidadao?.mediaQualidade || 4.6}</div>
+                      <div className={styles.dimVal}>{hasCsatEvaluations ? `★ ${analyticsData.satisfacaoCidadao.mediaQualidade}` : 'N/D'}</div>
                     </div>
                     <div className={styles.dimCard}>
                       <div className={styles.dimLabel}>PRAZOS</div>
-                      <div className={styles.dimVal}>★ {analyticsData?.satisfacaoCidadao?.mediaPrazos || 4.2}</div>
+                      <div className={styles.dimVal}>{hasCsatEvaluations ? `★ ${analyticsData.satisfacaoCidadao.mediaPrazos}` : 'N/D'}</div>
                     </div>
                     <div className={styles.dimCard}>
                       <div className={styles.dimLabel}>ATENDIMENTO</div>
-                      <div className={styles.dimVal}>★ {analyticsData?.satisfacaoCidadao?.mediaAtendimento || 4.8}</div>
+                      <div className={styles.dimVal}>{hasCsatEvaluations ? `★ ${analyticsData.satisfacaoCidadao.mediaAtendimento}` : 'N/D'}</div>
                     </div>
                   </div>
                 </div>
@@ -920,17 +1003,28 @@ export default function Relatorios() {
                     </div>
                   </div>
                   <div className={styles.feedbackList}>
-                    {(analyticsData?.satisfacaoCidadao?.feedbacksRecentes || []).map((fb, idx) => (
-                      <div key={idx} className={styles.feedbackCard}>
+                    {visibleFeedbackRows.map((fb, idx) => (
+                      <div key={fb.id || fb.protocolo || idx} className={styles.feedbackCard}>
                         <div className={styles.feedbackCardTop}>
-                          <span className={styles.feedbackProto}>{fb.protocolo} · {fb.categoria}</span>
+                          <span className={styles.feedbackProto}>
+                            <Link className={styles.feedbackProtocolLink}
+                              to={fb.id ? `/ocorrencia/${fb.id}` : `/ocorrencia/protocolo/${encodeURIComponent(fb.protocolo)}`}
+                              aria-label={`Abrir ocorrência ${fb.protocolo}`}>
+                              {fb.protocolo}
+                            </Link>
+                            <span> · </span>
+                            <button type="button" className={styles.feedbackCategoryButton}
+                              onClick={() => toggleAnalyticsFilter({ type: 'feedbackCategoria', value: fb.categoria, label: `Feedbacks de ${fb.categoria}` })}>
+                              {fb.categoria}
+                            </button>
+                          </span>
                           <span className={styles.feedbackStars}>★ {fb.mediaNota}</span>
                         </div>
                         <p className={styles.feedbackText}>"{fb.comentario}"</p>
                         <div className={styles.feedbackAuthor}>Por {fb.cidadao}</div>
                       </div>
                     ))}
-                    {(!analyticsData?.satisfacaoCidadao?.feedbacksRecentes || analyticsData.satisfacaoCidadao.feedbacksRecentes.length === 0) && (
+                    {visibleFeedbackRows.length === 0 && (
                       <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Nenhum comentário registrado ainda.</p>
                     )}
                   </div>
@@ -961,12 +1055,12 @@ export default function Relatorios() {
                   </div>
                   <div style={{ height: 250 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={analyticsData?.distribuicaoTurnos || []} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                      <BarChart data={visibleShiftRows} margin={{ top: 10, right: 10, left: -20, bottom: 42 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                        <XAxis dataKey="diaNome" tick={{ fontSize: 11 }} />
+                        <XAxis dataKey="periodo" interval={0} angle={-35} textAnchor="end" height={48} tick={{ fontSize: 9 }} />
                         <YAxis tick={{ fontSize: 11 }} />
                         <Tooltip />
-                        <Bar dataKey="total" fill="#2F80ED" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="total" fill="#2F80ED" radius={[4, 4, 0, 0]} cursor="pointer" onClick={selectShiftBar} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -980,8 +1074,9 @@ export default function Relatorios() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {(analyticsData?.gargalosUrbanos || []).slice(0, 5).map((b, i) => (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--background)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                    {visibleBottleneckRows.slice(0, 5).map((b, i) => (
+                      <button type="button" key={i} className={styles.bottleneckRow}
+                        onClick={() => toggleAnalyticsFilter({ type: 'bairro', value: b.bairro, label: `Bairro: ${b.bairro}` })}>
                         <div>
                           <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{b.bairro}</div>
                           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Tempo médio de espera: {b.mediaDiasEspera} dias</div>
@@ -991,7 +1086,7 @@ export default function Relatorios() {
                             {b.urgentesAtivas} urgentes
                           </span>
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -1017,8 +1112,9 @@ export default function Relatorios() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(analyticsData?.gargalosUrbanos || []).map((b, idx) => (
-                        <tr key={idx}>
+                      {visibleBottleneckRows.map((b, idx) => (
+                        <tr key={idx} className={styles.selectableRow} onClick={() => toggleAnalyticsFilter({ type: 'bairro', value: b.bairro, label: `Bairro: ${b.bairro}` })}
+                          aria-selected={isAnalyticsFilterActive && analyticsFilter.value === b.bairro}>
                           <td>
                             <span className={[styles.rankBadge, b.rankCriticidade === 1 ? styles.rank1 : b.rankCriticidade === 2 ? styles.rank2 : styles.rankOther].join(' ')}>
                               {b.rankCriticidade}º
@@ -1050,7 +1146,7 @@ export default function Relatorios() {
           <div className={styles.reportModal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.reportHeader}>
               <div>
-                <h2>Relatório Executivo — Cuidar+Brasil</h2>
+                <h2>{activeReportTitle} — Cuidar+Brasil</h2>
                 <p>Período: {periodLabel}{orgaoLabel}{gestor ? ` | Gestor: ${gestor}` : ''}{regionLabel} | Gerado em: {geradoEm}</p>
               </div>
               <div className={styles.reportActions}>
@@ -1062,6 +1158,8 @@ export default function Relatorios() {
             </div>
 
             <div className={styles.reportBody}>
+              {activeTab === 'geral' && (
+                <>
               <h3>1. Resumo Geral</h3>
               <table className={styles.catTable}>
                 <thead><tr><th>TOTAL</th><th>CONCLUÍDAS</th><th>EM ANDAMENTO</th><th>ABERTAS</th><th>URGENTES</th></tr></thead>
@@ -1143,53 +1241,70 @@ export default function Relatorios() {
                   </table>
                 </>
               )}
-
-              {analyticsData?.analiseSla?.length > 0 && (
-                <>
-                  <h3>7. Conformidade de SLA por Serviço (SQL CTE)</h3>
-                  <table className={styles.catTable}>
-                    <thead>
-                      <tr><th>CATEGORIA</th><th>DEMANDAS</th><th>CONCLUÍDAS</th><th>NO PRAZO</th><th>ATRASADAS</th><th>CONFORMIDADE</th></tr>
-                    </thead>
-                    <tbody>
-                      {analyticsData.analiseSla.map((s, i) => (
-                        <tr key={i}>
-                          <td>{s.categoria}</td>
-                          <td>{s.totalDemandas}</td>
-                          <td>{s.concluidas}</td>
-                          <td>{s.dentroPrazo}</td>
-                          <td>{(s.concluidasAtraso || 0) + (s.ativasEstouradas || 0)}</td>
-                          <td style={{ fontWeight: 700, color: s.conformidadeSlaPct >= 80 ? 'var(--success)' : s.conformidadeSlaPct >= 60 ? '#F2C94C' : '#EB5757' }}>
-                            {s.conformidadeSlaPct}%
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
                 </>
               )}
 
-              {analyticsData?.performanceEquipes?.length > 0 && (
+              {activeTab === 'sla' && (
                 <>
-                  <h3>8. Ranking de Produtividade das Equipes (DENSE_RANK)</h3>
+                  <h3>Conformidade de SLA por categoria</h3>
+                  <div className={styles.tableWrapper}>
+                    <table className={styles.catTable}>
+                      <thead><tr><th>CATEGORIA</th><th>DEMANDAS</th><th>CONCLUÍDAS</th><th>NO PRAZO</th><th>ATRASADAS</th><th>CONFORMIDADE</th></tr></thead>
+                      <tbody>{visibleSlaRows.map((row, index) => <tr key={index}><td>{row.categoria}</td><td>{row.totalDemandas}</td><td>{row.concluidas}</td><td>{row.dentroPrazo}</td><td>{(row.concluidasAtraso || 0) + (row.ativasEstouradas || 0)}</td><td>{row.conformidadeSlaPct}%</td></tr>)}</tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'equipes' && (
+                <>
+                  <h3>Ranking de eficiência das equipes</h3>
+                  <div className={styles.tableWrapper}>
+                    <table className={styles.catTable}>
+                      <thead><tr><th>RANK</th><th>EQUIPE</th><th>ÓRGÃO</th><th>DEMANDAS</th><th>CONCLUÍDAS</th><th>RESOLUTIVIDADE</th><th>NOTA</th></tr></thead>
+                      <tbody>{visibleRankingRows.map((row, index) => <tr key={index}><td>{row.rankPosicao}º</td><td>{row.equipeNome}</td><td>{row.orgaoSigla}</td><td>{row.totalDemandas}</td><td>{row.concluidas}</td><td>{row.taxaConclusao}%</td><td>{row.notaMedia > 0 ? `${row.notaMedia}/5` : 'N/D'}</td></tr>)}</tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'satisfacao' && (
+                <>
+                  <h3>Indicadores de satisfação</h3>
                   <table className={styles.catTable}>
-                    <thead>
-                      <tr><th>RANK</th><th>EQUIPE</th><th>ÓRGÃO</th><th>DEMANDAS</th><th>CONCLUÍDAS</th><th>RESOLUTIVIDADE</th><th>NOTA</th></tr>
-                    </thead>
                     <tbody>
-                      {analyticsData.performanceEquipes.map((t, i) => (
-                        <tr key={i}>
-                          <td style={{ fontWeight: 700 }}>{t.rankPosicao}º</td>
-                          <td>{t.equipeNome}</td>
-                          <td>{t.orgaoSigla}</td>
-                          <td>{t.totalDemandas}</td>
-                          <td>{t.concluidas}</td>
-                          <td>{t.taxaConclusao}%</td>
-                          <td style={{ fontWeight: 700, color: '#F2C94C' }}>★ {t.notaMedia > 0 ? t.notaMedia : '4.5'}</td>
-                        </tr>
-                      ))}
+                      <tr><td>Avaliações</td><td>{analyticsData?.satisfacaoCidadao?.totalAvaliadas ?? 0}</td></tr>
+                      <tr><td>CSAT positivo</td><td>{hasCsatEvaluations ? `${analyticsData.satisfacaoCidadao.csatPct}%` : 'N/D'}</td></tr>
+                      <tr><td>Média geral</td><td>{hasCsatEvaluations ? `${analyticsData.satisfacaoCidadao.mediaGeral}/5` : 'N/D'}</td></tr>
+                      <tr><td>Qualidade / Prazo / Atendimento</td><td>{hasCsatEvaluations ? `${analyticsData.satisfacaoCidadao.mediaQualidade} / ${analyticsData.satisfacaoCidadao.mediaPrazos} / ${analyticsData.satisfacaoCidadao.mediaAtendimento}` : 'N/D'}</td></tr>
                     </tbody>
                   </table>
+                  <h3>Feedbacks recentes</h3>
+                  <div className={styles.tableWrapper}>
+                    <table className={styles.catTable}>
+                      <thead><tr><th>PROTOCOLO</th><th>CATEGORIA</th><th>NOTA</th><th>CIDADÃO</th><th>COMENTÁRIO</th></tr></thead>
+                      <tbody>{visibleFeedbackRows.map((row, index) => <tr key={index}><td><Link className={styles.feedbackProtocolLink} to={row.id ? `/ocorrencia/${row.id}` : `/ocorrencia/protocolo/${encodeURIComponent(row.protocolo)}`}>{row.protocolo}</Link></td><td>{row.categoria}</td><td>{row.mediaNota}</td><td>{row.cidadao}</td><td>{row.comentario}</td></tr>)}</tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'gargalos' && (
+                <>
+                  <h3>Demanda por dia e turno</h3>
+                  <div className={styles.tableWrapper}>
+                    <table className={styles.catTable}>
+                      <thead><tr><th>DIA</th><th>TURNO</th><th>DEMANDAS</th></tr></thead>
+                      <tbody>{visibleShiftRows.map((row, index) => <tr key={index}><td>{row.diaNome}</td><td>{row.turno}</td><td>{row.total}</td></tr>)}</tbody>
+                    </table>
+                  </div>
+                  <h3>Gargalos por bairro</h3>
+                  <div className={styles.tableWrapper}>
+                    <table className={styles.catTable}>
+                      <thead><tr><th>RANK</th><th>BAIRRO</th><th>DEMANDAS</th><th>PENDENTES</th><th>EM ATENDIMENTO</th><th>CONCLUÍDAS</th><th>URGENTES</th><th>ESPERA MÉDIA</th></tr></thead>
+                      <tbody>{visibleBottleneckRows.map((row, index) => <tr key={index}><td>{row.rankCriticidade}º</td><td>{row.bairro}</td><td>{row.totalDemandas}</td><td>{row.pendentes}</td><td>{row.emAtendimento}</td><td>{row.concluidas}</td><td>{row.urgentesAtivas}</td><td>{row.mediaDiasEspera} dias</td></tr>)}</tbody>
+                    </table>
+                  </div>
                 </>
               )}
 

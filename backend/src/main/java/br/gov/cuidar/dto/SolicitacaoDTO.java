@@ -34,9 +34,9 @@ public class SolicitacaoDTO {
     }
 
     public static class AvaliacaoRequest {
-        @Min(1) @Max(5) private Integer prazos;
-        @Min(1) @Max(5) private Integer qualidade;
-        @Min(1) @Max(5) private Integer atendimento;
+        @NotNull @Min(1) @Max(5) private Integer prazos;
+        @NotNull @Min(1) @Max(5) private Integer qualidade;
+        @NotNull @Min(1) @Max(5) private Integer atendimento;
         @Size(max = 2000) private String comentario;
         public AvaliacaoRequest() {}
         public Integer getPrazos() { return prazos; } public void setPrazos(Integer prazos) { this.prazos = prazos; }

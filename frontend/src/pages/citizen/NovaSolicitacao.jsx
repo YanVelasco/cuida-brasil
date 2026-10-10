@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ocorrenciaService, servicoService } from '../../services/api';
 import MobileLayout from '../../components/layout/MobileLayout';
 import Button from '../../components/ui/Button';
@@ -10,7 +10,16 @@ import styles from './NovaSolicitacao.module.css';
 
 export default function NovaSolicitacao() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ titulo:'', idServico:'', descricao:'', gps:'', endereco:'', fotos:'' });
+  const location = useLocation();
+  const duplicateOccurrence = location.state?.duplicateOccurrence;
+  const [form, setForm] = useState(() => ({
+    titulo: duplicateOccurrence?.subcategoriaServico || '',
+    idServico: '',
+    descricao: duplicateOccurrence?.descricao || '',
+    gps: duplicateOccurrence?.gps || '',
+    endereco: duplicateOccurrence?.endereco || '',
+    fotos: '',
+  }));
   const [servicos, setServicos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -19,8 +28,28 @@ export default function NovaSolicitacao() {
 
   useEffect(() => {
     servicoService.listar()
-      .then(r => setServicos(r.data?.data || r.data || []))
+      .then(r => {
+        const serviceList = r.data?.data || r.data || [];
+        setServicos(serviceList);
+        if (!duplicateOccurrence) return;
+        const normalize = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
+        const matchingService = serviceList.find((service) =>
+          normalize(service.categoria) === normalize(duplicateOccurrence.categoriaServico)
+          && normalize(service.subcategoria) === normalize(duplicateOccurrence.subcategoriaServico));
+        setForm((current) => ({
+          ...current,
+          titulo: duplicateOccurrence.subcategoriaServico || current.titulo,
+          idServico: matchingService ? String(matchingService.id) : current.idServico,
+        }));
+      })
       .catch(err => console.error('Erro ao buscar serviços:', err));
+
+    if (duplicateOccurrence) {
+      setLocStatus(duplicateOccurrence.endereco || duplicateOccurrence.gps
+        ? 'Local copiado da ocorrência selecionada. Revise antes de enviar.'
+        : 'Informe o local da nova ocorrência.');
+      return undefined;
+    }
 
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -126,7 +155,10 @@ export default function NovaSolicitacao() {
     <MobileLayout hideNav>
       <div className={styles.header}>
         <button className={styles.backBtn} onClick={() => navigate(-1)}><ChevronLeft size={22}/></button>
-        <h1>Nova Ocorrência</h1>
+        <div>
+          <h1>Nova Ocorrência</h1>
+          {duplicateOccurrence?.protocolo && <p>Baseada em {duplicateOccurrence.protocolo}. Revise os dados antes de registrar.</p>}
+        </div>
       </div>
       <form onSubmit={handleSubmit} className={styles.form}>
         <Input id="titulo" label="Título" placeholder="Descreva brevemente o problema" value={form.titulo} onChange={set('titulo')} icon={<FileText size={16}/>} required/>

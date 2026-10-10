@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { ocorrenciaService } from '../../services/api';
 import MobileLayout from '../../components/layout/MobileLayout';
 import { useTheme } from '../../contexts/ThemeContext';
-import { Home, Plus, MapPin, User, Bell, LogOut, Moon, Sun } from 'lucide-react';
+import { Home, Plus, MapPin, User, Bell, LogOut, Moon, Sun, Star, ArrowRight } from 'lucide-react';
 import styles from './CitizenHome.module.css';
 
 // Mapeamento de status da API para rótulos amigáveis e estilos
@@ -17,12 +17,17 @@ const STATUS_MAP = {
   'CANCELADA':    { label: 'Cancelado',    bg: '#FEE2E2',              color: '#EF4444',         border: '#EF4444' },
 };
 
+const hasCompleteEvaluation = (occurrence) =>
+  [occurrence.notaPrazos, occurrence.notaQualidade, occurrence.notaAtendimento]
+    .every((rating) => Number.isInteger(rating) && rating >= 1 && rating <= 5);
+
 export default function CitizenHome() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [ocorrencias, setOcorrencias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [citizenSort, setCitizenSort] = useState('recentes');
+  const [activeFilter, setActiveFilter] = useState('all');
 
   useEffect(() => {
     // Carrega APENAS as solicitações do cidadão autenticado via token
@@ -65,11 +70,27 @@ export default function CitizenHome() {
     ).length;
     const resolvidas = ocorrencias.filter(o => o.status === 'CONCLUIDA').length;
     return [
-      { label: 'Abertas',    value: abertas,   color: '#F2994A' },
-      { label: 'Andamento',  value: andamento, color: '#2F80ED' },
-      { label: 'Resolvidas', value: resolvidas, color: '#27AE60' },
+      { key: 'abertas', label: 'Abertas', value: abertas, color: '#F2994A' },
+      { key: 'andamento', label: 'Andamento', value: andamento, color: '#2F80ED' },
+      { key: 'resolvidas', label: 'Resolvidas', value: resolvidas, color: '#27AE60' },
+      {
+        key: 'avaliacao',
+        label: 'Avaliação pendente',
+        value: ocorrencias.filter(o => o.status === 'CONCLUIDA' && !hasCompleteEvaluation(o)).length,
+        color: '#E76F00',
+      },
     ];
   }, [ocorrencias]);
+
+  const visibleOcorrencias = useMemo(() => sortedOcorrencias.filter((occurrence) => {
+    if (activeFilter === 'abertas') return ['PENDENTE', 'TRIAGEM'].includes(occurrence.status);
+    if (activeFilter === 'andamento') return ['EM_ANDAMENTO', 'EM_CAMPO'].includes(occurrence.status);
+    if (activeFilter === 'resolvidas') return occurrence.status === 'CONCLUIDA';
+    if (activeFilter === 'avaliacao') return occurrence.status === 'CONCLUIDA' && !hasCompleteEvaluation(occurrence);
+    return true;
+  }), [sortedOcorrencias, activeFilter]);
+
+  const activeFilterLabel = stats.find((stat) => stat.key === activeFilter)?.label;
 
   return (
     <MobileLayout>
@@ -141,12 +162,16 @@ export default function CitizenHome() {
           </div>
         </div>
         {/* Stats bar — calculada a partir dos dados reais */}
-        <div className={styles.statsBar}>
+        <div className={styles.statsBar} role="group" aria-label="Filtrar minhas ocorrências">
           {stats.map(s => (
-            <div key={s.label} className={styles.statItem}>
+            <button key={s.key} type="button"
+              className={[styles.statItem, activeFilter === s.key ? styles.statItemSelected : ''].join(' ')}
+              onClick={() => setActiveFilter(current => current === s.key ? 'all' : s.key)}
+              aria-pressed={activeFilter === s.key}
+              aria-label={`Filtrar por ${s.label}: ${s.value} ocorrência(s)`}>
               <span className={styles.statValue} style={{color: s.color}}>{s.value}</span>
               <span className={styles.statLabel}>{s.label}</span>
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -183,30 +208,47 @@ export default function CitizenHome() {
             </div>
 
             <div className={styles.ocorrenciasList}>
+              {activeFilter !== 'all' && !loading && (
+                <div className={styles.filterNotice}>
+                  <span>{activeFilterLabel}: {visibleOcorrencias.length}</span>
+                  <button type="button" onClick={() => setActiveFilter('all')}>Limpar filtro</button>
+                </div>
+              )}
               {loading && (
                 <p style={{ color: 'var(--text-secondary)', padding: '12px', fontSize: '0.85rem' }}>
                   Carregando...
                 </p>
               )}
-              {!loading && sortedOcorrencias.length === 0 && (
+              {!loading && visibleOcorrencias.length === 0 && (
                 <p style={{ color: 'var(--text-secondary)', padding: '12px', fontSize: '0.85rem' }}>
-                  Você ainda não tem solicitações. Clique em "+ Nova" para registrar um problema!
+                  {ocorrencias.length === 0 && activeFilter === 'all'
+                    ? 'Você ainda não tem solicitações. Clique em "+ Nova" para registrar um problema!'
+                    : 'Nenhuma ocorrência corresponde a este filtro.'}
                 </p>
               )}
-              {sortedOcorrencias.map(oc => {
+              {visibleOcorrencias.map(oc => {
                 const st = STATUS_MAP[oc.status] || { label: oc.status, bg: '#f1f5f9', color: '#666', border: '#ccc' };
+                const evaluationPending = oc.status === 'CONCLUIDA' && !hasCompleteEvaluation(oc);
                 return (
-                  <Link key={oc.id} to={"/app/protocolo/" + oc.id} className={styles.card}>
-                    <div className={styles.cardTop}>
-                      <div className={styles.cardInfo}>
-                        <p className={styles.cardTitle}>{oc.categoriaServico} — {oc.subcategoriaServico}</p>
-                        <p className={styles.cardLocal}>{oc.protocolo} · {oc.endereco || oc.gps}</p>
+                  <article key={oc.id} className={[styles.card, evaluationPending ? styles.cardNeedsEvaluation : ''].join(' ')}>
+                    <Link to={`/app/protocolo/${oc.id}`} className={styles.cardMain}>
+                      <div className={styles.cardTop}>
+                        <div className={styles.cardInfo}>
+                          <p className={styles.cardTitle}>{oc.categoriaServico} — {oc.subcategoriaServico}</p>
+                          <p className={styles.cardLocal}>{oc.protocolo} · {oc.endereco || oc.gps}</p>
+                        </div>
+                        <span className={styles.statusBadge} style={{background: st.bg, color: st.color, borderColor: st.border}}>
+                          {st.label}
+                        </span>
                       </div>
-                      <span className={styles.statusBadge} style={{background: st.bg, color: st.color, borderColor: st.border}}>
-                        {st.label}
-                      </span>
-                    </div>
-                  </Link>
+                    </Link>
+                    {evaluationPending && (
+                      <div className={styles.evaluationPrompt}>
+                        <span><Star size={14} fill="currentColor" /> Atendimento resolvido. Sua avaliação está pendente.</span>
+                        <Link to={`/app/avaliar/${oc.id}`}>Avaliar agora <ArrowRight size={14} /></Link>
+                      </div>
+                    )}
+                  </article>
                 );
               })}
             </div>

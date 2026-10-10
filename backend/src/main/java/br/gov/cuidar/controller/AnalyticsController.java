@@ -2,7 +2,11 @@ package br.gov.cuidar.controller;
 
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -10,6 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import br.gov.cuidar.dto.ApiResponse;
 import br.gov.cuidar.entity.Usuario;
@@ -35,6 +40,24 @@ public class AnalyticsController {
     }
 
     private record Escopo(Long orgaoId, Long equipeId) {}
+    private record Periodo(LocalDateTime inicio, LocalDateTime fim) {}
+
+    private Periodo resolverPeriodo(String inicio, String fim) {
+        LocalDate inicioData;
+        LocalDate fimData;
+        try {
+            fimData = fim == null || fim.isBlank() ? LocalDate.now() : LocalDate.parse(fim);
+            inicioData = inicio == null || inicio.isBlank() ? fimData.minusDays(29) : LocalDate.parse(inicio);
+        } catch (DateTimeParseException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "As datas devem usar o formato yyyy-MM-dd.", exception);
+        }
+        if (inicioData.isAfter(fimData)) {
+            LocalDate swap = inicioData;
+            inicioData = fimData;
+            fimData = swap;
+        }
+        return new Periodo(inicioData.atStartOfDay(), fimData.plusDays(1).atStartOfDay());
+    }
 
     private Escopo resolverEscopo(Usuario usuario, Long orgaoIdParam, Long equipeIdParam, String gestorParam) {
         if (usuario == null) {
@@ -82,10 +105,20 @@ public class AnalyticsController {
             @RequestParam(required = false) Long orgaoId,
             @RequestParam(required = false) Long equipeId,
             @RequestParam(required = false) String gestor,
+            @RequestParam(required = false) String inicio,
+            @RequestParam(required = false) String fim,
+            @RequestParam(required = false) String bairro,
+            @RequestParam(required = false) Integer diaNum,
+            @RequestParam(required = false) String turno,
             @AuthenticationPrincipal Usuario usuario) {
         Escopo escopo = resolverEscopo(usuario, orgaoId, equipeId, gestor);
+        Periodo periodo = resolverPeriodo(inicio, fim);
+        if (diaNum != null && (diaNum < 1 || diaNum > 7)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "diaNum deve estar entre 1 e 7.");
+        }
         return ResponseEntity.ok(ApiResponse.ok(
-            analyticsService.getDashboardAvancadoCompleto(escopo.orgaoId(), escopo.equipeId())
+            analyticsService.getDashboardAvancadoCompleto(escopo.orgaoId(), escopo.equipeId(), periodo.inicio(), periodo.fim(),
+                bairro == null || bairro.isBlank() ? null : bairro.trim(), diaNum, turno == null || turno.isBlank() ? null : turno.trim())
         ));
     }
 
@@ -94,10 +127,13 @@ public class AnalyticsController {
             @RequestParam(required = false) Long orgaoId,
             @RequestParam(required = false) Long equipeId,
             @RequestParam(required = false) String gestor,
+            @RequestParam(required = false) String inicio,
+            @RequestParam(required = false) String fim,
             @AuthenticationPrincipal Usuario usuario) {
         Escopo escopo = resolverEscopo(usuario, orgaoId, equipeId, gestor);
+        Periodo periodo = resolverPeriodo(inicio, fim);
         return ResponseEntity.ok(ApiResponse.ok(
-            analyticsService.getPerformanceEquipes(escopo.orgaoId(), escopo.equipeId())
+            analyticsService.getPerformanceEquipes(escopo.orgaoId(), escopo.equipeId(), periodo.inicio(), periodo.fim())
         ));
     }
 
@@ -106,10 +142,13 @@ public class AnalyticsController {
             @RequestParam(required = false) Long orgaoId,
             @RequestParam(required = false) Long equipeId,
             @RequestParam(required = false) String gestor,
+            @RequestParam(required = false) String inicio,
+            @RequestParam(required = false) String fim,
             @AuthenticationPrincipal Usuario usuario) {
         Escopo escopo = resolverEscopo(usuario, orgaoId, equipeId, gestor);
+        Periodo periodo = resolverPeriodo(inicio, fim);
         return ResponseEntity.ok(ApiResponse.ok(
-            analyticsService.getAnaliseSla(escopo.orgaoId(), escopo.equipeId())
+            analyticsService.getAnaliseSla(escopo.orgaoId(), escopo.equipeId(), periodo.inicio(), periodo.fim())
         ));
     }
 
@@ -118,10 +157,13 @@ public class AnalyticsController {
             @RequestParam(required = false) Long orgaoId,
             @RequestParam(required = false) Long equipeId,
             @RequestParam(required = false) String gestor,
+            @RequestParam(required = false) String inicio,
+            @RequestParam(required = false) String fim,
             @AuthenticationPrincipal Usuario usuario) {
         Escopo escopo = resolverEscopo(usuario, orgaoId, equipeId, gestor);
+        Periodo periodo = resolverPeriodo(inicio, fim);
         return ResponseEntity.ok(ApiResponse.ok(
-            analyticsService.getSatisfacaoCidadao(escopo.orgaoId(), escopo.equipeId())
+            analyticsService.getSatisfacaoCidadao(escopo.orgaoId(), escopo.equipeId(), periodo.inicio(), periodo.fim())
         ));
     }
 
@@ -130,10 +172,13 @@ public class AnalyticsController {
             @RequestParam(required = false) Long orgaoId,
             @RequestParam(required = false) Long equipeId,
             @RequestParam(required = false) String gestor,
+            @RequestParam(required = false) String inicio,
+            @RequestParam(required = false) String fim,
             @AuthenticationPrincipal Usuario usuario) {
         Escopo escopo = resolverEscopo(usuario, orgaoId, equipeId, gestor);
+        Periodo periodo = resolverPeriodo(inicio, fim);
         return ResponseEntity.ok(ApiResponse.ok(
-            analyticsService.getDistribuicaoTurnos(escopo.orgaoId(), escopo.equipeId())
+            analyticsService.getDistribuicaoTurnos(escopo.orgaoId(), escopo.equipeId(), periodo.inicio(), periodo.fim(), null)
         ));
     }
 
@@ -142,10 +187,13 @@ public class AnalyticsController {
             @RequestParam(required = false) Long orgaoId,
             @RequestParam(required = false) Long equipeId,
             @RequestParam(required = false) String gestor,
+            @RequestParam(required = false) String inicio,
+            @RequestParam(required = false) String fim,
             @AuthenticationPrincipal Usuario usuario) {
         Escopo escopo = resolverEscopo(usuario, orgaoId, equipeId, gestor);
+        Periodo periodo = resolverPeriodo(inicio, fim);
         return ResponseEntity.ok(ApiResponse.ok(
-            analyticsService.getGargalosUrbanos(escopo.orgaoId(), escopo.equipeId())
+            analyticsService.getGargalosUrbanos(escopo.orgaoId(), escopo.equipeId(), periodo.inicio(), periodo.fim(), null, null)
         ));
     }
 }

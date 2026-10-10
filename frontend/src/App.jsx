@@ -13,6 +13,7 @@ import Cadastro from './pages/auth/Cadastro';
 import CitizenHome from './pages/citizen/CitizenHome';
 import NovaSolicitacao from './pages/citizen/NovaSolicitacao';
 import Protocolo from './pages/citizen/Protocolo';
+import Protocolos from './pages/citizen/Protocolos';
 import Avaliar from './pages/citizen/Avaliar';
 
 // Admin pages
@@ -24,6 +25,7 @@ import Equipes from './pages/admin/Equipes';
 import Relatorios from './pages/admin/Relatorios';
 import Suporte from './pages/admin/Suporte';
 import Orgaos from './pages/admin/Orgaos';
+import OccurrenceDetail from './pages/OccurrenceDetail';
 
 function PrivateRoute({ children, role, roles }) {
   const { user } = useAuth();
@@ -47,11 +49,13 @@ function AppRoutes() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/cadastro" element={<Cadastro />} />
+      <Route path="/ocorrencia/protocolo/:protocolo" element={<PrivateRoute><OccurrenceDetail /></PrivateRoute>} />
+      <Route path="/ocorrencia/:id" element={<PrivateRoute><OccurrenceDetail /></PrivateRoute>} />
 
       {/* Citizen App */}
       <Route path="/app" element={<PrivateRoute><CitizenHome /></PrivateRoute>} />
       <Route path="/app/nova-solicitacao" element={<PrivateRoute><NovaSolicitacao /></PrivateRoute>} />
-      <Route path="/app/protocolo" element={<PrivateRoute><Protocolo /></PrivateRoute>} />
+      <Route path="/app/protocolo" element={<PrivateRoute><Protocolos /></PrivateRoute>} />
       <Route path="/app/protocolo/:id" element={<PrivateRoute><Protocolo /></PrivateRoute>} />
       <Route path="/app/avaliar" element={<PrivateRoute><Avaliar /></PrivateRoute>} />
       <Route path="/app/avaliar/:id" element={<PrivateRoute><Avaliar /></PrivateRoute>} />

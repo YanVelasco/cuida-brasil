@@ -211,8 +211,21 @@ As migrações do Flyway já populam automaticamente os dados iniciais, equipes,
 | **Gestor** | Roberto Oliveira Santos | `444.444.444-44` | `Gestor@123` | Equipe Saneamento 02 (SABESP) |
 | **Gestor** | Fernanda Lima Costa | `555.555.555-55` | `Gestor@123` | Equipe Poda 02 (COMCAP) |
 | **Gestor** | Gabriela Costa Mendes | `666.666.666-66` | `Gestor@123` | Equipe Limpeza 03 (COMCAP) |
-| **Cidadão** | Maria das Graças Souza | `222.222.222-22` | `Cidadao@123` | Cidadão Solicitante (8 chamados cadastrados) |
-| **Cidadão** | João Pedro Alves | `601.501.401-01` | `Cidadao@123` | Cidadão Solicitante |
+
+### Cidadãos de Teste
+
+As migrações V3 e V4 criam seis contas de cidadão com solicitações de exemplo. Todas usam a senha `Cidadao@123`:
+
+| Cidadão | CPF | E-mail | Senha | Dados semeados |
+| :--- | :--- | :--- | :--- | :--- |
+| Maria das Graças Souza | `222.222.222-22` | `maria.souza@email.com` | `Cidadao@123` | 8 solicitações |
+| João Pedro Alves | `601.501.401-01` | `joao.alves@email.com` | `Cidadao@123` | 3 solicitações |
+| Luciana Rodrigues Melo | `602.502.402-02` | `luciana.melo@email.com` | `Cidadao@123` | 4 solicitações |
+| Carlos Eduardo Nunes | `603.503.403-03` | `carlos.nunes@email.com` | `Cidadao@123` | 4 solicitações |
+| Patricia Souza Lima | `604.504.404-04` | `patricia.lima@email.com` | `Cidadao@123` | 4 solicitações |
+| Marcos Antonio Vieira | `605.505.405-05` | `marcos.vieira@email.com` | `Cidadao@123` | 5 solicitações |
+
+Os volumes acima correspondem aos registros de exemplo associados a cada conta nas migrações; eles não representam necessariamente o total atual após uso ou alterações no banco.
 
 ---
 

@@ -304,8 +304,10 @@ public class SolicitacaoService {
         return toResponse(solicitacao);
     }
 
-    public Response buscarPorProtocolo(String protocolo) {
-        return solicitacaoRepository.findByProtocolo(protocolo).map(this::toResponse).orElseThrow(() -> new RuntimeException("Nao encontrada"));
+    public Response buscarPorProtocolo(String protocolo, Usuario usuario) {
+        Solicitacao solicitacao = solicitacaoRepository.findByProtocolo(protocolo)
+                .orElseThrow(() -> new RuntimeException("Nao encontrada"));
+        return buscarPorId(solicitacao.getId(), usuario);
     }
 
     @Transactional
@@ -367,12 +369,25 @@ public class SolicitacaoService {
             throw new IllegalStateException("Você só pode avaliar sua própria solicitação");
         }
 
+        if (sol.getNotaPrazos() != null || sol.getNotaQualidade() != null || sol.getNotaAtendimento() != null
+                || (sol.getFeedbackComentario() != null && !sol.getFeedbackComentario().isBlank())) {
+            throw new IllegalStateException("Esta solicitação já recebeu uma avaliação e ela não pode ser editada.");
+        }
+
         if (req.getPrazos() != null) sol.setNotaPrazos(req.getPrazos());
         if (req.getQualidade() != null) sol.setNotaQualidade(req.getQualidade());
         if (req.getAtendimento() != null) sol.setNotaAtendimento(req.getAtendimento());
         if (req.getComentario() != null) sol.setFeedbackComentario(req.getComentario().trim());
 
         sol = solicitacaoRepository.save(sol);
+        Historico historicoAvaliacao = new Historico();
+        historicoAvaliacao.setAcao(String.format(
+            "Avaliação do cidadão registrada: prazos %d/5, qualidade %d/5 e atendimento %d/5.",
+            sol.getNotaPrazos(), sol.getNotaQualidade(), sol.getNotaAtendimento()));
+        historicoAvaliacao.setSolicitacao(sol);
+        historicoAvaliacao.setUsuario(usuario);
+        historicoRepository.save(historicoAvaliacao);
+
         auditoriaService.registrar("AVALIACAO_SOLICITACAO",
             "Solicitacao " + sol.getProtocolo() + " avaliada por " + usuario.getNome() + " com notas Prazos=" + sol.getNotaPrazos() + ", Qualidade=" + sol.getNotaQualidade() + ", Atendimento=" + sol.getNotaAtendimento(),
             usuario.getCpf(), usuario, true, null);

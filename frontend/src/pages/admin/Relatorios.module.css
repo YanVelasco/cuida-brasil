@@ -35,6 +35,7 @@
 .catTable tr:last-child td { border-bottom: none; }
 .selectableRow { cursor: pointer; transition: background-color 0.12s ease; }
 .selectableRow:hover { background: color-mix(in srgb, var(--primary) 7%, var(--surface)); }
+.selectableRow:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 
 .activeInsightFilter { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; padding: 9px 12px; border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--border)); border-radius: var(--radius-md); background: color-mix(in srgb, var(--primary) 6%, var(--surface)); color: var(--text-primary); font-size: 0.8rem; font-weight: 650; }
 .activeInsightFilter button { border: 0; background: transparent; color: var(--primary); font: inherit; font-weight: 700; cursor: pointer; }
@@ -182,7 +183,7 @@
 /* Grid Analítico Avançado */
 .advGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -199,6 +200,17 @@
 }
 .advCard:hover {
   box-shadow: 0 6px 24px rgba(0,0,0,0.06);
+}
+.advCardInteractive {
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.advCardInteractive:focus-visible, .feedbackCardInteractive:focus-visible, .bottleneckRow:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .advCardHeader {
@@ -290,6 +302,24 @@
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
+.bottleneckRow:hover {
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface));
+}
+.bottleneckRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
 .feedbackCardTop {
   display: flex;
   justify-content: space-between;
@@ -302,6 +332,10 @@
   font-weight: 700;
   color: var(--primary);
 }
+.feedbackProtocolLink { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.feedbackProtocolLink:hover { color: var(--text-primary); }
+.feedbackCategoryButton { border: 0; padding: 0; background: transparent; color: inherit; font: inherit; font-weight: inherit; cursor: pointer; }
+.feedbackCategoryButton:hover { text-decoration: underline; text-underline-offset: 2px; }
 .feedbackStars {
   font-size: 0.8rem;
   font-weight: 700;
@@ -398,4 +432,22 @@
 }
 .table tr:last-child td {
   border-bottom: none;
+}
+
+@media (max-width: 640px) {
+  .periodTabs { width: 100%; overflow-x: auto; }
+  .periodTab { flex: 0 0 auto; }
+  .customRange { width: 100%; }
+  .dateInput { min-width: 0; max-width: 100%; }
+  .exportBtn { margin-left: 0; }
+  .advGrid { grid-template-columns: minmax(0, 1fr); }
+  .advGrid > * { grid-column: 1 / -1 !important; }
+  .csatHero { flex-wrap: wrap; gap: 18px; text-align: center; }
+  .ratingDims { grid-template-columns: 1fr; }
+  .reportOverlay { padding: 8px; }
+  .reportHeader { padding: 16px; flex-wrap: wrap; }
+  .reportHeader > div:first-child { min-width: 0; }
+  .reportActions { width: 100%; justify-content: flex-end; }
+  .reportBody { padding: 16px; }
+  .reportBody .tableWrapper { max-width: calc(100vw - 64px); }
 }

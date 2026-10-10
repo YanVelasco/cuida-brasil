@@ -1,0 +1,43 @@
+.page { width: min(100%, 1120px); margin: 0 auto; padding: 22px 18px 40px; color: var(--text-primary); }
+.pageHeader { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.pageHeader h1 { margin: 0; font-size: 1.2rem; font-weight: 750; }
+.pageHeader p { margin: 4px 0 0; color: var(--text-secondary); font-size: .82rem; }
+.newButton { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; padding: 8px 13px; border-radius: var(--radius-md); background: var(--primary); color: #fff; font-size: .82rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.newButton:hover { filter: brightness(.95); text-decoration: none; }
+.filters { display: grid; grid-template-columns: minmax(240px, 1.7fr) repeat(3, minmax(145px, 1fr)) auto; gap: 9px; align-items: center; margin-bottom: 16px; }
+.searchField, .selectField { display: flex; align-items: center; gap: 7px; min-width: 0; height: 40px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--text-muted); }
+.searchField input, .selectField select { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text-primary); font: inherit; font-size: .8rem; }
+.searchField input::placeholder { color: var(--text-muted); }
+.selectField select { cursor: pointer; }
+.clearButton { justify-self: end; border: 0; padding: 8px 3px; background: transparent; color: var(--primary); font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.clearButton:hover { text-decoration: underline; text-underline-offset: 2px; }
+.protocolGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 12px; }
+.protocolCard { display: flex; flex-direction: column; justify-content: space-between; min-width: 0; padding: 15px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-sm); }
+.cardTop { min-width: 0; }
+.cardTitleBlock { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.protocolCode { color: var(--primary); font-family: monospace; font-size: .82rem; font-weight: 750; }
+.cardTop h2 { margin: 0 0 5px; font-size: .92rem; line-height: 1.35; }
+.location { margin: 0; color: var(--text-secondary); font-size: .78rem; overflow-wrap: anywhere; }
+.createdAt { margin: 8px 0 0; color: var(--text-muted); font-size: .72rem; }
+.cardActions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding-top: 11px; border-top: 1px solid var(--border); }
+.detailLink, .copyButton { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--primary); font: inherit; font-size: .77rem; font-weight: 700; text-decoration: none; cursor: pointer; }
+.detailLink:hover, .copyButton:hover { border-color: var(--primary); background: var(--primary-light); text-decoration: none; }
+.error { padding: 12px; border: 1px solid color-mix(in srgb, #EB5757 35%, var(--border)); border-radius: var(--radius-md); background: var(--surface); color: #EB5757; font-size: .84rem; }
+.emptyState { display: flex; flex-direction: column; align-items: center; gap: 9px; padding: 42px 18px; border: 1px dashed var(--border); border-radius: var(--radius-md); color: var(--text-muted); text-align: center; }
+.emptyState h2 { margin: 0; color: var(--text-primary); font-size: 1rem; }
+.emptyState p { margin: 0 0 6px; font-size: .82rem; }
+
+@media (max-width: 760px) {
+  .page { padding: 16px 12px 28px; }
+  .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .searchField { grid-column: 1 / -1; }
+  .clearButton { justify-self: start; }
+}
+
+@media (max-width: 420px) {
+  .pageHeader { align-items: flex-start; flex-direction: column; }
+  .newButton { width: 100%; }
+  .filters { grid-template-columns: minmax(0, 1fr); }
+  .searchField { grid-column: auto; }
+  .protocolCard { padding: 13px; }
+}

@@ -281,21 +281,28 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
                      THEN CAST(DATEDIFF(day, s.data_criacao, CAST(s.data_conclusao AS DATETIME2)) AS FLOAT) 
                      ELSE NULL END), 0), 1) AS tempo_medio_dias,
             ROUND(CASE WHEN COUNT(s.id) > 0 THEN (CAST(SUM(CASE WHEN s.status = 'CONCLUIDA' THEN 1 ELSE 0 END) AS FLOAT) / COUNT(s.id)) * 100 ELSE 0 END, 1) AS taxa_conclusao,
-            ROUND(ISNULL(AVG(CAST((ISNULL(s.nota_qualidade, 4) + ISNULL(s.nota_atendimento, 4) + ISNULL(s.nota_prazos, 4)) / 3.0 AS FLOAT)), 0), 1) AS nota_media,
+            ROUND(ISNULL(AVG(CASE
+                WHEN s.nota_qualidade IS NOT NULL OR s.nota_atendimento IS NOT NULL OR s.nota_prazos IS NOT NULL
+                THEN CAST((ISNULL(s.nota_qualidade, 0) + ISNULL(s.nota_atendimento, 0) + ISNULL(s.nota_prazos, 0)) * 1.0 /
+                    NULLIF((CASE WHEN s.nota_qualidade IS NOT NULL THEN 1 ELSE 0 END +
+                            CASE WHEN s.nota_atendimento IS NOT NULL THEN 1 ELSE 0 END +
+                            CASE WHEN s.nota_prazos IS NOT NULL THEN 1 ELSE 0 END), 0) AS FLOAT)
+                ELSE NULL END), 0), 1) AS nota_media,
             DENSE_RANK() OVER (ORDER BY 
                 (CASE WHEN COUNT(s.id) > 0 THEN (CAST(SUM(CASE WHEN s.status = 'CONCLUIDA' THEN 1 ELSE 0 END) AS FLOAT) / COUNT(s.id)) * 100 ELSE 0 END) DESC,
                 SUM(CASE WHEN s.status = 'CONCLUIDA' THEN 1 ELSE 0 END) DESC
             ) AS rank_posicao
         FROM TB_EQUIPE_PUBLICA e
         JOIN TB_ORGAO_PUBLICO o ON o.id = e.id_orgao
-        LEFT JOIN TB_SOLICITACAO s ON s.id_equipe = e.id
+        LEFT JOIN TB_SOLICITACAO s ON s.id_equipe = e.id AND s.data_criacao >= :inicio AND s.data_criacao < :fim
         WHERE e.ativo = 1
           AND (:orgaoId IS NULL OR e.id_orgao = :orgaoId)
           AND (:equipeId IS NULL OR e.id = :equipeId)
         GROUP BY e.id, e.nome, o.sigla
         ORDER BY rank_posicao ASC
         """, nativeQuery = true)
-    List<Object[]> queryPerformanceEquipesAvancada(@Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId);
+        List<Object[]> queryPerformanceEquipesAvancada(@Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId,
+            @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
 
     /**
      * 2. Análise de Cumprimento de SLA por Categoria com CTE
@@ -323,6 +330,7 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
             WHERE s.status <> 'CANCELADA'
               AND (:orgaoId IS NULL OR e.id_orgao = :orgaoId)
               AND (:equipeId IS NULL OR s.id_equipe = :equipeId)
+              AND s.data_criacao >= :inicio AND s.data_criacao < :fim
         )
         SELECT 
             categoria,
@@ -342,7 +350,8 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
         GROUP BY categoria
         ORDER BY total_demandas DESC
         """, nativeQuery = true)
-    List<Object[]> queryAnaliseSlaAvancada(@Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId);
+        List<Object[]> queryAnaliseSlaAvancada(@Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId,
+            @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
 
     /**
      * 3. Satisfação do Cidadão (CSAT, Breakdown de Notas 1-5, Médias por Dimensão)
@@ -369,14 +378,17 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
         WHERE (s.nota_qualidade IS NOT NULL OR s.nota_prazos IS NOT NULL OR s.nota_atendimento IS NOT NULL)
           AND (:orgaoId IS NULL OR e.id_orgao = :orgaoId)
           AND (:equipeId IS NULL OR s.id_equipe = :equipeId)
+                    AND s.data_criacao >= :inicio AND s.data_criacao < :fim
         """, nativeQuery = true)
-    List<Object[]> queryAnaliseSatisfacaoAvancada(@Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId);
+        List<Object[]> queryAnaliseSatisfacaoAvancada(@Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId,
+                        @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
 
     /**
      * 4. Feedbacks Recentes com Protocolo, Cidadão, Nota Média e Comentário
      */
     @Query(value = """
         SELECT TOP 6 
+            s.id,
             s.protocolo,
             srv.categoria,
             s.feedback_comentario,
@@ -390,9 +402,11 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
         WHERE s.feedback_comentario IS NOT NULL AND LEN(s.feedback_comentario) > 0
           AND (:orgaoId IS NULL OR e.id_orgao = :orgaoId)
           AND (:equipeId IS NULL OR s.id_equipe = :equipeId)
+                    AND s.data_criacao >= :inicio AND s.data_criacao < :fim
         ORDER BY s.id DESC
         """, nativeQuery = true)
-    List<Object[]> queryFeedbacksRecentesAvancados(@Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId);
+        List<Object[]> queryFeedbacksRecentesAvancados(@Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId,
+                        @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim);
 
     /**
      * 5. Distribuição de Chamados por Turno e Dia da Semana
@@ -420,6 +434,16 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
         LEFT JOIN TB_EQUIPE_PUBLICA e ON e.id = s.id_equipe
         WHERE (:orgaoId IS NULL OR e.id_orgao = :orgaoId)
           AND (:equipeId IS NULL OR s.id_equipe = :equipeId)
+          AND s.data_criacao >= :inicio AND s.data_criacao < :fim
+          AND (:bairro IS NULL OR
+               CASE
+                   WHEN s.endereco IS NOT NULL AND CHARINDEX('-', s.endereco) > 0
+                        AND CHARINDEX(',', s.endereco, CHARINDEX('-', s.endereco)) > 0
+                   THEN LTRIM(RTRIM(SUBSTRING(s.endereco, CHARINDEX('-', s.endereco) + 1,
+                        CHARINDEX(',', s.endereco, CHARINDEX('-', s.endereco)) - CHARINDEX('-', s.endereco) - 1)))
+                   WHEN s.endereco IS NOT NULL AND LEN(s.endereco) > 0 THEN SUBSTRING(s.endereco, 1, 35)
+                   ELSE 'Centro Histórico'
+               END = :bairro)
         GROUP BY 
             DATEPART(dw, s.data_criacao),
             CASE 
@@ -428,9 +452,10 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
                 WHEN DATEPART(hour, s.data_criacao) BETWEEN 18 AND 23 THEN 'Noite'
                 ELSE 'Madrugada'
             END
-        ORDER BY dia_num
+        ORDER BY dia_num, turno
         """, nativeQuery = true)
-    List<Object[]> queryDistribuicaoTurnosAvancada(@Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId);
+        List<Object[]> queryDistribuicaoTurnosAvancada(@Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId,
+            @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim, @Param("bairro") String bairro);
 
     /**
      * 6. Gargalos Urbanos por Bairro com DENSE_RANK() e Backlog
@@ -462,6 +487,14 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
             LEFT JOIN TB_EQUIPE_PUBLICA e ON e.id = s.id_equipe
             WHERE (:orgaoId IS NULL OR e.id_orgao = :orgaoId)
               AND (:equipeId IS NULL OR s.id_equipe = :equipeId)
+                            AND s.data_criacao >= :inicio AND s.data_criacao < :fim
+                            AND (:diaNum IS NULL OR DATEPART(dw, s.data_criacao) = :diaNum)
+                            AND (:turno IS NULL OR CASE
+                                        WHEN DATEPART(hour, s.data_criacao) BETWEEN 6 AND 11 THEN 'Manhã'
+                                        WHEN DATEPART(hour, s.data_criacao) BETWEEN 12 AND 17 THEN 'Tarde'
+                                        WHEN DATEPART(hour, s.data_criacao) BETWEEN 18 AND 23 THEN 'Noite'
+                                        ELSE 'Madrugada'
+                                    END = :turno)
             GROUP BY 
                 CASE 
                     WHEN s.endereco IS NOT NULL AND CHARINDEX('-', s.endereco) > 0 
@@ -484,5 +517,7 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
         WHERE LEN(bairro) > 2
         ORDER BY rank_criticidade ASC
         """, nativeQuery = true)
-    List<Object[]> queryGargalosUrbanosAvancados(@Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId);
+        List<Object[]> queryGargalosUrbanosAvancados(@Param("orgaoId") Long orgaoId, @Param("equipeId") Long equipeId,
+            @Param("inicio") LocalDateTime inicio, @Param("fim") LocalDateTime fim,
+            @Param("diaNum") Integer diaNum, @Param("turno") String turno);
 }

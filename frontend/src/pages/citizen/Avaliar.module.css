@@ -14,6 +14,13 @@
 .icon { font-size: 3rem; }
 .success h2 { font-size: 1.3rem; font-weight: 700; }
 .success p { color: var(--text-secondary); max-width: 260px; }
+.savedRatings { display: grid; width: min(100%, 420px); gap: 8px; text-align: left; }
+.savedRating { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--background); }
+.savedRating > span { color: var(--text-secondary); font-size: .82rem; }
+.savedStars { display: flex; align-items: center; gap: 3px; color: #f59e0b; }
+.savedStars strong { margin-left: 5px; color: var(--text-primary); font-size: .78rem; white-space: nowrap; }
+.savedComment { width: min(100%, 420px); margin: 0; padding: 12px 14px; border-left: 3px solid var(--primary); background: var(--background); color: var(--text-secondary); text-align: left; font-size: .88rem; line-height: 1.5; white-space: pre-wrap; }
+.error { margin: 0; padding: 10px 12px; border: 1px solid color-mix(in srgb, #EB5757 35%, var(--border)); border-radius: var(--radius-md); background: color-mix(in srgb, #EB5757 7%, var(--surface)); color: #EB5757; font-size: 0.82rem; line-height: 1.4; }
 
 @media (min-width: 769px) {
   .header {

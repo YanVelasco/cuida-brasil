@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,8 +34,8 @@ public class AnalyticsService {
         return val instanceof Number n ? n.intValue() : 0;
     }
 
-    public List<Map<String, Object>> getPerformanceEquipes(Long orgaoId, Long equipeId) {
-        List<Object[]> rows = solicitacaoRepository.queryPerformanceEquipesAvancada(orgaoId, equipeId);
+    public List<Map<String, Object>> getPerformanceEquipes(Long orgaoId, Long equipeId, LocalDateTime inicio, LocalDateTime fim) {
+        List<Object[]> rows = solicitacaoRepository.queryPerformanceEquipesAvancada(orgaoId, equipeId, inicio, fim);
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object[] r : rows) {
             Map<String, Object> item = new LinkedHashMap<>();
@@ -53,11 +55,11 @@ public class AnalyticsService {
     }
 
     public List<Map<String, Object>> getPerformanceEquipes() {
-        return getPerformanceEquipes(null, null);
+        return getPerformanceEquipes(null, null, defaultStart(), defaultEnd());
     }
 
-    public List<Map<String, Object>> getAnaliseSla(Long orgaoId, Long equipeId) {
-        List<Object[]> rows = solicitacaoRepository.queryAnaliseSlaAvancada(orgaoId, equipeId);
+    public List<Map<String, Object>> getAnaliseSla(Long orgaoId, Long equipeId, LocalDateTime inicio, LocalDateTime fim) {
+        List<Object[]> rows = solicitacaoRepository.queryAnaliseSlaAvancada(orgaoId, equipeId, inicio, fim);
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object[] r : rows) {
             Map<String, Object> item = new LinkedHashMap<>();
@@ -75,11 +77,11 @@ public class AnalyticsService {
     }
 
     public List<Map<String, Object>> getAnaliseSla() {
-        return getAnaliseSla(null, null);
+        return getAnaliseSla(null, null, defaultStart(), defaultEnd());
     }
 
-    public Map<String, Object> getSatisfacaoCidadao(Long orgaoId, Long equipeId) {
-        List<Object[]> rows = solicitacaoRepository.queryAnaliseSatisfacaoAvancada(orgaoId, equipeId);
+    public Map<String, Object> getSatisfacaoCidadao(Long orgaoId, Long equipeId, LocalDateTime inicio, LocalDateTime fim) {
+        List<Object[]> rows = solicitacaoRepository.queryAnaliseSatisfacaoAvancada(orgaoId, equipeId, inicio, fim);
         Map<String, Object> result = new LinkedHashMap<>();
         if (!rows.isEmpty()) {
             Object[] r = rows.get(0);
@@ -107,42 +109,44 @@ public class AnalyticsService {
             result.put("distribuicaoEstrelas", Map.of("5", 0L, "4", 0L, "3", 0L, "2", 0L, "1", 0L));
         }
 
-        result.put("feedbacksRecentes", getFeedbacksRecentes(orgaoId, equipeId));
+        result.put("feedbacksRecentes", getFeedbacksRecentes(orgaoId, equipeId, inicio, fim));
         return result;
     }
 
     public Map<String, Object> getSatisfacaoCidadao() {
-        return getSatisfacaoCidadao(null, null);
+        return getSatisfacaoCidadao(null, null, defaultStart(), defaultEnd());
     }
 
-    public List<Map<String, Object>> getFeedbacksRecentes(Long orgaoId, Long equipeId) {
-        List<Object[]> rows = solicitacaoRepository.queryFeedbacksRecentesAvancados(orgaoId, equipeId);
+    public List<Map<String, Object>> getFeedbacksRecentes(Long orgaoId, Long equipeId, LocalDateTime inicio, LocalDateTime fim) {
+        List<Object[]> rows = solicitacaoRepository.queryFeedbacksRecentesAvancados(orgaoId, equipeId, inicio, fim);
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object[] r : rows) {
             Map<String, Object> item = new LinkedHashMap<>();
-            item.put("protocolo", r[0]);
-            item.put("categoria", r[1]);
-            item.put("comentario", r[2]);
-            item.put("mediaNota", toDouble(r[3]));
-            item.put("cidadao", r[4]);
-            item.put("dataConclusao", r[5]);
+            item.put("id", r[0]);
+            item.put("protocolo", r[1]);
+            item.put("categoria", r[2]);
+            item.put("comentario", r[3]);
+            item.put("mediaNota", toDouble(r[4]));
+            item.put("cidadao", r[5]);
+            item.put("dataConclusao", r[6]);
             result.add(item);
         }
         return result;
     }
 
     public List<Map<String, Object>> getFeedbacksRecentes() {
-        return getFeedbacksRecentes(null, null);
+        return getFeedbacksRecentes(null, null, defaultStart(), defaultEnd());
     }
 
-    public List<Map<String, Object>> getDistribuicaoTurnos(Long orgaoId, Long equipeId) {
-        List<Object[]> rows = solicitacaoRepository.queryDistribuicaoTurnosAvancada(orgaoId, equipeId);
+    public List<Map<String, Object>> getDistribuicaoTurnos(Long orgaoId, Long equipeId, LocalDateTime inicio, LocalDateTime fim, String bairro) {
+        List<Object[]> rows = solicitacaoRepository.queryDistribuicaoTurnosAvancada(orgaoId, equipeId, inicio, fim, bairro);
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object[] r : rows) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("diaNum", r[0]);
             item.put("diaNome", r[1]);
             item.put("turno", r[2]);
+            item.put("periodo", r[1] + " · " + r[2]);
             item.put("total", toLong(r[3]));
             result.add(item);
         }
@@ -150,11 +154,12 @@ public class AnalyticsService {
     }
 
     public List<Map<String, Object>> getDistribuicaoTurnos() {
-        return getDistribuicaoTurnos(null, null);
+        return getDistribuicaoTurnos(null, null, defaultStart(), defaultEnd(), null);
     }
 
-    public List<Map<String, Object>> getGargalosUrbanos(Long orgaoId, Long equipeId) {
-        List<Object[]> rows = solicitacaoRepository.queryGargalosUrbanosAvancados(orgaoId, equipeId);
+    public List<Map<String, Object>> getGargalosUrbanos(Long orgaoId, Long equipeId, LocalDateTime inicio, LocalDateTime fim,
+            Integer diaNum, String turno) {
+        List<Object[]> rows = solicitacaoRepository.queryGargalosUrbanosAvancados(orgaoId, equipeId, inicio, fim, diaNum, turno);
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object[] r : rows) {
             Map<String, Object> item = new LinkedHashMap<>();
@@ -172,20 +177,29 @@ public class AnalyticsService {
     }
 
     public List<Map<String, Object>> getGargalosUrbanos() {
-        return getGargalosUrbanos(null, null);
+        return getGargalosUrbanos(null, null, defaultStart(), defaultEnd(), null, null);
     }
 
-    public Map<String, Object> getDashboardAvancadoCompleto(Long orgaoId, Long equipeId) {
+    public Map<String, Object> getDashboardAvancadoCompleto(Long orgaoId, Long equipeId, LocalDateTime inicio, LocalDateTime fim,
+            String bairro, Integer diaNum, String turno) {
         Map<String, Object> consolidated = new LinkedHashMap<>();
-        consolidated.put("performanceEquipes", getPerformanceEquipes(orgaoId, equipeId));
-        consolidated.put("analiseSla", getAnaliseSla(orgaoId, equipeId));
-        consolidated.put("satisfacaoCidadao", getSatisfacaoCidadao(orgaoId, equipeId));
-        consolidated.put("distribuicaoTurnos", getDistribuicaoTurnos(orgaoId, equipeId));
-        consolidated.put("gargalosUrbanos", getGargalosUrbanos(orgaoId, equipeId));
+        consolidated.put("performanceEquipes", getPerformanceEquipes(orgaoId, equipeId, inicio, fim));
+        consolidated.put("analiseSla", getAnaliseSla(orgaoId, equipeId, inicio, fim));
+        consolidated.put("satisfacaoCidadao", getSatisfacaoCidadao(orgaoId, equipeId, inicio, fim));
+        consolidated.put("distribuicaoTurnos", getDistribuicaoTurnos(orgaoId, equipeId, inicio, fim, bairro));
+        consolidated.put("gargalosUrbanos", getGargalosUrbanos(orgaoId, equipeId, inicio, fim, diaNum, turno));
         return consolidated;
     }
 
     public Map<String, Object> getDashboardAvancadoCompleto() {
-        return getDashboardAvancadoCompleto(null, null);
+        return getDashboardAvancadoCompleto(null, null, defaultStart(), defaultEnd(), null, null, null);
+    }
+
+    private LocalDateTime defaultStart() {
+        return LocalDate.now().minusDays(29).atStartOfDay();
+    }
+
+    private LocalDateTime defaultEnd() {
+        return LocalDate.now().plusDays(1).atStartOfDay();
     }
 }
